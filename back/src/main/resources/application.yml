@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: final-project-backend
+  
+  # 데이터베이스 설정
+  datasource:
+    url: jdbc:mysql://localhost:3306/final_project?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+  
+  # Redis 설정
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-here-make-it-long-and-secure}
+  expiration: 86400000 # 24시간
+
+# 서버 설정
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# 로깅 설정
+logging:
+  level:
+    com.example: DEBUG
+    org.springframework.security: DEBUG
+
