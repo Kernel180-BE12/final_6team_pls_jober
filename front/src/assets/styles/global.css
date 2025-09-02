@@ -1,0 +1,193 @@
+/* 전역 스타일 */
+
+/* 기본 폰트 및 색상 설정 */
+:root {
+  --primary-yellow: #FFE066;
+  --primary-green: #00C851;
+  --light-yellow: #FFF8E1;
+  --light-green: #F1F8E9;
+  --text-dark: #333333;
+  --text-gray: #666666;
+  --text-light-gray: #999999;
+  --white: #FFFFFF;
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  --shadow-medium: rgba(0, 0, 0, 0.15);
+  --shadow-heavy: rgba(0, 0, 0, 0.25);
+}
+
+/* 기본 body 스타일 */
+body {
+  font-family: 'Noto Sans KR', 'Arial', sans-serif;
+  background: linear-gradient(135deg, #FFF8E1 0%, #FFFDE7 50%, #F1F8E9 100%);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* 스크롤바 스타일링 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 커스텀 애니메이션 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 유틸리티 클래스 */
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+
+/* 카드 공통 스타일 */
+.custom-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 버튼 공통 스타일 */
+.btn-primary {
+  background: linear-gradient(135deg, #00C851 0%, #00A843 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  box-shadow: 0 4px 12px rgba(0, 200, 81, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 200, 81, 0.4) !important;
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #FFE066 0%, #FFD700 100%) !important;
+  color: #333 !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  box-shadow: 0 4px 12px rgba(255, 224, 102, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 224, 102, 0.4) !important;
+}
+
+/* 입력 필드 공통 스타일 */
+.v-text-field .v-field {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+.v-text-field .v-field--focused {
+  background: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 4px 12px rgba(0, 200, 81, 0.15) !important;
+}
+
+/* 반응형 텍스트 크기 */
+@media (max-width: 1200px) {
+  .hero-title {
+    font-size: 3rem !important;
+  }
+}
+
+@media (max-width: 960px) {
+  .hero-title {
+    font-size: 2.5rem !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero-title {
+    font-size: 2rem !important;
+  }
+}
+
+/* 로딩 스피너 커스터마이징 */
+.v-progress-circular {
+  color: var(--primary-green) !important;
+}
+
+/* 다이얼로그 스타일 */
+.v-dialog .v-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(15px) !important;
+  border-radius: 16px !important;
+}
+
+/* 알림/스낵바 스타일 */
+.v-snackbar {
+  border-radius: 12px !important;
+}
+
+.v-snackbar--variant-flat.bg-success {
+  background: linear-gradient(135deg, #00C851 0%, #00A843 100%) !important;
+}
+
+.v-snackbar--variant-flat.bg-error {
+  background: linear-gradient(135deg, #FF5722 0%, #E64A19 100%) !important;
+}
+
+/* 포커스 아웃라인 제거 및 커스터마이징 */
+.v-btn:focus-visible {
+  outline: 2px solid var(--primary-green);
+  outline-offset: 2px;
+}
+
+.v-text-field input:focus-visible {
+  outline: none;
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 다크 모드 지원 (추후 확장 가능) */
+@media (prefers-color-scheme: dark) {
+  /* 다크 모드 스타일은 필요시 추가 */
+}
