@@ -27,6 +27,10 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(ai_routes.router)
 
+# 템플릿 라우터 추가
+from routers import template_routes
+app.include_router(template_routes.router)
+
 # Pydantic 모델
 class ChatRequest(BaseModel):
     message: str
