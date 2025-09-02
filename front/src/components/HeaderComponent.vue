@@ -8,7 +8,7 @@
     <v-container fluid class="d-flex align-center">
       <!-- 로고 -->
       <v-app-bar-title class="logo-text">
-        pls jober
+        Pls Jober
       </v-app-bar-title>
 
       <!-- 네비게이션 메뉴 -->
@@ -31,7 +31,7 @@
           rounded="pill"
           size="large"
         >
-          지원 입출하기
+          템플릿 만들기기
         </v-btn>
       </div>
     </v-container>
