@@ -10,8 +10,7 @@ test: 테스트 코드 관련 작업
 chore: 빌드/패키지 매니저 설정 등 기타 변경
 -->
 
-타입: [ ] feat | [ ] fix | [ ] refactor | [ ] docs | [ ] style | [ ] test | [ ] chore  
-제목: 
+# 제목: 
 
 ---
 
