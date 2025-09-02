@@ -10,13 +10,14 @@
         <section class="hero-section">
           <v-container class="hero-container">
             <v-row justify="center" align="center" class="min-height-screen">
+              <!-- 왼쪽 콘텐츠 -->
               <v-col cols="12" md="6" class="text-center">
                 <div class="hero-content">
                   <h1 class="hero-title mb-4">
-                    메시지 생성부터 발송까지
+                    AI 메시징 플랫폼
                   </h1>
                   <p class="hero-subtitle mb-8">
-                    메시징 AI 에이전트, 자버
+                    스마트한 메시지 관리 솔루션
                   </p>
                   
                   <div class="hero-buttons mb-8">
@@ -28,7 +29,7 @@
                       rounded="pill"
                       @click="currentView = 'register'"
                     >
-                      상담 신청
+                      시작하기
                     </v-btn>
                     
                     <v-btn
@@ -37,18 +38,18 @@
                       size="x-large"
                       class="hero-btn"
                       rounded="pill"
-                      @click="showAuthModal = true"
+                      @click="currentView = 'login'"
                     >
-                      무료로 발송하기 →
+                      로그인 →
                     </v-btn>
                   </div>
                 </div>
               </v-col>
               
-              <v-col cols="12" md="6" class="text-center">
+              <!-- 오른쪽 인증 폼 (동적으로 표시) -->
+              <v-col cols="12" md="6" class="text-center" v-if="currentView">
                 <div class="auth-section">
-                  <!-- 인증 폼들 -->
-                  <transition name="fade" mode="out-in">
+                  <transition name="slide-fade" mode="out-in">
                     <LoginComponent 
                       v-if="currentView === 'login'"
                       @switchTo="switchView"
@@ -67,33 +68,8 @@
             </v-row>
           </v-container>
         </section>
-        
-        <!-- 하단 문의 섹션 -->
-        <section class="inquiry-section">
-          <v-container>
-            <v-row justify="center">
-              <v-col cols="12" class="text-center">
-                <div class="inquiry-content">
-                  <h3 class="inquiry-title mb-4">무엇을 발송할 수 있나요?</h3>
-                  
-                  <!-- 채팅 아이콘 -->
-                  <div class="chat-icon">
-                    <v-avatar size="60" color="#333">
-                      <v-icon icon="mdi-chat" size="30" color="white"></v-icon>
-                    </v-avatar>
-                  </div>
-                </div>
-              </v-col>
-            </v-row>
-          </v-container>
-        </section>
       </v-container>
     </v-main>
-    
-    <!-- 모달 (필요시) -->
-    <v-dialog v-model="showAuthModal" max-width="500">
-      <LoginComponent @switchTo="switchView" />
-    </v-dialog>
   </div>
 </template>
 
@@ -105,13 +81,11 @@ import RegisterComponent from '@/components/RegisterComponent.vue'
 import ForgotPasswordComponent from '@/components/ForgotPasswordComponent.vue'
 
 // Reactive data
-const currentView = ref('login')
-const showAuthModal = ref(false)
+const currentView = ref('')
 
 // Methods
 const switchView = (view: string) => {
   currentView.value = view
-  showAuthModal.value = false
 }
 </script>
 
@@ -122,11 +96,11 @@ const switchView = (view: string) => {
 }
 
 .main-content {
-  padding-top: 70px; /* 헤더 높이만큼 여백 */
+  padding-top: 50px; /* 헤더 높이만큼 여백을 줄임 */
 }
 
 .hero-section {
-  min-height: calc(100vh - 70px);
+  min-height: calc(100vh - 50px); /* 헤더 높이를 반영하여 조정 */
   display: flex;
   align-items: center;
   background: linear-gradient(135deg, rgba(255, 248, 225, 0.9) 0%, rgba(255, 253, 231, 0.9) 50%, rgba(241, 248, 233, 0.9) 100%);
@@ -137,15 +111,15 @@ const switchView = (view: string) => {
 }
 
 .min-height-screen {
-  min-height: calc(100vh - 140px);
+  min-height: calc(100vh - 120px); /* 전체 높이를 줄여서 스크롤 방지 */
 }
 
 .hero-content {
-  padding: 2rem 0;
+  padding: 1.5rem 0; /* 패딩을 줄여서 공간 절약 */
 }
 
 .hero-title {
-  font-size: 3.5rem !important;
+  font-size: 3rem !important; /* 제목 크기를 약간 줄임 */
   font-weight: 700;
   color: #333;
   line-height: 1.2;
@@ -153,10 +127,10 @@ const switchView = (view: string) => {
 }
 
 .hero-subtitle {
-  font-size: 1.5rem;
+  font-size: 1.3rem; /* 부제목 크기를 약간 줄임 */
   color: #666;
   font-weight: 400;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem; /* 마진을 줄임 */
 }
 
 .hero-buttons {
@@ -164,13 +138,14 @@ const switchView = (view: string) => {
   gap: 1rem;
   justify-content: center;
   flex-wrap: wrap;
+  margin-bottom: 1.5rem; /* 마진을 줄임 */
 }
 
 .hero-btn {
   font-weight: 600 !important;
   text-transform: none !important;
   padding: 0 2rem !important;
-  height: 56px !important;
+  height: 52px !important; /* 버튼 높이를 약간 줄임 */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
 }
@@ -181,42 +156,31 @@ const switchView = (view: string) => {
 }
 
 .auth-section {
-  padding: 2rem 1rem;
+  padding: 1.5rem 1rem; /* 패딩을 줄여서 공간 절약 */
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 500px;
+  min-height: 450px; /* 최소 높이를 줄임 */
+  width: 100%; /* 전체 너비 사용 */
+  max-width: none; /* 최대 너비 제한 제거 */
 }
 
-.inquiry-section {
-  background: rgba(255, 255, 255, 0.7);
-  padding: 4rem 0;
-  backdrop-filter: blur(10px);
+/* 슬라이드 애니메이션 */
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
 }
 
-.inquiry-title {
-  font-size: 2rem;
-  font-weight: 600;
-  color: #333;
+.slide-fade-leave-active {
+  transition: all 0.3s ease-in;
 }
 
-.inquiry-content {
-  max-width: 600px;
-  margin: 0 auto;
+.slide-fade-enter-from {
+  transform: translateX(30px);
+  opacity: 0;
 }
 
-.chat-icon {
-  margin-top: 2rem;
-  display: flex;
-  justify-content: center;
-}
-
-/* 애니메이션 */
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from, .fade-leave-to {
+.slide-fade-leave-to {
+  transform: translateX(-30px);
   opacity: 0;
 }
 
