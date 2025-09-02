@@ -1,478 +1,406 @@
 <template>
-  <div class="template-result-page">
-    <!-- 헤더 -->
-    <HeaderComponent />
-    
-    <!-- 메인 콘텐츠 -->
-    <v-main class="main-content">
-      <v-container fluid class="pa-0">
-        <section class="result-section">
-          <v-container class="result-container">
-            <v-row>
-              <!-- 왼쪽 섹션: 템플릿 편집 -->
-              <v-col cols="12" lg="6" class="left-section">
-                <div class="edit-content">
-                  <!-- 생성된 템플릿 내용 -->
-                  <div class="template-box mb-6">
-                    <div class="template-content">
-                      <p class="template-text">
-                        안녕하세요. ○○병원입니다. 예약하신 진료 일정 안내드립니다.
-                      </p>
-                      <ul class="template-list">
-                        <li>- 일시: 25.09.05(금) 14:30</li>
-                        <li>- 장소: ○○병원 3층 내과 진료실</li>
-                      </ul>
-                      <p class="template-text">
-                        예약 시간 10분 전 도착 부탁드립니다.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <!-- 버전 정보 -->
-                  <div class="version-info mb-6">
-                    <v-btn
-                      color="#333"
-                      variant="outlined"
-                      class="version-btn"
-                      rounded="pill"
-                    >
-                      버전 1 >
-                    </v-btn>
-                  </div>
-                  
-                  <!-- 생성 설명 -->
-                  <div class="generation-info mb-6">
-                    <p class="info-text">
-                      {{ selectedCategoryName }} 카테고리에 대한 카카오 알림톡 템플릿이 생성되었습니다. 
-                      '사전 승인된 알림톡'을 기반으로 총 4개 변수가 적용되었으며, 
-                      '이 카톡 발송하기'에서 자유롭게 수정하실 수 있습니다.
-                    </p>
-                  </div>
-                  
-                  <!-- 추가 입력 필드 -->
-                  <div class="additional-input mb-6">
-                    <v-text-field
-                      v-model="additionalMessage"
-                      label="발송하고 싶은 내용을 입력해주세요"
-                      variant="outlined"
-                      class="additional-field"
-                      append-inner-icon="mdi-arrow-up"
-                      @click:append-inner="sendAdditionalMessage"
-                    ></v-text-field>
-                  </div>
-                  
-                  <!-- 정정 횟수 -->
-                  <div class="correction-count">
-                    <div class="correction-bar">
-                      <div class="correction-fill" :style="{ width: correctionPercentage + '%' }"></div>
-                    </div>
-                    <p class="correction-text">남은 정정 횟수: {{ remainingCorrections }}/3</p>
-                  </div>
-                </div>
-              </v-col>
+  <div class="template-result-container">
+    <v-container class="h-100 pa-0">
+      <div class="content-wrapper">
+        <!-- 제목 및 설명 -->
+        <div class="header-section">
+          <h1 class="page-title">템플릿 생성 완료</h1>
+          <p class="page-description">
+            AI가 생성한 카카오 알림톡 템플릿을 확인하고 수정할 수 있습니다
+          </p>
+        </div>
+        
+        <!-- 메인 콘텐츠 영역 -->
+        <div class="main-content">
+          <!-- 왼쪽: 템플릿 정보 -->
+          <div class="template-info-section">
+            <div class="info-card">
+              <h3 class="section-title">생성된 템플릿 정보</h3>
               
-              <!-- 오른쪽 섹션: 미리보기 -->
-              <v-col cols="12" lg="6" class="right-section">
-                <div class="preview-content">
-                  <!-- 컨트롤 바 -->
-                  <div class="control-bar mb-4">
-                    <div class="toggle-section">
-                      <span class="toggle-label">변수값 표시</span>
-                      <v-switch
-                        v-model="showVariables"
-                        color="#00C851"
-                        hide-details
-                      ></v-switch>
-                    </div>
-                    <v-btn
-                      color="#9C27B0"
-                      variant="flat"
-                      class="send-btn"
-                      rounded="pill"
-                      size="large"
-                    >
-                      이 카톡 발송하기
-                    </v-btn>
-                  </div>
-                  
-                  <!-- 메시지 미리보기 -->
-                  <div class="message-preview">
-                    <div class="preview-header">
-                      <span class="preview-title">알림톡 도착</span>
-                    </div>
-                    <div class="preview-content">
-                      <div class="preview-icon">
-                        <v-icon icon="mdi-calendar-check" size="40" color="#00C851"></v-icon>
-                      </div>
-                      <h3 class="preview-main-title">예약 안내</h3>
-                      <p class="preview-main-text">
-                        안녕하세요 고객님. 예약 일정 안내드립니다.
-                      </p>
-                      <div class="preview-details">
-                        <div class="detail-item">
-                          <span class="detail-icon">▶</span>
-                          <span class="detail-text">예약자: 고객</span>
-                        </div>
-                        <div class="detail-item">
-                          <span class="detail-icon">▶</span>
-                          <span class="detail-text">예약일시: 2025.09.05(금) 14:30</span>
-                        </div>
-                        <p class="detail-text">예약 시간 10분 전 도착 부탁드립니다.</p>
-                        <div class="detail-item">
-                          <span class="detail-icon">▶</span>
-                          <span class="detail-text">장소: ○○병원 3층 내과 진료실</span>
-                        </div>
-                      </div>
-                      <p class="preview-closing">감사합니다.</p>
-                      <v-btn
-                        color="#E0E0E0"
-                        variant="flat"
-                        class="action-btn"
-                        rounded="pill"
-                      >
-                        예약확인
-                      </v-btn>
-                    </div>
-                  </div>
-                  
-                  <!-- 하단 버튼들 -->
-                  <div class="bottom-buttons mt-6">
-                    <v-btn
-                      color="#E0E0E0"
-                      variant="flat"
-                      class="bottom-btn"
-                      rounded="pill"
-                      size="large"
-                    >
-                      사용자 수정
-                    </v-btn>
-                    <v-btn
-                      color="#E0E0E0"
-                      variant="flat"
-                      class="bottom-btn ml-4"
-                      rounded="pill"
-                      size="large"
-                    >
-                      제출하기
-                    </v-btn>
-                  </div>
+              <div class="template-details">
+                <div class="detail-item">
+                  <span class="detail-label">카테고리:</span>
+                  <span class="detail-value">예약 안내</span>
                 </div>
-              </v-col>
-            </v-row>
-          </v-container>
-        </section>
-      </v-container>
-    </v-main>
+                <div class="detail-item">
+                  <span class="detail-label">템플릿 유형:</span>
+                  <span class="detail-value">사전 승인된 알림톡</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">적용된 변수:</span>
+                  <span class="detail-value">총 4개</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">상태:</span>
+                  <v-chip color="success" size="small" variant="flat">검증 대기</v-chip>
+                </div>
+              </div>
+              
+              <div class="template-description">
+                <p>
+                  예약 진료 일정 안내 및 도착 안내에 대한 카카오 알림톡 템플릿이 생성되었습니다. 
+                  '사전 승인된 알림톡'을 기반으로 총 4개 변수가 적용되었으며, 
+                  '채팅으로 수정하기'에서 자유롭게 수정하실 수 있습니다.
+                </p>
+              </div>
+              
+              <div class="action-buttons">
+                <v-btn
+                  color="primary"
+                  size="large"
+                  variant="elevated"
+                  @click="goToChat"
+                  class="action-btn"
+                >
+                  채팅으로 수정하기
+                </v-btn>
+                <v-btn
+                  color="secondary"
+                  size="large"
+                  variant="outlined"
+                  @click="goToLanding"
+                  class="action-btn"
+                >
+                  새로운 템플릿 만들기
+                </v-btn>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 오른쪽: 알림톡 미리보기 -->
+          <div class="preview-section">
+            <h3 class="section-title">알림톡 미리보기</h3>
+            
+            <div class="kakao-preview-card">
+              <div class="kakao-header">
+                <div class="kakao-title">
+                  <v-icon color="yellow-darken-2" size="20">mdi-bell</v-icon>
+                  <span>알림톡 도착</span>
+                </div>
+              </div>
+              
+              <div class="kakao-content">
+                <div class="kakao-subject">예약 안내</div>
+                
+                <div class="kakao-message">
+                  <p>안녕하세요 <span class="variable">고객님</span>.</p>
+                  <p>예약 일정 안내드립니다.</p>
+                  <p>▶예약자: <span class="variable">고객</span></p>
+                  <p>▶예약일시: <span class="variable">2025.09.05(금) 14:30</span></p>
+                  <p>예약 시간 10분 전 도착 부탁드립니다.</p>
+                  <p>▶장소: <span class="variable">3층 내과 진료실</span></p>
+                  <p>감사합니다.</p>
+                </div>
+                
+                <div class="kakao-button">
+                  <v-btn variant="outlined" size="small" color="grey">예약확인</v-btn>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 변수 정보 -->
+            <div class="variables-info">
+              <h4 class="variables-title">적용된 변수</h4>
+              <div class="variables-list">
+                <div class="variable-item">
+                  <span class="variable-name">고객님</span>
+                  <span class="variable-desc">고객 호칭</span>
+                </div>
+                <div class="variable-item">
+                  <span class="variable-name">고객</span>
+                  <span class="variable-desc">예약자명</span>
+                </div>
+                <div class="variable-item">
+                  <span class="variable-name">2025.09.05(금) 14:30</span>
+                  <span class="variable-desc">예약 일시</span>
+                </div>
+                <div class="variable-item">
+                  <span class="variable-name">3층 내과 진료실</span>
+                  <span class="variable-desc">진료 장소</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </v-container>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import HeaderComponent from '@/components/HeaderComponent.vue'
+import { useRouter } from 'vue-router'
 
-const route = useRoute()
+const router = useRouter()
 
-// 카테고리 매핑
-const categoryNames = {
-  'appointment': '예약 안내',
-  'marketing': '마케팅',
-  'notification': '공지사항',
-  'reminder': '리마인더',
-  'custom': '커스텀'
+// 페이지 이동
+const goToChat = () => {
+  router.push('/chat')
 }
 
-// Reactive data
-const showVariables = ref(true)
-const additionalMessage = ref('')
-const remainingCorrections = ref(2)
-
-// 계산된 속성
-const selectedCategory = computed(() => route.query.category as string || 'appointment')
-const selectedCategoryName = computed(() => categoryNames[selectedCategory.value as keyof typeof categoryNames] || '커스텀')
-const correctionPercentage = computed(() => ((3 - remainingCorrections.value) / 3) * 100)
-
-// 추가 메시지 전송
-const sendAdditionalMessage = () => {
-  if (additionalMessage.value.trim()) {
-    console.log('추가 메시지 전송:', additionalMessage.value)
-    additionalMessage.value = ''
-  }
+const goToLanding = () => {
+  router.push('/')
 }
-
-onMounted(() => {
-  console.log('선택된 카테고리:', selectedCategory.value)
-  console.log('입력된 메시지:', route.query.message)
-})
 </script>
 
 <style scoped>
-.template-result-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #FFF8E1 0%, #FFFDE7 50%, #F1F8E9 100%);
+.template-result-container {
+  height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #e3f2fd 0%, #f1f8e9 100%);
+}
+
+.content-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.header-section {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.page-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+  line-height: 1.3;
+}
+
+.page-description {
+  font-size: 1.25rem;
+  color: #666;
+  margin: 0;
 }
 
 .main-content {
-  padding-top: 70px;
+  display: flex;
+  gap: 40px;
+  flex: 1;
+  min-height: 0;
 }
 
-.result-section {
-  padding: 2rem 0;
-  min-height: calc(100vh - 70px);
+.template-info-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.result-container {
-  max-width: 1400px !important;
-}
-
-.left-section, .right-section {
-  padding: 1rem;
-}
-
-.edit-content, .preview-content {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  padding: 2rem;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  height: 100%;
-}
-
-/* 왼쪽 섹션 스타일 */
-.template-box {
+.info-card {
   background: white;
   border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid #E0E0E0;
+  padding: 32px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  height: fit-content;
 }
 
-.template-content {
-  line-height: 1.6;
-}
-
-.template-text {
-  margin-bottom: 1rem;
-  color: #333;
-  font-size: 1rem;
-}
-
-.template-list {
-  list-style: none;
-  padding: 0;
-  margin: 1rem 0;
-}
-
-.template-list li {
-  margin-bottom: 0.5rem;
-  color: #333;
-  font-size: 1rem;
-}
-
-.version-btn {
-  font-weight: 500;
-  border-color: #333;
-  color: #333;
-}
-
-.generation-info {
-  background: #F5F5F5;
-  padding: 1.5rem;
-  border-radius: 8px;
-}
-
-.info-text {
-  color: #666;
-  line-height: 1.6;
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.additional-field {
-  background: white;
-}
-
-.correction-count {
-  text-align: center;
-}
-
-.correction-bar {
-  width: 100%;
-  height: 8px;
-  background: #E0E0E0;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.correction-fill {
-  height: 100%;
-  background: #00C851;
-  transition: width 0.3s ease;
-}
-
-.correction-text {
-  color: #666;
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-/* 오른쪽 섹션 스타일 */
-.control-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.toggle-section {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.toggle-label {
-  color: #333;
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.send-btn {
+.section-title {
+  font-size: 1.5rem;
   font-weight: 600;
-  text-transform: none;
-  padding: 0 1.5rem;
+  color: #1a1a1a;
+  margin-bottom: 24px;
 }
 
-.message-preview {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid #E0E0E0;
-}
-
-.preview-header {
-  background: #FFE066;
-  padding: 0.75rem 1rem;
-  text-align: center;
-}
-
-.preview-title {
-  color: #333;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.preview-content {
-  padding: 2rem;
-  text-align: center;
-}
-
-.preview-icon {
-  margin-bottom: 1rem;
-}
-
-.preview-main-title {
-  color: #333;
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-}
-
-.preview-main-text {
-  color: #666;
-  margin-bottom: 1.5rem;
-  line-height: 1.5;
-}
-
-.preview-details {
-  text-align: left;
-  margin-bottom: 1.5rem;
+.template-details {
+  margin-bottom: 32px;
 }
 
 .detail-item {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.detail-icon {
-  color: #00C851;
-  font-weight: bold;
-  margin-right: 0.5rem;
-  font-size: 1.1rem;
+.detail-item:last-child {
+  border-bottom: none;
 }
 
-.detail-text {
-  color: #333;
-  line-height: 1.4;
-}
-
-.preview-closing {
+.detail-label {
+  font-weight: 500;
   color: #666;
-  margin-bottom: 1.5rem;
-  font-style: italic;
+}
+
+.detail-value {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.template-description {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 32px;
+}
+
+.template-description p {
+  margin: 0;
+  line-height: 1.6;
+  color: #555;
+  font-size: 0.95rem;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .action-btn {
-  background: #F5F5F5;
-  color: #333;
-  font-weight: 500;
-  text-transform: none;
-  padding: 0 2rem;
+  width: 100%;
 }
 
-.bottom-buttons {
+.preview-section {
+  flex: 1;
   display: flex;
-  justify-content: center;
-  gap: 1rem;
+  flex-direction: column;
 }
 
-.bottom-btn {
-  background: #F5F5F5;
+.kakao-preview-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+}
+
+.kakao-header {
+  background: #fee500;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kakao-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.kakao-content {
+  padding: 20px;
+}
+
+.kakao-subject {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+}
+
+.kakao-message {
+  font-size: 0.95rem;
+  line-height: 1.6;
   color: #333;
+  margin-bottom: 20px;
+}
+
+.kakao-message p {
+  margin: 8px 0;
+}
+
+.variable {
+  color: #1976d2;
   font-weight: 500;
-  text-transform: none;
-  padding: 0 2rem;
 }
 
-/* 반응형 디자인 */
+.kakao-button {
+  text-align: center;
+}
+
+.variables-info {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.variables-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 20px;
+}
+
+.variables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.variable-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #1976d2;
+}
+
+.variable-name {
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.variable-desc {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* 반응형 디자인 제거 - 고정 레이아웃 */
 @media (max-width: 1200px) {
-  .left-section, .right-section {
-    margin-bottom: 2rem;
+  .content-wrapper {
+    padding: 30px;
+    gap: 30px;
+  }
+  
+  .main-content {
+    gap: 30px;
   }
 }
 
-@media (max-width: 960px) {
-  .control-bar {
+@media (max-width: 900px) {
+  .main-content {
     flex-direction: column;
-    align-items: stretch;
+    gap: 30px;
   }
   
-  .send-btn {
-    width: 100%;
+  .template-info-section,
+  .preview-section {
+    flex: none;
   }
   
-  .bottom-buttons {
-    flex-direction: column;
-    align-items: center;
+  .content-wrapper {
+    padding: 20px;
   }
   
-  .bottom-btn {
-    width: 200px;
+  .page-title {
+    font-size: 2rem;
   }
 }
 
 @media (max-width: 600px) {
-  .edit-content, .preview-content {
-    padding: 1.5rem;
+  .content-wrapper {
+    padding: 16px;
   }
   
-  .template-box {
-    padding: 1rem;
+  .info-card {
+    padding: 24px;
   }
   
-  .preview-content {
-    padding: 1.5rem;
+  .action-buttons {
+    flex-direction: column;
   }
 }
 </style>
