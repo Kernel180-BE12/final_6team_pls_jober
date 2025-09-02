@@ -48,6 +48,3 @@ back/.gradle/
 back/build/
 back/out/
 back/*.log
-
-# CLAUDE.md (local development only)
-CLAUDE.md
