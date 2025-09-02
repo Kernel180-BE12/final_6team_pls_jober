@@ -30,8 +30,9 @@
           class="template-btn ml-4"
           rounded="pill"
           size="large"
+          @click="goToTemplateCreate"
         >
-          템플릿 만들기기
+
         </v-btn>
       </div>
     </v-container>
@@ -39,7 +40,14 @@
 </template>
 
 <script setup lang="ts">
-// 헤더 컴포넌트
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+// 템플릿 생성 페이지로 이동
+const goToTemplateCreate = () => {
+  router.push({ name: 'template-create' })
+}
 </script>
 
 <style scoped>

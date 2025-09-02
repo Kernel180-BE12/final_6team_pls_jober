@@ -1,7 +1,8 @@
 <template>
   <v-card
     class="login-card mx-auto"
-    max-width="680"
+    max-width="580"
+
     elevation="12"
     rounded="xl"
   >
