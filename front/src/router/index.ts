@@ -6,11 +6,6 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'landing',
-      component: LandingView
-    },
-    {
-      path: '/home',
       name: 'home',
       component: () => import('../views/HomeView.vue')
     },
@@ -41,6 +36,7 @@ const router = createRouter({
       path: '/success',
       name: 'success',
       component: () => import('../views/SuccessView.vue')
+
     }
   ]
 })

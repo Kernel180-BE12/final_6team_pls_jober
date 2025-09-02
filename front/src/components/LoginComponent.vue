@@ -2,6 +2,7 @@
   <v-card
     class="login-card mx-auto"
     max-width="580"
+
     elevation="12"
     rounded="xl"
   >

@@ -8,7 +8,7 @@
     <v-container fluid class="d-flex align-center">
       <!-- 로고 -->
       <v-app-bar-title class="logo-text">
-        pls jober
+        Pls Jober
       </v-app-bar-title>
 
       <!-- 네비게이션 메뉴 -->
@@ -32,7 +32,7 @@
           size="large"
           @click="goToTemplateCreate"
         >
-          템플릿 만들기
+
         </v-btn>
       </div>
     </v-container>
