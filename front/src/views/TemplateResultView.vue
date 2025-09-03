@@ -10,96 +10,96 @@
         <div class="split-layout">
           <!-- 왼쪽: 메시지 편집/정보 (1/3) -->
           <div class="left-panel">
-            <div class="message-bubble">
-              <p>안녕하세요. ○○병원입니다.</p>
-              <p>예약하신 진료 일정 안내드립니다.</p>
-              <p>- 일시: 25.09.05(금) 14:30</p>
-              <p>- 장소: ○○병원 3층 내과 진료실</p>
-              <p>예약 시간 10분 전 도착 부탁드립니다.</p>
-            </div>
-            
-            <!-- 채팅 컴포넌트 -->
-            <ChatComponent :is-modifying="isModifying" />
-            
-            <div class="version-button">
-              <button class="btn-version">버전 1</button>
-              <button class="btn-version-modified" @click="showModifiedVersion">수정된 버전</button>
-            </div>
-            
-            <div class="template-description">
-              <p>
-                예약 진료 일정 안내 및 도착 안내에 대한 카카오 알림톡 템플릿이 생성되었습니다. 
-                '사전 승인된 알림톡'을 기반으로 총 4개 변수가 적용되었으며, 
-                '이 카톡 발송하기'에서 자유롭게 수정하실 수 있습니다.
-              </p>
-            </div>
-            
-            <!-- 사용자 수정 모드일 때 표시되는 변수 편집 컴포넌트 -->
-            <VariableEditComponent 
-              v-if="isModifying"
-              :variables="editedVariables"
-              @update="updateVariables"
-            />
-          </div>
-          
-          <!-- 오른쪽: 카카오톡 미리보기 (2/3) -->
-          <div class="right-panel">
-            <!-- 상단 컨트롤 -->
-            <div class="top-controls">
-              <div class="toggle-switch">
-                <label class="toggle-label">
-                  <input type="checkbox" v-model="showVariables" />
-                  <span class="toggle-slider"></span>
-                  변수값 표시
-                </label>
-              </div>
-            </div>
-            
-            <!-- 카카오톡 미리보기 -->
-            <div class="kakao-preview-container">
-              <div class="kakao-preview">
-                <div class="kakao-header">알림톡 도착</div>
-                <div class="kakao-content">
-                  <div class="kakao-title">
-                    <span>쿠폰 발급 안내</span>
-                    <div class="coupon-icon">🎫</div>
+            <!-- 채팅 이력 표시 영역 -->
+            <div class="chat-history-container">
+              <div class="chat-history">
+                <template v-for="(message, index) in chatHistory" :key="index">
+                  <div :class="['chat-message', message.type]">
+                    <div class="message-content">{{ message.content }}</div>
+                    <div class="message-time">{{ message.time }}</div>
                   </div>
                   
-                                    <div class="kakao-message">
-                    <p>안녕하세요, <span 
-                      v-if="showVariables && !isModifying"
-                      :class="['variable', { 'rejected-highlight': isRejected }]"
-                      @click="isRejected && showAlternatives('수신자')"
-                    >#{수신자}</span><span v-else>{{ editedVariables.recipient }}</span> 회원님!</p>
-                    <p><span 
-                      v-if="showVariables && !isModifying"
-                      :class="['variable', { 'rejected-highlight': isRejected }]"
-                      @click="isRejected && showAlternatives('발신 스페이스')"
-                    >#{발신 스페이스}</span><span v-else>{{ editedVariables.sender }}</span>입니다.</p>
-                    <p>회원님께 발급된 쿠폰을 안내드립니다.</p>
-                    <p>▶ 쿠폰명 : <span 
-                      v-if="showVariables && !isModifying"
-                      :class="['variable', { 'rejected-highlight': isRejected }]"
-                      @click="isRejected && showAlternatives('쿠폰명')"
-                    >#{쿠폰명}</span><span v-else>{{ editedVariables.couponName }}</span></p>
-                    <p>▶ 사용기한 : <span 
-                      v-if="showVariables && !isModifying"
-                      :class="['variable', { 'rejected-highlight': isRejected }]"
-                      @click="isRejected && showAlternatives('사용기한')"
-                    >#{사용기한}</span><span v-else>{{ editedVariables.expiryDate }}</span></p>
-                    <p><span 
-                      v-if="showVariables && !isModifying"
-                      :class="['variable', { 'rejected-highlight': isRejected }]"
-                      @click="isRejected && showAlternatives('추가 메시지')"
-                    >#{추가 메시지 - 문의 사항은 언제든 편하게 연락주세요.}</span><span v-else>{{ editedVariables.additionalMessage }}</span></p>
-                    <p class="disclaimer">* 이 메시지는 이용약관(계약서) 동의에 따라 지급된 쿠폰 안내 메시지입니다.</p>
+                  <!-- 해당 메시지 다음에 버전 버튼 표시 -->
+                  <div 
+                    v-for="version in versions.filter(v => v.messageIndex === index)" 
+                    :key="`version-${version.number}`"
+                    class="version-creation-point"
+                  >
+                    <div class="version-divider">
+                      <span class="version-label">버전 {{ version.number }} 생성</span>
+                    </div>
+                    <div class="version-buttons">
+                      <button 
+                        :class="['btn-version', { 'active': currentVersion === version.number }]"
+                        @click="selectVersion(version.number)"
+                      >
+                        버전 {{ version.number }}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                </template>
               </div>
             </div>
             
-            <!-- 하단 컨트롤 -->
-            <div class="bottom-controls">
+            <!-- 채팅 입력 컨테이너 -->
+            <div class="chat-input-container">
+              <div class="input-field">
+                <input 
+                  v-model="chatInput"
+                  type="text" 
+                  placeholder="메시지를 입력하세요..."
+                  class="message-input"
+                  @keyup.enter="sendMessage"
+                />
+                <button class="btn-send" @click="sendMessage">↑</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 오른쪽: 카카오톡 미리보기 및 버튼들 (2/3) -->
+          <div class="right-panel">
+            <!-- 변수값 표시 토글 -->
+            <div class="variables-toggle">
+              <label class="toggle-label">
+                <input type="checkbox" v-model="showVariables" />
+                <span class="toggle-slider"></span>
+                변수값 표시
+              </label>
+            </div>
+            
+            <!-- 카카오톡 미리보기와 반려 사이드바를 함께 관리하는 컨테이너 -->
+            <div :class="['preview-and-sidebar-container', { 'with-rejection-sidebar': showRejectionSidebar }]">
+              <!-- 카카오톡 미리보기 -->
+              <div class="kakao-preview-wrapper">
+                <KakaoPreviewComponent
+                  :show-variables="showVariables"
+                  :variables="editedVariables"
+                  :is-modifying="isModifying"
+                  :is-rejected="isRejected"
+                  :rejected-variables="rejectedVariables"
+                  @variable-click="handleVariableClick"
+                  @update-variables="updateVariables"
+                  @reject-template="rejectTemplate"
+                  @submit-template="submitTemplate"
+                />
+              </div>
+              
+              <!-- 반려 사이드바 -->
+              <div class="rejection-sidebar-panel" v-if="showRejectionSidebar">
+                <RejectionSidebarComponent
+                  :show="showRejectionSidebar"
+                  :current-variable="currentVariable"
+                  :alternatives="currentAlternatives"
+                  :rejected-variables="rejectedVariables"
+                  @close="closeRejectionSidebar"
+                  @variable-click="handleVariableClick"
+                  @apply-alternative="applySelectedAlternative"
+                />
+              </div>
+            </div>
+            
+            <!-- 액션 버튼들 -->
+            <div class="action-buttons-container">
               <div class="correction-count">남은 정정 횟수: 1/3</div>
               <div class="action-buttons">
                 <button class="btn-modify" @click="toggleModification">
@@ -109,23 +109,6 @@
                 <button class="btn-submit" @click="submitTemplate">제출하기</button>
               </div>
             </div>
-            
-            <!-- 반려 모달 -->
-            <RejectionModalComponent
-              :show="showRecommendations"
-              @close="closeRecommendations"
-              @approve="approveRecommendation"
-              @reject="rejectRecommendation"
-            />
-            
-            <!-- 대안 선택 모달 -->
-            <AlternativesModalComponent
-              :show="showAlternativesSidebar"
-              :current-variable="currentVariable"
-              :alternatives="currentAlternatives"
-              @close="closeAlternatives"
-              @apply="applySelectedAlternatives"
-            />
           </div>
         </div>
       </div>
@@ -138,18 +121,37 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import HeaderComponent from '@/components/HeaderComponent.vue'
-import VariableEditComponent from '@/components/VariableEditComponent.vue'
-import RejectionModalComponent from '@/components/RejectionModalComponent.vue'
-import AlternativesModalComponent from '@/components/AlternativesModalComponent.vue'
-import ChatComponent from '@/components/ChatComponent.vue'
+import KakaoPreviewComponent from '@/components/KakaoPreviewComponent.vue'
+import RejectionSidebarComponent from '@/components/RejectionSidebarComponent.vue'
 
 const showVariables = ref(true)
-const showRecommendations = ref(false)
-const showAlternativesSidebar = ref(false)
+const showRejectionSidebar = ref(false)
 const isRejected = ref(false)
 const currentVariable = ref('')
 const currentAlternatives = ref<any[]>([])
 const isModifying = ref(false)
+const rejectedVariables = ref<string[]>([])
+
+// 채팅 관련 변수들
+const chatInput = ref('')
+const currentVersion = ref(1)
+const chatHistory = ref([
+  {
+    type: 'user',
+    content: '안녕하세요! 템플릿을 만들어주세요.',
+    time: '14:30'
+  },
+  {
+    type: 'bot',
+    content: '안녕하세요! 어떤 종류의 템플릿을 원하시나요?',
+    time: '14:31'
+  }
+])
+
+// 버전 관리
+const versions = ref([
+  { number: 1, template: '기본 템플릿', messageIndex: 0 }
+])
 
 // 사용자가 수정할 수 있는 변수 값들
 const editedVariables = ref({
@@ -202,14 +204,18 @@ const variableAlternatives = {
 // 반려하기
 const rejectTemplate = () => {
   isRejected.value = true
-  showRecommendations.value = true
+  showRejectionSidebar.value = true
+  // 모든 변수를 반려된 것으로 설정 (테스트용)
+  rejectedVariables.value = ['수신자', '발신 스페이스', '쿠폰명', '사용기한', '추가 메시지']
 }
 
-// 대안 표시
-const showAlternatives = (variableName: string) => {
-  currentVariable.value = variableName
-  currentAlternatives.value = JSON.parse(JSON.stringify(variableAlternatives[variableName as keyof typeof variableAlternatives]))
-  showAlternativesSidebar.value = true
+// 변수 클릭 처리
+const handleVariableClick = (variableName: string) => {
+  if (isRejected.value && rejectedVariables.value.includes(variableName)) {
+    currentVariable.value = variableName
+    currentAlternatives.value = JSON.parse(JSON.stringify(variableAlternatives[variableName as keyof typeof variableAlternatives]))
+    showRejectionSidebar.value = true
+  }
 }
 
 // 대안 선택
@@ -225,45 +231,33 @@ const selectAlternative = (alternative: any) => {
 }
 
 // 선택한 대안 적용
-const applySelectedAlternatives = () => {
-  const selectedAlternative = currentAlternatives.value.find(alt => alt.selected)
-  if (selectedAlternative) {
-    // 여기서 실제 텍스트를 대체하는 로직을 구현할 수 있습니다
-    console.log(`${currentVariable.value}를 "${selectedAlternative.text}"로 대체`)
-    // 텍스트 대체 후 사이드바 닫기
-    closeAlternatives()
+const applySelectedAlternative = (alternative: any) => {
+  // 여기서 실제 텍스트를 대체하는 로직을 구현할 수 있습니다
+  console.log(`${currentVariable.value}를 "${alternative.text}"로 대체`)
+  
+  // 반려된 변수 목록에서 제거
+  const index = rejectedVariables.value.indexOf(currentVariable.value)
+  if (index > -1) {
+    rejectedVariables.value.splice(index, 1)
   }
-}
-
-// 반려 상세 표시
-const showRejectionDetails = (text: string) => {
-  showRecommendations.value = true
-  console.log('반려된 텍스트:', text)
-}
-
-// 추천 사이드바 닫기
-const closeRecommendations = () => {
-  showRecommendations.value = false
-  isRejected.value = false
-}
-
-// 대안 사이드바 닫기
-const closeAlternatives = () => {
-  showAlternativesSidebar.value = false
+  
+  // 모든 반려된 변수가 해결되면 반려 상태 해제
+  if (rejectedVariables.value.length === 0) {
+    isRejected.value = false
+    showRejectionSidebar.value = false
+  }
+  
   currentVariable.value = ''
   currentAlternatives.value = []
 }
 
-// 추천 승인
-const approveRecommendation = (rec: any) => {
-  rec.status = 'approved'
-  console.log('승인됨:', rec)
-}
-
-// 추천 반려
-const rejectRecommendation = (rec: any) => {
-  rec.status = 'rejected'
-  console.log('반려됨:', rec)
+// 반려 사이드바 닫기
+const closeRejectionSidebar = () => {
+  showRejectionSidebar.value = false
+  isRejected.value = false
+  rejectedVariables.value = []
+  currentVariable.value = ''
+  currentAlternatives.value = []
 }
 
 // 수정 모드 토글
@@ -288,6 +282,58 @@ const submitTemplate = () => {
   console.log('템플릿 제출')
   // 실제 제출 로직 구현
 }
+
+// 채팅 메시지 전송
+const sendMessage = () => {
+  if (!chatInput.value.trim()) return
+  
+  const now = new Date()
+  const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  
+  // 사용자 메시지 추가
+  chatHistory.value.push({
+    type: 'user',
+    content: chatInput.value,
+    time: timeString
+  })
+  
+  // 챗봇 응답 (간단한 응답)
+  setTimeout(() => {
+    const botResponses = [
+      '좋은 아이디어네요!',
+      '더 구체적으로 설명해주세요.',
+      '이해했습니다. 계속 진행하겠습니다.',
+      '훌륭합니다!',
+      '추가로 필요한 것이 있나요?'
+    ]
+    const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)]
+    
+    chatHistory.value.push({
+      type: 'bot',
+      content: randomResponse,
+      time: timeString
+    })
+    
+         // 3번 대화마다 새 버전 생성
+     if (chatHistory.value.length % 6 === 0) {
+       const newVersionNumber = Math.floor(chatHistory.value.length / 6) + 1
+       versions.value.push({
+         number: newVersionNumber,
+         template: `버전 ${newVersionNumber} 템플릿`,
+         messageIndex: chatHistory.value.length - 1
+       })
+     }
+  }, 1000)
+  
+  chatInput.value = ''
+}
+
+// 버전 선택
+const selectVersion = (versionNumber: number) => {
+  currentVersion.value = versionNumber
+  console.log(`버전 ${versionNumber} 선택됨`)
+  // 여기서 해당 버전의 템플릿을 미리보기에 표시하는 로직 추가 가능
+}
 </script>
 
 <style scoped>
@@ -308,6 +354,7 @@ const submitTemplate = () => {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 24px;
+  overflow-x: hidden;
 }
 
 .split-layout {
@@ -315,6 +362,7 @@ const submitTemplate = () => {
   gap: 0;
   height: 100%;
   position: relative;
+  min-width: 1000px;
 }
 
 .split-layout::after {
@@ -334,6 +382,7 @@ const submitTemplate = () => {
   flex-direction: column;
   gap: 24px;
   padding-right: 40px;
+  min-width: 400px;
 }
 
 .right-panel {
@@ -342,6 +391,78 @@ const submitTemplate = () => {
   flex-direction: column;
   gap: 24px;
   padding-left: 40px;
+  min-width: 320px;
+}
+
+.preview-and-sidebar-container {
+  display: flex;
+  gap: 20px;
+  transition: transform 0.3s ease;
+  align-self: center;
+}
+
+.preview-and-sidebar-container.with-rejection-sidebar {
+  transform: translateX(20px);
+}
+
+.kakao-preview-wrapper {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.rejection-sidebar-panel {
+  width: 280px;
+  max-width: 280px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.variables-toggle {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 20px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.toggle-label input {
+  display: none;
+}
+
+.toggle-slider {
+  width: 40px;
+  height: 20px;
+  background-color: #ccc;
+  border-radius: 10px;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.toggle-slider:before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background-color: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+}
+
+.toggle-label input:checked + .toggle-slider {
+  background-color: #1976d2;
+}
+
+.toggle-label input:checked + .toggle-slider:before {
+  transform: translateX(20px);
 }
 
 .message-bubble {
@@ -408,194 +529,179 @@ const submitTemplate = () => {
 
 
 
-.top-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
-.toggle-switch {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
-.toggle-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #333;
-}
-
-.toggle-label input {
-  display: none;
-}
-
-.toggle-slider {
-  width: 40px;
-  height: 20px;
-  background-color: #ccc;
-  border-radius: 10px;
-  position: relative;
-  transition: background-color 0.2s ease;
-}
-
-.toggle-slider:before {
-  content: '';
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  background-color: white;
-  border-radius: 50%;
-  top: 2px;
-  left: 2px;
-  transition: transform 0.2s ease;
-}
-
-.toggle-label input:checked + .toggle-slider {
-  background-color: #1976d2;
-}
-
-.toggle-label input:checked + .toggle-slider:before {
-  transform: translateX(20px);
-}
-
-.btn-send-kakao {
-  background-color: #9c27b0;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.kakao-preview-container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  width: 100%;
-  height: 100%;
-}
-
-.kakao-preview {
+/* 채팅 관련 스타일 */
+.chat-history-container {
   background-color: white;
   border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  width: 320px;
-  max-width: 320px;
-  flex-shrink: 0;
+  padding: 20px;
+  height: 470px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
 }
 
-.kakao-header {
-  background-color: #fee500;
-  padding: 16px 20px;
-  font-weight: 600;
+.chat-history {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.chat-message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-message.user {
+  align-items: flex-end;
+}
+
+.chat-message.bot {
+  align-items: flex-start;
+}
+
+.message-content {
+  padding: 12px 16px;
+  border-radius: 18px;
+  max-width: 80%;
+  word-wrap: break-word;
+}
+
+.chat-message.user .message-content {
+  background-color: #1976d2;
+  color: white;
+}
+
+.chat-message.bot .message-content {
+  background-color: #f5f5f5;
   color: #333;
+}
+
+.message-time {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0 8px;
+}
+
+.version-creation-point {
+  margin: 20px 0;
   text-align: center;
 }
 
-.kakao-content {
-  padding: 20px;
+.version-divider {
+  position: relative;
+  margin: 16px 0;
 }
 
-.kakao-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  font-size: 1.2rem;
-  font-weight: 600;
+.version-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ddd, transparent);
 }
 
-.coupon-icon {
-  font-size: 1.5rem;
-  background-color: #4caf50;
-  color: white;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+.version-label {
+  background: white;
+  padding: 0 16px;
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 500;
+  position: relative;
+  z-index: 1;
+}
+
+.version-buttons {
   display: flex;
-  align-items: center;
+  gap: 8px;
   justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
 }
 
-.kakao-message {
-  margin-bottom: 20px;
-  line-height: 1.6;
-}
-
-.kakao-message p {
-  margin: 8px 0;
-}
-
-.highlighted-text {
-  background-color: #ffeb3b;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #856404;
+.btn-version {
+  background-color: #666;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 500;
   cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: #f44336;
-  text-decoration-thickness: 2px;
-}
-
-.highlighted-text:hover {
-  background-color: #fff59d;
-}
-
-.variable {
-  background-color: #fff3cd;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #856404;
-  cursor: pointer;
+  font-size: 0.9rem;
   transition: all 0.2s ease;
 }
 
-.variable:hover {
-  background-color: #ffeaa7;
+.btn-version:hover {
+  background-color: #555;
 }
 
-.variable.rejected-highlight {
-  background-color: #ffebee;
-  color: #c62828;
-  border: 2px solid #f44336;
-  cursor: pointer;
-  animation: pulse 2s infinite;
-}
-
-.variable.rejected-highlight:hover {
-  background-color: #ffcdd2;
+.btn-version.active {
+  background-color: #1976d2;
   transform: scale(1.05);
 }
 
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+.chat-input-container {
+  background-color: white;
+  border-radius: 12px;
+  padding: 12px;
+  height: 70px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.disclaimer {
-  font-size: 0.8rem;
-  color: #666;
-  margin-top: 16px;
-  line-height: 1.4;
+.input-field {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  height: 100%;
 }
 
-.kakao-action {
-  text-align: center;
-  padding: 16px 0;
+.message-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 1rem;
+  outline: none;
+  height: 40px;
 }
 
-.bottom-controls {
+.message-input:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.btn-send {
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.btn-send:hover {
+  background-color: #1565c0;
+}
+
+/* 액션 버튼들 스타일 */
+.action-buttons-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 40px;
+  margin-bottom: 20px;
 }
 
 .correction-count {
@@ -644,10 +750,4 @@ const submitTemplate = () => {
 .btn-modify:hover {
   background-color: #5a6268;
 }
-
-
-
-
-
-
 </style>

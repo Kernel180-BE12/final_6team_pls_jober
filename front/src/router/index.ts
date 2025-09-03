@@ -19,11 +19,7 @@ const router = createRouter({
       name: 'template-result',
       component: () => import('../views/TemplateResultView.vue')
     },
-    {
-      path: '/chat',
-      name: 'chat',
-      component: () => import('../views/ChatView.vue')
-    },
+
     {
       path: '/success',
       name: 'success',
