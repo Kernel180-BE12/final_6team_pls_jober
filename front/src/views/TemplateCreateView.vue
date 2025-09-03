@@ -1,72 +1,66 @@
 <template>
   <div class="template-create-container">
-    <v-container class="h-100 pa-0">
+    <!-- 헤더 컴포넌트 -->
+    <HeaderComponent />
+    
+    <!-- 메인 콘텐츠 -->
+    <div class="main-content">
       <div class="content-wrapper">
         <!-- 제목 및 설명 -->
         <div class="header-section">
           <h1 class="page-title">
-            카카오 알림톡으로 발송할 메시지 내용을 입력하세요
+            만들고 싶은 알림톡 템플릿 주제를 알려주세요
           </h1>
-          <p class="page-description">
-            문자메시지를 보낸다고 생각하시고 메시지를 입력해주세요
-          </p>
         </div>
         
         <!-- 메인 콘텐츠 영역 -->
-        <div class="main-content">
+        <div class="main-content-area">
           <!-- 왼쪽: 카테고리 영역 -->
           <div class="category-section">
             <h3 class="section-title">카테고리 선택</h3>
             <div class="category-grid">
-              <v-btn
+              <button
                 v-for="category in categories"
                 :key="category.id"
-                :variant="selectedCategory === category.id ? 'elevated' : 'outlined'"
-                :color="selectedCategory === category.id ? 'primary' : 'grey'"
                 :class="['category-btn', { 'selected': selectedCategory === category.id }]"
                 @click="selectCategory(category.id)"
               >
                 {{ category.name }}
-              </v-btn>
+              </button>
             </div>
           </div>
           
           <!-- 오른쪽: 텍스트 입력 영역 -->
           <div class="text-input-section">
             <h3 class="section-title">메시지 내용</h3>
-            <v-textarea
+            <textarea
               v-model="messageText"
-              placeholder="발송할 메시지 내용을 입력하세요..."
-              variant="outlined"
-              rows="12"
-              auto-grow
+              placeholder="ex. 우리 서비스에 맞는 법적 고지 내용을 빠르게 작성하고 적용할 수 있는 템플릿이 필요합니다."
               class="message-textarea"
-              hide-details
-            />
+              rows="12"
+            ></textarea>
             
             <!-- 제출 버튼 -->
             <div class="submit-section">
-              <v-btn
-                color="primary"
-                size="large"
-                variant="elevated"
+              <button
+                class="submit-btn"
                 :disabled="!canSubmit"
                 @click="handleSubmit"
-                class="submit-btn"
               >
                 템플릿 생성하기
-              </v-btn>
+              </button>
             </div>
           </div>
         </div>
       </div>
-    </v-container>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import HeaderComponent from '@/components/HeaderComponent.vue'
 
 const router = useRouter()
 
@@ -82,7 +76,8 @@ const categories = [
   { id: 8, name: '결제완료' },
   { id: 9, name: '예약확정' },
   { id: 10, name: '취소안내' },
-  { id: 11, name: '기타' }
+  { id: 11, name: '기타' },
+  { id: 12, name: '없음' }
 ]
 
 const selectedCategory = ref<number | null>(null)
@@ -119,20 +114,21 @@ const handleSubmit = async () => {
 
 <style scoped>
 .template-create-container {
-  height: calc(100vh - 64px); /* 헤더 높이 제외 */
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #e3f2fd 0%, #f1f8e9 100%);
+  background: linear-gradient(135deg, #E3F2FD 0%, #F1F8E9 100%);
+}
+
+.main-content {
+  flex: 1;
+  padding: 40px 0;
 }
 
 .content-wrapper {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 40px;
   max-width: 1400px;
   margin: 0 auto;
-  width: 100%;
+  padding: 0 40px;
 }
 
 .header-section {
@@ -154,10 +150,9 @@ const handleSubmit = async () => {
   margin: 0;
 }
 
-.main-content {
+.main-content-area {
   display: flex;
   gap: 40px;
-  flex: 1;
   min-height: 0;
 }
 
@@ -179,24 +174,30 @@ const handleSubmit = async () => {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 12px;
-  flex: 1;
+  align-content: start;
 }
 
 .category-btn {
   height: 48px;
   font-size: 0.9rem;
   font-weight: 500;
-  text-transform: none;
+  border: 2px solid #e0e0e0;
+  background: white;
+  color: #666;
   border-radius: 8px;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .category-btn:hover {
-  transform: translateY(-1px);
+  border-color: #1976d2;
+  color: #1976d2;
 }
 
 .category-btn.selected {
-  font-weight: 600;
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
 }
 
 .text-input-section {
@@ -207,17 +208,19 @@ const handleSubmit = async () => {
 .message-textarea {
   flex: 1;
   min-height: 300px;
-}
-
-.message-textarea :deep(.v-field) {
-  background: rgba(255, 255, 255, 0.9);
+  padding: 20px;
+  border: 2px solid #e0e0e0;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  font-size: 1rem;
+  line-height: 1.6;
+  resize: vertical;
+  font-family: inherit;
 }
 
-.message-textarea :deep(.v-field--focused) {
-  background: rgba(255, 255, 255, 1);
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15);
+.message-textarea:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
 }
 
 .submit-section {
@@ -227,66 +230,23 @@ const handleSubmit = async () => {
 }
 
 .submit-btn {
-  min-width: 160px;
-  height: 48px;
-  font-weight: 600;
-  text-transform: none;
+  background: #1976d2;
+  color: white;
+  border: none;
+  padding: 16px 32px;
   border-radius: 8px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-/* 카테고리 그리드 조정 - 2줄에 맞춤 */
-@media (max-width: 1400px) {
-  .category-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
+.submit-btn:hover:not(:disabled) {
+  background: #1565c0;
 }
 
-@media (max-width: 1200px) {
-  .category-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  
-  .content-wrapper {
-    padding: 30px;
-  }
-  
-  .main-content {
-    gap: 30px;
-  }
-}
-
-@media (max-width: 900px) {
-  .main-content {
-    flex-direction: column;
-    gap: 30px;
-  }
-  
-  .category-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
-  
-  .content-wrapper {
-    padding: 20px;
-  }
-  
-  .page-title {
-    font-size: 2rem;
-  }
-}
-
-@media (max-width: 600px) {
-  .category-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-  }
-  
-  .category-btn {
-    height: 40px;
-    font-size: 0.8rem;
-  }
-  
-  .content-wrapper {
-    padding: 16px;
-  }
+.submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 </style>

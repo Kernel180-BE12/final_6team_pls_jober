@@ -1,61 +1,57 @@
 <template>
   <div class="landing-container">
+    <!-- 헤더 컴포넌트 -->
+    <HeaderComponent />
+    
     <!-- 메인 콘텐츠 -->
     <div class="main-content">
-      <v-container class="h-100 pa-0">
-        <div class="content-wrapper">
-          <!-- 왼쪽: 환영 메시지 -->
-          <div class="welcome-section" :class="{ 'moved-left': showForm }">
-            <div class="welcome-content">
-              <h1 class="welcome-title">
-                AI 템플릿으로<br>
-                <span class="highlight">창의적인 작업</span>을<br>
-                시작하세요
-              </h1>
-              <p class="welcome-subtitle">
-                인공지능이 도와주는 템플릿으로<br>
-                더욱 효율적이고 창의적인 작업을 경험해보세요
-              </p>
-              
-              <!-- 초기 상태: 로그인/회원가입 버튼 -->
-              <div v-if="!showForm" class="action-buttons">
-                <v-btn
-                  color="primary"
-                  size="x-large"
-                  variant="elevated"
-                  @click="showLoginForm"
-                  class="mr-4 mb-2"
-                >
-                  로그인
-                </v-btn>
-                <v-btn
-                  color="secondary"
-                  size="x-large"
-                  variant="outlined"
-                  @click="showRegisterForm"
-                  class="mb-2"
-                >
-                  회원가입
-                </v-btn>
-              </div>
+      <div class="content-wrapper">
+        <!-- 왼쪽: 환영 메시지 -->
+        <div class="welcome-section" :class="{ 'moved-left': showForm }">
+          <div class="welcome-content">
+            <h1 class="welcome-title">
+              AI 템플릿으로<br>
+              <span class="highlight">창의적인 작업</span>을<br>
+              시작하세요
+            </h1>
+            <p class="welcome-subtitle">
+              인공지능이 도와주는 템플릿으로<br>
+              더욱 효율적이고 창의적인 작업을 경험해보세요
+            </p>
+            
+            <!-- 초기 상태: 로그인/회원가입 버튼 -->
+            <div v-if="!showForm" class="action-buttons">
+              <button
+                class="btn-login"
+                @click="showLoginForm"
+              >
+                로그인
+              </button>
+              <button
+                class="btn-register"
+                @click="showRegisterForm"
+              >
+                회원가입
+              </button>
             </div>
           </div>
-          
-          <!-- 오른쪽: 폼 영역 -->
-          <div v-if="showForm" class="form-section">
-            <component 
-              :is="currentForm" 
-              @switchForm="switchForm"
-            />
-          </div>
         </div>
-      </v-container>
+        
+        <!-- 오른쪽: 폼 영역 -->
+        <div v-if="showForm" class="form-section">
+          <component 
+            :is="currentForm" 
+            @switchForm="switchForm"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import HeaderComponent from '@/components/HeaderComponent.vue'
 import LoginComponent from '@/components/LoginComponent.vue'
 import RegisterComponent from '@/components/RegisterComponent.vue'
 import ForgotPasswordComponent from '@/components/ForgotPasswordComponent.vue'
@@ -93,24 +89,27 @@ const switchForm = (formType: string) => {
 
 <style scoped>
 .landing-container {
-  height: calc(100vh - 64px); /* 헤더 높이 제외 */
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
 .main-content {
   flex: 1;
+  background: linear-gradient(135deg, #E3F2FD 0%, #F1F8E9 100%);
   display: flex;
   align-items: center;
-  min-height: 0;
+  justify-content: center;
+  padding: 80px 0;
 }
 
 .content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 100%;
   gap: 80px;
   padding: 0 40px;
 }
@@ -155,47 +154,41 @@ const switchForm = (formType: string) => {
   gap: 16px;
 }
 
+.btn-login,
+.btn-register {
+  padding: 16px 32px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn-login {
+  background-color: #1976d2;
+  color: white;
+}
+
+.btn-login:hover {
+  background-color: #1565c0;
+}
+
+.btn-register {
+  background-color: transparent;
+  border: 2px solid #1976d2;
+  color: #1976d2;
+}
+
+.btn-register:hover {
+  background-color: #1976d2;
+  color: white;
+}
+
 .form-section {
   flex: 0 0 450px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* 반응형 디자인 제거 - 고정 레이아웃 */
-@media (max-width: 1200px) {
-  .content-wrapper {
-    gap: 60px;
-    padding: 0 30px;
-  }
-  
-  .welcome-title {
-    font-size: 3rem;
-  }
-}
-
-@media (max-width: 900px) {
-  .content-wrapper {
-    flex-direction: column;
-    gap: 40px;
-    padding: 0 20px;
-  }
-  
-  .welcome-section,
-  .welcome-section.moved-left {
-    flex: none;
-    max-width: 100%;
-    text-align: center;
-  }
-  
-  .welcome-content {
-    text-align: center;
-  }
-  
-  .form-section {
-    flex: none;
-    width: 100%;
-    max-width: 450px;
-  }
 }
 </style>

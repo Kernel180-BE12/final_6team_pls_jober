@@ -1,23 +1,25 @@
 <template>
-  <v-app>
-    <HeaderComponent />
-    <v-main>
-      <router-view />
-    </v-main>
-  </v-app>
+  <div id="app">
+    <router-view />
+  </div>
 </template>
 
 <script setup lang="ts">
-import HeaderComponent from '@/components/HeaderComponent.vue'
+// App 컴포넌트
 </script>
 
 <style>
 /* 전역 스타일 */
+* {
+  box-sizing: border-box;
+}
+
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
   overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 #app {
