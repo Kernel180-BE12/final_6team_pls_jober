@@ -100,7 +100,7 @@ const switchForm = (formType: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 80px 0;
+  padding: 4rem 0;
 }
 
 .content-wrapper {
@@ -110,8 +110,8 @@ const switchForm = (formType: string) => {
   align-items: center;
   justify-content: center;
   width: 100%;
-  gap: 80px;
-  padding: 0 40px;
+  gap: 4rem;
+  padding: 0 2rem;
 }
 
 .welcome-section {
@@ -133,7 +133,7 @@ const switchForm = (formType: string) => {
   font-size: 3.5rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-bottom: 24px;
+  margin-bottom: 1.2rem;
   color: #1a1a1a;
 }
 
@@ -145,19 +145,19 @@ const switchForm = (formType: string) => {
   font-size: 1.25rem;
   line-height: 1.6;
   color: #666;
-  margin-bottom: 48px;
+  margin-bottom: 2.4rem;
 }
 
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 0.8rem;
 }
 
 .btn-login,
 .btn-register {
-  padding: 16px 32px;
-  border-radius: 8px;
+  padding: 0.8rem 1.6rem;
+  border-radius: 0.4rem;
   font-weight: 600;
   font-size: 1.1rem;
   cursor: pointer;
@@ -176,7 +176,7 @@ const switchForm = (formType: string) => {
 
 .btn-register {
   background-color: transparent;
-  border: 2px solid #1976d2;
+  border: 0.1rem solid #1976d2;
   color: #1976d2;
 }
 

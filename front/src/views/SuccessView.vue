@@ -49,21 +49,21 @@ const goHome = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 80px 0;
+  padding: 4rem 0;
 }
 
 .content-wrapper {
   max-width: 800px;
   margin: 0 auto;
   text-align: center;
-  padding: 0 24px;
+  padding: 0 1.2rem;
 }
 
 .success-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 40px;
+  gap: 2rem;
 }
 
 .success-title {
@@ -76,7 +76,7 @@ const goHome = () => {
 
 .celebration-emoji {
   display: flex;
-  gap: 16px;
+  gap: 0.8rem;
 }
 
 .emoji {
@@ -85,8 +85,8 @@ const goHome = () => {
 
 .action-buttons {
   display: flex;
-  gap: 24px;
-  margin-top: 16px;
+  gap: 1.2rem;
+  margin-top: 0.8rem;
 }
 
 .btn-additional,
@@ -94,8 +94,8 @@ const goHome = () => {
   background-color: #6c757d;
   color: white;
   border: none;
-  padding: 16px 32px;
-  border-radius: 8px;
+  padding: 0.8rem 1.6rem;
+  border-radius: 0.4rem;
   font-weight: 600;
   font-size: 1.1rem;
   cursor: pointer;

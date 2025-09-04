@@ -179,38 +179,37 @@ const cancelEditing = () => {
 .kakao-preview-container {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 1.2rem;
   width: 100%;
 }
 
 .kakao-preview {
   background-color: white;
-  border-radius: 12px;
+  border-radius: 0.6rem;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  width: 320px;
-  max-width: 320px;
+  box-shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.1);
+  width: 20rem;
   flex-shrink: 0;
   align-self: center;
 }
 
 .kakao-header {
   background-color: #fee500;
-  padding: 16px 20px;
+  padding: 0.8rem 1rem;
   font-weight: 600;
   color: #333;
   text-align: center;
 }
 
 .kakao-content {
-  padding: 20px;
+  padding: 1rem;
 }
 
 .kakao-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
   font-size: 1.2rem;
   font-weight: 600;
 }
@@ -219,8 +218,8 @@ const cancelEditing = () => {
   font-size: 1.5rem;
   background-color: #4caf50;
   color: white;
-  width: 32px;
-  height: 32px;
+  width: 1.6rem;
+  height: 1.6rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -228,21 +227,21 @@ const cancelEditing = () => {
 }
 
 .kakao-message {
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
   line-height: 1.6;
 }
 
 .kakao-message p {
-  margin: 8px 0;
+  margin: 0.4rem 0;
 }
 
 .variable {
   background-color: #fff3cd;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.2rem;
   color: #856404;
   transition: all 0.2s ease;
-  min-width: 20px;
+  min-width: 1rem;
   display: inline-block;
 }
 
@@ -253,15 +252,15 @@ const cancelEditing = () => {
 .variable.clickable:hover {
   background-color: #ffeaa7;
   transform: scale(1.02);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.15);
 }
 
 .variable.editing {
   background-color: #e3f2fd;
-  border: 2px solid #2196f3;
+  border: 0.1rem solid #2196f3;
   outline: none;
   cursor: text;
-  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+  box-shadow: 0 0 0 0.1rem rgba(33, 150, 243, 0.2);
 }
 
 .variable.editing:focus {
@@ -272,7 +271,7 @@ const cancelEditing = () => {
 .variable.rejected-highlight {
   background-color: #ffebee;
   color: #c62828;
-  border: 2px solid #f44336;
+  border: 0.1rem solid #f44336;
   cursor: pointer;
   animation: pulse 2s infinite;
 }
@@ -284,14 +283,14 @@ const cancelEditing = () => {
 
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
+  70% { box-shadow: 0 0 0 0.5rem rgba(244, 67, 54, 0); }
   100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
 }
 
 .disclaimer {
   font-size: 0.8rem;
   color: #666;
-  margin-top: 16px;
+  margin-top: 0.8rem;
   line-height: 1.4;
 }
 
