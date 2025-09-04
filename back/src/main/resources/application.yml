@@ -1,6 +1,8 @@
 spring:
   application:
     name: final-project-backend
+  profiles:
+    active: dev
   
   # 데이터베이스 설정
   datasource:
@@ -43,7 +45,7 @@ jwt:
 server:
   port: 8080
   servlet:
-    context-path: /api
+    context-path: /
 
 # 로깅 설정
 logging:
