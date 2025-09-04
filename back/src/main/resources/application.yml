@@ -4,9 +4,9 @@ spring:
   
   # 데이터베이스 설정
   datasource:
-    url: jdbc:mysql://localhost:3306/final_project?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:password}
+    url: jdbc:mysql://127.0.0.1:3306/final_project?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+    username: root
+    password: 9464
     driver-class-name: com.mysql.cj.jdbc.Driver
   
   # JPA 설정
