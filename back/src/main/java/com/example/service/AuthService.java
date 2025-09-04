@@ -3,6 +3,7 @@
  */
 package com.example.service;
 
+import com.example.dto.LoginRequest;
 import com.example.dto.SignupRequest;
 import com.example.entity.User;
 import com.example.repository.UserRepository;
@@ -40,5 +41,20 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         return userRepository.save(user);
+    }
+
+    /**
+     * 로그인
+     */
+    public User login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("등록되지 않은 이메일입니다.\n 회원가입을 해주세요."));
+
+        // 비밀번호가 틀렸을 경우
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("잘못된 비밀번호입니다.");
+        }
+
+        return user;
     }
 }
