@@ -12,6 +12,9 @@ import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import '@mdi/font/css/materialdesignicons.css'
 
+// Global styles
+import './assets/styles/global.css'
+
 const vuetify = createVuetify({
   components,
   directives,
