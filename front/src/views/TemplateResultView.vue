@@ -347,13 +347,14 @@ const selectVersion = (versionNumber: number) => {
 .main-content {
   flex: 1;
   background: linear-gradient(135deg, #E3F2FD 0%, #F1F8E9 100%);
-  padding: 40px 0 80px 0;
+  padding: 2rem 0 0 0;
+  overflow: auto;
 }
 
 .content-wrapper {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 1.2rem;
   overflow-x: hidden;
 }
 
@@ -362,47 +363,48 @@ const selectVersion = (versionNumber: number) => {
   gap: 0;
   height: 100%;
   position: relative;
-  min-width: 1000px;
+  min-width: 50rem;
 }
 
 .split-layout::after {
   content: '';
   position: absolute;
-  left: calc(33.33% + 20px);
+  left: calc(33.33% + 1rem);
   top: 0;
   bottom: 0;
-  width: 2px;
+  width: 0.1rem;
   background: linear-gradient(180deg, transparent, #e0e0e0, transparent);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.1);
 }
 
 .left-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding-right: 40px;
-  min-width: 400px;
+  gap: 1.2rem;
+  padding-right: 2rem;
+  min-width: 20rem;
 }
 
 .right-panel {
   flex: 2;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding-left: 40px;
-  min-width: 320px;
+  gap: 1.2rem;
+  padding-left: 2rem;
+  min-width: 16rem;
+  overflow: auto;
 }
 
 .preview-and-sidebar-container {
   display: flex;
-  gap: 20px;
+  gap: 1rem;
   transition: transform 0.3s ease;
   align-self: center;
 }
 
 .preview-and-sidebar-container.with-rejection-sidebar {
-  transform: translateX(20px);
+  transform: translateX(1rem);
 }
 
 .kakao-preview-wrapper {
@@ -411,8 +413,8 @@ const selectVersion = (versionNumber: number) => {
 }
 
 .rejection-sidebar-panel {
-  width: 280px;
-  max-width: 280px;
+  width: 14rem;
+  max-width: 14rem;
   flex-shrink: 0;
   z-index: 10;
 }
@@ -420,13 +422,13 @@ const selectVersion = (versionNumber: number) => {
 .variables-toggle {
   display: flex;
   justify-content: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
 }
 
 .toggle-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.4rem;
   cursor: pointer;
   font-size: 0.9rem;
   color: #333;
@@ -437,10 +439,10 @@ const selectVersion = (versionNumber: number) => {
 }
 
 .toggle-slider {
-  width: 40px;
-  height: 20px;
+  width: 2rem;
+  height: 1rem;
   background-color: #ccc;
-  border-radius: 10px;
+  border-radius: 0.5rem;
   position: relative;
   transition: background-color 0.2s ease;
 }
@@ -448,12 +450,12 @@ const selectVersion = (versionNumber: number) => {
 .toggle-slider:before {
   content: '';
   position: absolute;
-  width: 16px;
-  height: 16px;
+  width: 0.8rem;
+  height: 0.8rem;
   background-color: white;
   border-radius: 50%;
-  top: 2px;
-  left: 2px;
+  top: 0.1rem;
+  left: 0.1rem;
   transition: transform 0.2s ease;
 }
 
@@ -462,26 +464,26 @@ const selectVersion = (versionNumber: number) => {
 }
 
 .toggle-label input:checked + .toggle-slider:before {
-  transform: translateX(20px);
+  transform: translateX(1rem);
 }
 
 .message-bubble {
   background-color: #f5f5f5;
-  padding: 20px;
-  border-radius: 12px;
+  padding: 1rem;
+  border-radius: 0.6rem;
   font-size: 1rem;
   line-height: 1.6;
   color: #333;
-  height: 250px;
+  height: 12.5rem;
 }
 
 .message-bubble p {
-  margin: 8px 0;
+  margin: 0.4rem 0;
 }
 
 .version-button {
   display: flex;
-  gap: 12px;
+  gap: 0.6rem;
   justify-content: center;
 }
 
@@ -489,24 +491,24 @@ const selectVersion = (versionNumber: number) => {
   background-color: #666;
   color: white;
   border: none;
-  padding: 5px 12px;
-  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.3rem;
   font-weight: 500;
   cursor: pointer;
   flex: 1;
-  max-width: 120px;
+  max-width: 6rem;
 }
 
 .btn-version-modified {
   background-color: #28a745;
   color: white;
   border: none;
-  padding: 5px 12px;
-  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.3rem;
   font-weight: 500;
   cursor: pointer;
   flex: 1;
-  max-width: 120px;
+  max-width: 6rem;
   transition: background-color 0.2s ease;
 }
 
@@ -516,8 +518,8 @@ const selectVersion = (versionNumber: number) => {
 
 .template-description {
   background-color: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
+  padding: 1rem;
+  border-radius: 0.4rem;
   font-size: 0.95rem;
   line-height: 1.6;
   color: #555;
@@ -534,10 +536,10 @@ const selectVersion = (versionNumber: number) => {
 /* 채팅 관련 스타일 */
 .chat-history-container {
   background-color: white;
-  border-radius: 12px;
-  padding: 20px;
-  height: 470px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 0.6rem;
+  padding: 1rem;
+  height: 23.5rem;
+  box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
 }
@@ -545,7 +547,7 @@ const selectVersion = (versionNumber: number) => {
 .chat-history {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0.8rem;
   flex: 1;
   overflow-y: auto;
 }
@@ -553,7 +555,7 @@ const selectVersion = (versionNumber: number) => {
 .chat-message {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.2rem;
 }
 
 .chat-message.user {
@@ -565,8 +567,8 @@ const selectVersion = (versionNumber: number) => {
 }
 
 .message-content {
-  padding: 12px 16px;
-  border-radius: 18px;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.9rem;
   max-width: 80%;
   word-wrap: break-word;
 }
@@ -584,17 +586,17 @@ const selectVersion = (versionNumber: number) => {
 .message-time {
   font-size: 0.8rem;
   color: #666;
-  margin: 0 8px;
+  margin: 0 0.4rem;
 }
 
 .version-creation-point {
-  margin: 20px 0;
+  margin: 1rem 0;
   text-align: center;
 }
 
 .version-divider {
   position: relative;
-  margin: 16px 0;
+  margin: 0.8rem 0;
 }
 
 .version-divider::before {
@@ -603,13 +605,13 @@ const selectVersion = (versionNumber: number) => {
   top: 50%;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 0.05rem;
   background: linear-gradient(90deg, transparent, #ddd, transparent);
 }
 
 .version-label {
   background: white;
-  padding: 0 16px;
+  padding: 0 0.8rem;
   color: #666;
   font-size: 0.9rem;
   font-weight: 500;
@@ -619,18 +621,18 @@ const selectVersion = (versionNumber: number) => {
 
 .version-buttons {
   display: flex;
-  gap: 8px;
+  gap: 0.4rem;
   justify-content: center;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 0.6rem;
 }
 
 .btn-version {
   background-color: #666;
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  border-radius: 1rem;
   font-weight: 500;
   cursor: pointer;
   font-size: 0.9rem;
@@ -648,44 +650,44 @@ const selectVersion = (versionNumber: number) => {
 
 .chat-input-container {
   background-color: white;
-  border-radius: 12px;
-  padding: 12px;
-  height: 70px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 0.6rem;
+  padding: 0.6rem;
+  height: 3.5rem;
+  box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
 }
 
 .input-field {
   display: flex;
-  gap: 12px;
+  gap: 0.6rem;
   align-items: center;
   height: 100%;
 }
 
 .message-input {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 20px;
+  padding: 0.4rem 0.6rem;
+  border: 0.05rem solid #ddd;
+  border-radius: 1rem;
   font-size: 1rem;
   outline: none;
-  height: 40px;
+  height: 2rem;
 }
 
 .message-input:focus {
   border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+  box-shadow: 0 0 0 0.1rem rgba(25, 118, 210, 0.1);
 }
 
 .btn-send {
   background-color: #1976d2;
   color: white;
   border: none;
-  padding: 8px;
+  padding: 0.4rem;
   border-radius: 50%;
   cursor: pointer;
   font-size: 1.1rem;
-  width: 40px;
-  height: 40px;
+  width: 2rem;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -701,21 +703,21 @@ const selectVersion = (versionNumber: number) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
 }
 
 .correction-count {
   background-color: #1976d2;
   color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  border-radius: 1rem;
   font-size: 0.9rem;
   font-weight: 500;
 }
 
 .action-buttons {
   display: flex;
-  gap: 12px;
+  gap: 0.6rem;
 }
 
 .btn-modify,
@@ -724,8 +726,8 @@ const selectVersion = (versionNumber: number) => {
   background-color: #6c757d;
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.2rem;
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.2s ease;

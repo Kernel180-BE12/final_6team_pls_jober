@@ -122,25 +122,25 @@ const handleSubmit = async () => {
 
 .main-content {
   flex: 1;
-  padding: 40px 0;
+  padding: 2rem 0;
 }
 
 .content-wrapper {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 40px;
+  padding: 0 2rem;
 }
 
 .header-section {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 2rem;
 }
 
 .page-title {
   font-size: 2.5rem;
   font-weight: 700;
   color: #1a1a1a;
-  margin-bottom: 16px;
+  margin-bottom: 0.8rem;
   line-height: 1.3;
 }
 
@@ -152,7 +152,7 @@ const handleSubmit = async () => {
 
 .main-content-area {
   display: flex;
-  gap: 40px;
+  gap: 2rem;
   min-height: 0;
 }
 
@@ -167,24 +167,24 @@ const handleSubmit = async () => {
   font-size: 1.5rem;
   font-weight: 600;
   color: #1a1a1a;
-  margin-bottom: 24px;
+  margin-bottom: 1.2rem;
 }
 
 .category-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 12px;
+  gap: 0.6rem;
   align-content: start;
 }
 
 .category-btn {
-  height: 48px;
+  height: 2.4rem;
   font-size: 0.9rem;
   font-weight: 500;
-  border: 2px solid #e0e0e0;
+  border: 0.1rem solid #e0e0e0;
   background: white;
   color: #666;
-  border-radius: 8px;
+  border-radius: 0.4rem;
   transition: all 0.2s ease;
   cursor: pointer;
 }
@@ -207,10 +207,10 @@ const handleSubmit = async () => {
 
 .message-textarea {
   flex: 1;
-  min-height: 300px;
-  padding: 20px;
-  border: 2px solid #e0e0e0;
-  border-radius: 12px;
+  min-height: 15rem;
+  padding: 1rem;
+  border: 0.1rem solid #e0e0e0;
+  border-radius: 0.6rem;
   font-size: 1rem;
   line-height: 1.6;
   resize: vertical;
@@ -220,21 +220,21 @@ const handleSubmit = async () => {
 .message-textarea:focus {
   outline: none;
   border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+  box-shadow: 0 0 0 0.1rem rgba(25, 118, 210, 0.1);
 }
 
 .submit-section {
   display: flex;
   justify-content: flex-end;
-  margin-top: 24px;
+  margin-top: 1.2rem;
 }
 
 .submit-btn {
   background: #1976d2;
   color: white;
   border: none;
-  padding: 16px 32px;
-  border-radius: 8px;
+  padding: 0.8rem 1.6rem;
+  border-radius: 0.4rem;
   font-weight: 600;
   font-size: 1.1rem;
   cursor: pointer;

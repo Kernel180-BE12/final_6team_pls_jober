@@ -106,14 +106,14 @@ const applySelectedAlternative = () => {
 
 <style scoped>
 .rejection-sidebar {
-  width: 280px;
-  max-width: 280px;
+  width: 14rem;
+  max-width: 14rem;
   height: auto;
   background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e0e0e0;
+  border-radius: 0.6rem;
+  padding: 0.8rem;
+  box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
+  border: 0.05rem solid #e0e0e0;
   overflow-y: auto;
   align-self: center;
 }
@@ -122,9 +122,9 @@ const applySelectedAlternative = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 0.1rem solid #e0e0e0;
 }
 
 .sidebar-header h3 {
@@ -136,12 +136,12 @@ const applySelectedAlternative = () => {
 .close-btn {
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 1.2rem;
   cursor: pointer;
   color: #666;
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 1.5rem;
+  height: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -153,15 +153,15 @@ const applySelectedAlternative = () => {
 }
 
 .rejection-reason {
-  margin-bottom: 16px;
-  padding: 12px;
+  margin-bottom: 0.8rem;
+  padding: 0.6rem;
   background: #fff3e0;
-  border-radius: 8px;
-  border-left: 4px solid #ff9800;
+  border-radius: 0.4rem;
+  border-left: 0.2rem solid #ff9800;
 }
 
 .rejection-reason h4 {
-  margin: 0 0 6px 0;
+  margin: 0 0 0.3rem 0;
   color: #e65100;
   font-size: 0.9rem;
 }
@@ -173,11 +173,11 @@ const applySelectedAlternative = () => {
 }
 
 .alternatives-section {
-  margin-bottom: 16px;
+  margin-bottom: 0.8rem;
 }
 
 .alternatives-section h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 0.6rem 0;
   color: #333;
   font-size: 0.9rem;
 }
@@ -185,14 +185,14 @@ const applySelectedAlternative = () => {
 .alternatives-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
 }
 
 .alternative-item {
-  padding: 10px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 0.5rem;
+  border: 0.1rem solid #e0e0e0;
+  border-radius: 0.4rem;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -216,8 +216,8 @@ const applySelectedAlternative = () => {
 
 .alternative-status {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 0.5rem;
+  right: 0.5rem;
 }
 
 .selected-mark {
@@ -227,8 +227,8 @@ const applySelectedAlternative = () => {
 }
 
 .alternatives-actions {
-  padding-top: 12px;
-  border-top: 1px solid #e0e0e0;
+  padding-top: 0.6rem;
+  border-top: 0.05rem solid #e0e0e0;
 }
 
 .btn-apply {
@@ -236,8 +236,8 @@ const applySelectedAlternative = () => {
   background: #1976d2;
   color: white;
   border: none;
-  padding: 12px;
-  border-radius: 6px;
+  padding: 0.6rem;
+  border-radius: 0.3rem;
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
@@ -254,11 +254,11 @@ const applySelectedAlternative = () => {
 }
 
 .rejected-summary {
-  margin-top: 16px;
+  margin-top: 0.8rem;
 }
 
 .rejected-summary h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 0.6rem 0;
   color: #333;
   font-size: 0.9rem;
 }
@@ -266,13 +266,13 @@ const applySelectedAlternative = () => {
 .rejected-items {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.4rem;
 }
 
 .rejected-item {
-  padding: 10px;
-  border: 2px solid #ffebee;
-  border-radius: 8px;
+  padding: 0.5rem;
+  border: 0.1rem solid #ffebee;
+  border-radius: 0.4rem;
   background: #fff5f5;
   cursor: pointer;
   transition: all 0.2s ease;

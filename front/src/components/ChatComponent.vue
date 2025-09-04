@@ -93,25 +93,25 @@ const sendMessage = () => {
 
 <style scoped>
 .chat-component {
-  margin-top: 16px;
+  margin-top: 0.8rem;
   display: flex;
   flex-direction: column;
-  height: 300px;
+  height: 15rem;
 }
 
 .input-field {
   display: flex;
-  gap: 12px;
+  gap: 0.6rem;
   align-items: center;
   margin-top: auto;
-  padding-top: 16px;
+  padding-top: 0.8rem;
 }
 
 .message-input {
   flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 0.5rem;
+  border: 0.05rem solid #ddd;
+  border-radius: 0.2rem;
   font-size: 1rem;
 }
 
@@ -119,8 +119,8 @@ const sendMessage = () => {
   background-color: #1976d2;
   color: white;
   border: none;
-  padding: 10px;
-  border-radius: 4px;
+  padding: 0.5rem;
+  border-radius: 0.2rem;
   cursor: pointer;
   font-size: 1rem;
 }
@@ -129,25 +129,25 @@ const sendMessage = () => {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
+  border: 0.05rem solid #e0e0e0;
+  border-radius: 0.4rem;
+  padding: 0.8rem;
   background-color: #f8f9fa;
-  margin-bottom: 16px;
+  margin-bottom: 0.8rem;
 }
 
 .chat-messages::-webkit-scrollbar {
-  width: 6px;
+  width: 0.3rem;
 }
 
 .chat-messages::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 3px;
+  border-radius: 0.15rem;
 }
 
 .chat-messages::-webkit-scrollbar-thumb {
   background: #c1c1c1;
-  border-radius: 3px;
+  border-radius: 0.15rem;
 }
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
@@ -155,7 +155,7 @@ const sendMessage = () => {
 }
 
 .message {
-  margin-bottom: 16px;
+  margin-bottom: 0.8rem;
   display: flex;
   flex-direction: column;
 }
@@ -170,21 +170,21 @@ const sendMessage = () => {
 
 .message-content {
   max-width: 80%;
-  padding: 12px 16px;
-  border-radius: 18px;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.9rem;
   position: relative;
 }
 
 .message.user .message-content {
   background-color: #1976d2;
   color: white;
-  border-bottom-right-radius: 4px;
+  border-bottom-right-radius: 0.2rem;
 }
 
 .message.bot .message-content {
   background-color: #e9ecef;
   color: #333;
-  border-bottom-left-radius: 4px;
+  border-bottom-left-radius: 0.2rem;
 }
 
 .message-content p {
@@ -196,8 +196,8 @@ const sendMessage = () => {
 .message-time {
   font-size: 0.75rem;
   color: #666;
-  margin-top: 4px;
-  padding: 0 4px;
+  margin-top: 0.2rem;
+  padding: 0 0.2rem;
 }
 
 .message.user .message-time {
