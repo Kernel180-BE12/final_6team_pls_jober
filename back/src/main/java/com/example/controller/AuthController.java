@@ -2,7 +2,7 @@ package com.example.controller;
 
 import com.example.dto.LoginRequest;
 import com.example.dto.SignupRequest;
-import com.example.entity.User;
+import com.example.entity.Account;
 import com.example.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,8 +25,8 @@ public class AuthController {
      */
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@RequestBody SignupRequest request) {
-        User user = authService.registerUser(request);
-        return ResponseEntity.ok("회원가입 성공: " + user.getUsername());
+        Account account = authService.registerUser(request);
+        return ResponseEntity.ok("회원가입 성공: " + account.getUsername());
     }
 
     /**
@@ -35,8 +35,8 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody LoginRequest request) {
         try {
-            User user = authService.login(request);
-            return ResponseEntity.ok("로그인 성공: " + user.getEmail());
+            Account account = authService.login(request);
+            return ResponseEntity.ok("로그인 성공: " + account.getEmail());
         } catch (IllegalArgumentException e) {
 
             // 에러 출력
