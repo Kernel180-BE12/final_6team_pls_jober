@@ -337,6 +337,7 @@ const selectVersion = (versionNumber: number) => {
 </script>
 
 <style scoped>
+/* 전체 컨테이너 스타일 */
 .template-result-container {
   min-height: 100vh;
   display: flex;
@@ -344,6 +345,7 @@ const selectVersion = (versionNumber: number) => {
   position: relative;
 }
 
+/* 메인 콘텐츠 영역 */
 .main-content {
   flex: 1;
   background: linear-gradient(135deg, #E3F2FD 0%, #F1F8E9 100%);
@@ -351,6 +353,7 @@ const selectVersion = (versionNumber: number) => {
   overflow: auto;
 }
 
+/* 콘텐츠 래퍼 */
 .content-wrapper {
   max-width: 1400px;
   margin: 0 auto;
@@ -358,6 +361,7 @@ const selectVersion = (versionNumber: number) => {
   overflow-x: hidden;
 }
 
+/* 좌우 분할 레이아웃 */
 .split-layout {
   display: flex;
   gap: 0;
@@ -366,6 +370,7 @@ const selectVersion = (versionNumber: number) => {
   min-width: 50rem;
 }
 
+/* 분할선 스타일 */
 .split-layout::after {
   content: '';
   position: absolute;
@@ -377,41 +382,73 @@ const selectVersion = (versionNumber: number) => {
   box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.1);
 }
 
+/* 왼쪽 패널 (채팅 영역) */
 .left-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
   padding-right: 2rem;
-  min-width: 20rem;
+  width: 20rem;
 }
 
+/* 오른쪽 패널 (미리보기 영역) */
 .right-panel {
   flex: 2;
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
   padding-left: 2rem;
-  min-width: 16rem;
-  overflow: auto;
+  width: 20rem;
+  overflow: hidden;
+  position: relative;
 }
 
+/* 미리보기와 사이드바 컨테이너 */
 .preview-and-sidebar-container {
   display: flex;
   gap: 1rem;
   transition: transform 0.3s ease;
   align-self: center;
+  max-height: 70vh;
+  overflow: hidden;
+  margin-bottom: 1rem;
 }
 
+/* 반려 사이드바가 열렸을 때의 상태 */
 .preview-and-sidebar-container.with-rejection-sidebar {
   transform: translateX(1rem);
 }
 
+/* 카카오톡 미리보기 래퍼 */
 .kakao-preview-wrapper {
   flex-shrink: 0;
   align-self: center;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
 }
 
+/* 스크롤바 스타일링 */
+.kakao-preview-wrapper::-webkit-scrollbar {
+  width: 0.4rem;
+}
+
+.kakao-preview-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 0.2rem;
+}
+
+.kakao-preview-wrapper::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 0.2rem;
+}
+
+.kakao-preview-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 반려 사이드바 패널 */
 .rejection-sidebar-panel {
   width: 14rem;
   max-width: 14rem;
@@ -419,12 +456,14 @@ const selectVersion = (versionNumber: number) => {
   z-index: 10;
 }
 
+/* 변수값 표시 토글 */
 .variables-toggle {
   display: flex;
   justify-content: flex-start;
   margin-bottom: 1rem;
 }
 
+/* 토글 라벨 */
 .toggle-label {
   display: flex;
   align-items: center;
@@ -438,6 +477,7 @@ const selectVersion = (versionNumber: number) => {
   display: none;
 }
 
+/* 토글 슬라이더 */
 .toggle-slider {
   width: 2rem;
   height: 1rem;
@@ -447,6 +487,7 @@ const selectVersion = (versionNumber: number) => {
   transition: background-color 0.2s ease;
 }
 
+/* 토글 슬라이더 내부 원형 버튼 */
 .toggle-slider:before {
   content: '';
   position: absolute;
@@ -459,14 +500,17 @@ const selectVersion = (versionNumber: number) => {
   transition: transform 0.2s ease;
 }
 
+/* 토글 활성화 상태 */
 .toggle-label input:checked + .toggle-slider {
   background-color: #1976d2;
 }
 
+/* 토글 활성화 시 슬라이더 버튼 이동 */
 .toggle-label input:checked + .toggle-slider:before {
   transform: translateX(1rem);
 }
 
+/* 메시지 버블 */
 .message-bubble {
   background-color: #f5f5f5;
   padding: 1rem;
@@ -481,12 +525,14 @@ const selectVersion = (versionNumber: number) => {
   margin: 0.4rem 0;
 }
 
+/* 버전 버튼 컨테이너 */
 .version-button {
   display: flex;
   gap: 0.6rem;
   justify-content: center;
 }
 
+/* 버전 버튼 기본 스타일 */
 .btn-version {
   background-color: #666;
   color: white;
@@ -499,6 +545,7 @@ const selectVersion = (versionNumber: number) => {
   max-width: 6rem;
 }
 
+/* 수정된 버전 버튼 스타일 */
 .btn-version-modified {
   background-color: #28a745;
   color: white;
@@ -516,6 +563,7 @@ const selectVersion = (versionNumber: number) => {
   background-color: #218838;
 }
 
+/* 템플릿 설명 */
 .template-description {
   background-color: #f8f9fa;
   padding: 1rem;
@@ -533,17 +581,19 @@ const selectVersion = (versionNumber: number) => {
 
 
 
-/* 채팅 관련 스타일 */
+/* ===== 채팅 관련 스타일 ===== */
+/* 채팅 이력 컨테이너 */
 .chat-history-container {
   background-color: white;
   border-radius: 0.6rem;
   padding: 1rem;
-  height: 23.5rem;
+  height: 32rem;
   box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
 }
 
+/* 채팅 이력 목록 */
 .chat-history {
   display: flex;
   flex-direction: column;
@@ -552,20 +602,24 @@ const selectVersion = (versionNumber: number) => {
   overflow-y: auto;
 }
 
+/* 개별 채팅 메시지 */
 .chat-message {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
 }
 
+/* 사용자 메시지 정렬 */
 .chat-message.user {
   align-items: flex-end;
 }
 
+/* 봇 메시지 정렬 */
 .chat-message.bot {
   align-items: flex-start;
 }
 
+/* 메시지 내용 스타일 */
 .message-content {
   padding: 0.6rem 0.8rem;
   border-radius: 0.9rem;
@@ -573,32 +627,38 @@ const selectVersion = (versionNumber: number) => {
   word-wrap: break-word;
 }
 
+/* 사용자 메시지 배경색 */
 .chat-message.user .message-content {
   background-color: #1976d2;
   color: white;
 }
 
+/* 봇 메시지 배경색 */
 .chat-message.bot .message-content {
   background-color: #f5f5f5;
   color: #333;
 }
 
+/* 메시지 시간 표시 */
 .message-time {
   font-size: 0.8rem;
   color: #666;
   margin: 0 0.4rem;
 }
 
+/* 버전 생성 지점 */
 .version-creation-point {
   margin: 1rem 0;
   text-align: center;
 }
 
+/* 버전 구분선 */
 .version-divider {
   position: relative;
   margin: 0.8rem 0;
 }
 
+/* 버전 구분선 스타일 */
 .version-divider::before {
   content: '';
   position: absolute;
@@ -609,6 +669,7 @@ const selectVersion = (versionNumber: number) => {
   background: linear-gradient(90deg, transparent, #ddd, transparent);
 }
 
+/* 버전 라벨 */
 .version-label {
   background: white;
   padding: 0 0.8rem;
@@ -619,6 +680,7 @@ const selectVersion = (versionNumber: number) => {
   z-index: 1;
 }
 
+/* 버전 버튼들 */
 .version-buttons {
   display: flex;
   gap: 0.4rem;
@@ -627,6 +689,7 @@ const selectVersion = (versionNumber: number) => {
   margin-top: 0.6rem;
 }
 
+/* 버전 버튼 기본 스타일 (채팅 영역) */
 .btn-version {
   background-color: #666;
   color: white;
@@ -639,15 +702,18 @@ const selectVersion = (versionNumber: number) => {
   transition: all 0.2s ease;
 }
 
+/* 버전 버튼 호버 효과 */
 .btn-version:hover {
   background-color: #555;
 }
 
+/* 활성화된 버전 버튼 */
 .btn-version.active {
   background-color: #1976d2;
   transform: scale(1.05);
 }
 
+/* 채팅 입력 컨테이너 */
 .chat-input-container {
   background-color: white;
   border-radius: 0.6rem;
@@ -656,6 +722,7 @@ const selectVersion = (versionNumber: number) => {
   box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
 }
 
+/* 입력 필드 컨테이너 */
 .input-field {
   display: flex;
   gap: 0.6rem;
@@ -663,6 +730,7 @@ const selectVersion = (versionNumber: number) => {
   height: 100%;
 }
 
+/* 메시지 입력 필드 */
 .message-input {
   flex: 1;
   padding: 0.4rem 0.6rem;
@@ -673,11 +741,13 @@ const selectVersion = (versionNumber: number) => {
   height: 2rem;
 }
 
+/* 메시지 입력 필드 포커스 상태 */
 .message-input:focus {
   border-color: #1976d2;
   box-shadow: 0 0 0 0.1rem rgba(25, 118, 210, 0.1);
 }
 
+/* 전송 버튼 */
 .btn-send {
   background-color: #1976d2;
   color: white;
@@ -694,18 +764,27 @@ const selectVersion = (versionNumber: number) => {
   transition: background-color 0.2s ease;
 }
 
+/* 전송 버튼 호버 효과 */
 .btn-send:hover {
   background-color: #1565c0;
 }
 
-/* 액션 버튼들 스타일 */
+/* ===== 액션 버튼들 스타일 ===== */
+/* 액션 버튼 컨테이너 */
 .action-buttons-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  position: absolute;
+  bottom: -2rem;
+  left: 0;
+  right: 0;
+  padding: 1rem 0;
+  border-top: 0.05rem solid #e0e0e0;
 }
 
+/* 정정 횟수 표시 */
 .correction-count {
   background-color: #1976d2;
   color: white;
@@ -713,13 +792,16 @@ const selectVersion = (versionNumber: number) => {
   border-radius: 1rem;
   font-size: 0.9rem;
   font-weight: 500;
+  margin-left: 1rem;
 }
 
+/* 액션 버튼들 */
 .action-buttons {
   display: flex;
   gap: 0.6rem;
 }
 
+/* 공통 버튼 스타일 */
 .btn-modify,
 .btn-submit,
 .btn-reject {
@@ -733,22 +815,27 @@ const selectVersion = (versionNumber: number) => {
   transition: background-color 0.2s ease;
 }
 
+/* 제출 버튼 스타일 */
 .btn-submit {
   background-color: #28a745;
 }
 
+/* 제출 버튼 호버 효과 */
 .btn-submit:hover {
   background-color: #218838;
 }
 
+/* 반려 버튼 스타일 */
 .btn-reject {
   background-color: #dc3545;
 }
 
+/* 반려 버튼 호버 효과 */
 .btn-reject:hover {
   background-color: #c82333;
 }
 
+/* 수정 버튼 호버 효과 */
 .btn-modify:hover {
   background-color: #5a6268;
 }

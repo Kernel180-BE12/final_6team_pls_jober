@@ -188,8 +188,7 @@ const cancelEditing = () => {
   border-radius: 0.6rem;
   overflow: hidden;
   box-shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.1);
-  width: 16rem;
-  max-width: 16rem;
+  width: 20rem;
   flex-shrink: 0;
   align-self: center;
 }
