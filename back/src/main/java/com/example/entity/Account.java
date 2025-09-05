@@ -1,15 +1,15 @@
 package com.example.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "account")
-@Data
+@Getter
+@Setter
+
 @NoArgsConstructor
 @AllArgsConstructor
 public class Account {
@@ -40,7 +40,7 @@ public class Account {
     @Column(name = "company_name", length = 100)
     private String companyName;
 
-    @Column(name = "biz_reg_no", length = 12)
+    @Column(name = "biz_reg_no", length = 12, unique = true)
     private String bizRegNo;
 
     @Column(name = "created_at", updatable = false)
@@ -58,5 +58,15 @@ public class Account {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // 권한 ENUM
+    public enum Role {
+        USER, ADMIN
+    }
+
+    // 상태 ENUM
+    public enum Status {
+        ACTIVE, INACTIVE, BANNED
     }
 }
