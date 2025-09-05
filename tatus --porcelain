@@ -1,0 +1,11 @@
+warning: in the working copy of 'front/src/views/TemplateResultView.vue', LF will be replaced by CRLF the next time Git touches it
+.vscode/settings.json
+front/package-lock.json
+front/package.json
+front/src/App.vue
+front/src/components/HeaderComponent.vue
+front/src/views/ChatView.vue
+front/src/views/LandingView.vue
+front/src/views/SuccessView.vue
+front/src/views/TemplateCreateView.vue
+front/src/views/TemplateResultView.vue
