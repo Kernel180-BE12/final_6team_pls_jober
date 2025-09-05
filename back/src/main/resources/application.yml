@@ -4,11 +4,11 @@ spring:
   
   # 데이터베이스 설정
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/final_project?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
-    username: root
-    password: 9464
+    url: jdbc:mysql://localhost:3306/final_project?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-  
+
   # JPA 설정
   jpa:
     hibernate:
@@ -18,7 +18,7 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQL8Dialect
-  
+
   # Redis 설정
   data:
     redis:
@@ -43,11 +43,10 @@ jwt:
 server:
   port: 8080
   servlet:
-    context-path: /api
+    context-path: /
 
 # 로깅 설정
 logging:
   level:
     com.example: DEBUG
     org.springframework.security: DEBUG
-
