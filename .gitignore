@@ -48,3 +48,4 @@ back/.gradle/
 back/build/
 back/out/
 back/*.log
+back/.env
