@@ -25,7 +25,9 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/", "/health").permitAll()
+                // 개발 편의를 위해 모든 경로를 임시로 허용합니다.
+                // 프로덕션 환경에서는 .requestMatchers("/api/auth/**").permitAll().anyRequest().authenticated() 와 같이 변경해야 합니다.
+                .requestMatchers("/**").permitAll()
                 .anyRequest().authenticated()
             );
         
@@ -50,4 +52,3 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-

@@ -4,10 +4,10 @@ spring:
   
   # 데이터베이스 설정
   datasource:
-    url: jdbc:mysql://localhost:3306/final_project?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:password}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: ${DB_DRIVER}
   
   # JPA 설정
   jpa:
@@ -43,7 +43,7 @@ jwt:
 server:
   port: 8080
   servlet:
-    context-path: /api
+    context-path: /
 
 # 로깅 설정
 logging:
@@ -51,3 +51,8 @@ logging:
     com.example: DEBUG
     org.springframework.security: DEBUG
 
+# 외부 서비스 설정
+ai:
+  fastapi:
+    url: https://f9a89dfd-9e25-4da1-935b-13488d1d5d6e.mock.pstmn.io
+    path: /generate-template # Postman Example에 설정한 경로
