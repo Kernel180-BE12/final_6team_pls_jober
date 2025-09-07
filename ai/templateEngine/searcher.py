@@ -37,8 +37,7 @@ def classify_category_and_type(user_text: str, category_main: str, category_sub:
                 "has_channel_link": true/false,
                 "has_extra_info": true/false,
                 "explain_category_sub": "한 줄 이유",
-                "explain_type": "한 줄 이유",
-                "confidence": 0.0~1.0
+                "explain_type": "한 줄 이유"
                 }
             """
             },
@@ -64,8 +63,7 @@ def classify_category_and_type(user_text: str, category_main: str, category_sub:
                     "has_channel_link": false,
                     "has_extra_info": false,
                     "explain_category_sub": "기본 정보만 포함",
-                    "explain_type": "...",
-                    "confidence": 0.9
+                    "explain_type": "..."
                     }
                 """
             },
@@ -92,8 +90,7 @@ def classify_category_and_type(user_text: str, category_main: str, category_sub:
                     "has_channel_link": false,
                     "has_extra_info": true,
                     "explain_category_sub": "부가 정보 포함",
-                    "explain_type": "...",
-                    "confidence": 0.7
+                    "explain_type": "..."
                     }
                 """
             },
@@ -120,8 +117,7 @@ def classify_category_and_type(user_text: str, category_main: str, category_sub:
                     "has_channel_link": true,
                     "has_extra_info": false,
                     "explain_category_sub": "채널 추가 정보 포함",
-                    "explain_type": "...",
-                    "confidence": 0.5
+                    "explain_type": "..."
                     }
                 """
             },
@@ -147,8 +143,7 @@ def classify_category_and_type(user_text: str, category_main: str, category_sub:
                     "has_channel_link": true,
                     "has_extra_info": true,
                     "explain_category_sub": "채널 추가 정보, 부가 정보 포함",
-                    "explain_type": "...",
-                    "confidence": 0.3
+                    "explain_type": "..."
                     }
                 """
             },
