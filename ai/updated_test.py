@@ -49,7 +49,7 @@ def main():
         print(result.template_text)
         print("-" * 50)
         
-        # 최종 JSON 출력 (후속 팀원용)
+        # 최종 JSON 출력
         output_json = {
             "template_text": result.template_text,
             "template_title": result.template_title,
@@ -59,7 +59,7 @@ def main():
             "metadata": result.metadata
         }
         
-        print(f"\n최종 JSON 출력 (후속 팀원용):")
+        print(f"\n최종 JSON 출력:")
         print("=" * 60)
         print(json.dumps(output_json, ensure_ascii=False, indent=2))
         print("=" * 60)

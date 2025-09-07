@@ -82,7 +82,7 @@ def main():
                 print(f"\n생성된 템플릿:")
                 print(result.template_text[:200] + "..." if len(result.template_text) > 200 else result.template_text)
                 
-                # JSON 형태로도 출력 (후속 팀원을 위한 형식)
+                # JSON 형태로 출력
                 output_json = {
                     "template_text": result.template_text,
                     "template_title": result.template_title,
@@ -93,7 +93,7 @@ def main():
                     "generation_method": result.generation_method
                 }
                 
-                print(f"\nJSON 출력 (후속 팀원용):")
+                print(f"\nJSON 출력:")
                 print(json.dumps(output_json, ensure_ascii=False, indent=2)[:300] + "...")
                 
             except Exception as e:
