@@ -21,7 +21,7 @@ public class AuthSupport {
             throw new IllegalStateException("Unauthenticated user");
         }
 
-        // principal이 Long 타입인 accountId
+        // principal이 Long 타입인 account의 Id
         if (p instanceof Long id) {
             return id;
         }
