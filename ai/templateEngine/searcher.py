@@ -1,9 +1,11 @@
-import openai
+from ai.services.openai_service import OpenAIService
 import json
 
-def classify_category_and_type(user_text: str, category_main: str, category_sub: list):
-    response = openai.chat.completions.create(
-        model="gpt-4o-mini",
+class Searcher:
+    def __init__(self, service: OpenAIService):
+        self.service = service
+
+    async def classify_category_and_type(self, user_text: str, category_main: str, category_sub: list):
         messages = [
             {   # 프롬프트, 추후 하드코딩 수정 예정(db에 넣던가 뭐 하던가)
             "role": "system",
@@ -159,16 +161,12 @@ def classify_category_and_type(user_text: str, category_main: str, category_sub:
                 {category_sub}
             """
             }
-        ],
+        ]
 
-        temperature=0,
-        max_tokens=300
-    )
+        content = await self.service.chat_completion(messages, model="gpt-3.5-turbo")
 
-    content = response.choices[0].message.content.strip()
-    try:
-        result = json.loads(content)
-    except json.JSONDecodeError:
-        raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
+        try:
+            return  json.loads(content.strip())
+        except json.JSONDecodeError:
+            raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
 
-    return result
