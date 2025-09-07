@@ -178,6 +178,77 @@ class TemplateGenerator:
             print(f"참고 템플릿 기반 생성 오류: {e}")
             return self.generate_new_template(request)
     
+    def search_policy_guidelines(self, request: TemplateRequest) -> List[Dict]:
+        """정책 가이드라인 검색"""
+        try:
+            guideline_collection = self.client.get_collection('policy_guidelines')
+            
+            # 카테고리와 사용사례로 관련 정책 검색
+            search_query = f"{request.category_main} {request.category_sub} {request.use_case}"
+            
+            results = guideline_collection.query(
+                query_texts=[search_query],
+                n_results=2,  # 정책은 너무 많으면 혼란
+                include=['documents', 'metadatas']
+            )
+            
+            guidelines = []
+            if results and results['documents'] and results['documents'][0]:
+                for doc, metadata in zip(results['documents'][0], results['metadatas'][0]):
+                    guidelines.append({
+                        'text': doc,
+                        'metadata': metadata
+                    })
+            
+            return guidelines
+            
+        except Exception as e:
+            print(f"정책 가이드라인 검색 오류: {e}")
+            return []
+
+    def generate_template_with_policy_guidelines(self, request: TemplateRequest, guidelines: List[Dict]) -> str:
+        """정책 가이드라인을 참고하여 템플릿 생성"""
+        try:
+            guidelines_text = "\n".join([g['text'] for g in guidelines])
+            
+            prompt = f"""
+=== 알림톡 정책 가이드라인 ===
+{guidelines_text}
+
+=== 템플릿 생성 요청 ===
+카테고리: {request.category_main} > {request.category_sub}
+사용 사례: {request.use_case}
+의도 유형: {request.intent_type}
+수신자 범위: {request.recipient_scope}
+원본 메시지: {request.user_text}
+
+위 정책 가이드라인을 엄격히 준수하여 카카오톡 알림톡 템플릿을 생성해주세요.
+
+중요 사항:
+1. 가이드라인에 명시된 금지사항 절대 포함 금지
+2. 허용된 카테고리와 목적에만 부합하는 내용
+3. 변수는 #{{변수명}} 형태로 표현
+4. 발송 근거를 템플릿 하단에 명시
+
+템플릿만 생성해주세요:
+"""
+            
+            response = openai.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "당신은 카카오톡 알림톡 정책 전문가입니다. 정책 가이드라인을 완벽히 준수하는 템플릿만 생성합니다."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,  # 정책 준수를 위해 더 낮은 온도
+                max_tokens=1000
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            print(f"정책 기반 템플릿 생성 오류: {e}")
+            return self.generate_new_template(request)
+
     def generate_new_template(self, request: TemplateRequest) -> str:
         """완전히 새로운 템플릿 생성"""
         try:
@@ -186,13 +257,13 @@ class TemplateGenerator:
 
 === 템플릿 요청 정보 ===
 라벨: {request.label}
-카테고리: {request.category}
+카테고리: {request.category_main} > {request.category_sub}
 사용 사례: {request.use_case}
 의도 유형: {request.intent_type}
 수신자 범위: {request.recipient_scope}
 링크 허용: {request.links_allowed}
 변수: {request.variables}
-원본 메시지: {request.original_message}
+원본 메시지: {request.user_text}
 
 카카오톡 알림톡 규정에 맞는 템플릿을 생성해주세요.
 
@@ -236,7 +307,7 @@ class TemplateGenerator:
 다음 카카오톡 알림톡 템플릿에 대한 간단한 제목을 생성해주세요:
 
 템플릿: {template_text}
-카테고리: {request.category}
+카테고리: {request.category_main} > {request.category_sub}
 사용 사례: {request.use_case}
 
 제목 규칙:
@@ -276,7 +347,7 @@ class TemplateGenerator:
             reference_template_id = None
             generation_method = "new_creation"
             
-            # 2. 템플릿 생성
+            # 2. 템플릿 생성 로직 개선
             if similar_templates and max_similarity >= 0.7:
                 # 유사도 높음: 참고 템플릿 기반 생성
                 reference_template = similar_templates[0]
@@ -284,8 +355,15 @@ class TemplateGenerator:
                 reference_template_id = reference_template['id']
                 generation_method = "reference_based"
             else:
-                # 유사도 낮음: 새로운 템플릿 생성
-                template_text = self.generate_new_template(request)
+                # 유사도 낮음: 정책 가이드라인 기반 생성
+                guidelines = self.search_policy_guidelines(request)
+                if guidelines:
+                    template_text = self.generate_template_with_policy_guidelines(request, guidelines)
+                    generation_method = "policy_guided"
+                else:
+                    # 가이드라인도 없으면 기본 생성
+                    template_text = self.generate_new_template(request)
+                    generation_method = "new_creation"
             
             # 3. 템플릿 제목 생성
             template_title = self.generate_title(request, template_text)
