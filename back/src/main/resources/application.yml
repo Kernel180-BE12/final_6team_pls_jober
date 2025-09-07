@@ -9,6 +9,15 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  # flyway 마이그레이션 설정
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations:
+      - classpath:db/migration
+      - classpath:db/seed
+
   # JPA 설정
   jpa:
     hibernate:
