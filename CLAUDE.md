@@ -113,6 +113,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 사용자 메시지와 예시 템플릿 간 유사도 검색
 - 유사한 예시가 있어도 **무조건 새로 생성**, 단지 **참고용**으로만 활용
 
+### ChromaDB 현재 상태 (2025-09-07 확인)
+
+**연결 정보**: 
+- Host: 134.185.106.160:8001 ✅ 연결 성공
+
+**컬렉션 현황 (총 14개)**:
+- **데이터 보유 컬렉션 (3개)**:
+  1. `policy_guidelines` (9개 문서) - 알림톡 심사 기준 및 정보성 메시지 정의
+  2. `policy` (8개 문서) - 카카오 메시지 정책 리스트 
+  3. `kakao_templates` (6개 문서) - 예시 템플릿 (배송시작, 회원가입, 포인트 적립 등)
+
+- **빈 컬렉션 (11개)**: 
+  - `alimtalk_whitelist`, `alimtalk_blacklist`, `alimtalk_policy` - 화이트/블랙리스트 규정 (준비됨, 데이터 없음)
+  - `white_list`, `black_list`, `whitelist`, `blacklist` - 중복된 빈 컬렉션들
+  - `user_question`, `book_metadata`, `book_description`, `guidelines` - 기타 빈 컬렉션
+
+**현재 상태 요약**:
+- 총 문서 수: 23개 (매우 적음)
+- 예시 템플릿: 6개만 존재 (추가 필요)
+- 화이트/블랙리스트: 컬렉션은 생성되어 있으나 데이터 없음
+- 정책 가이드라인: 기본적인 심사 기준 데이터 보유
+
+**필요 작업**:
+1. 화이트리스트/블랙리스트 데이터 추가
+2. 더 다양한 예시 템플릿 데이터 추가  
+3. 사용자 질의 데이터 수집 및 저장
+
 ### Architecture
 - **Frontend**: Vue 3 + TypeScript (port 3000) - 사용자 인터페이스
 - **Backend**: Spring Boot + Java 17 (port 8080) - 비즈니스 로직 및 데이터 관리
