@@ -13,32 +13,39 @@ class Searcher:
         """
         classify_category_and_type + extract_message_fields 결과를 합쳐서 반환
         """
-
         logger.info("Starting analyze_message")
         logger.debug(f"[INPUT] user_text={user_text}, category_main={category_main}, category_sub={category_sub}")
 
-        # 두 메서드 동시에 실행
-        logging.info("Calling classify_category_and_type")
-        classify_task = asyncio.create_task(
-            self.classify_category_and_type(user_text, category_main, category_sub)
-        )
-        logging.info("Calling extract_message_fields")
-        extract_task = asyncio.create_task(
-            self.extract_message_fields(user_text)
-        )
+        try:
+            # 두 메서드 동시에 실행
+            logging.info("Calling classify_category_and_type")
+            classify_task = asyncio.create_task(
+                self.classify_category_and_type(user_text, category_main, category_sub)
+            )
+            logging.info("Calling extract_message_fields")
+            extract_task = asyncio.create_task(
+                self.extract_message_fields(user_text)
+            )
 
-        classify_result, extract_result = await asyncio.gather(classify_task, extract_task)
+            classify_result, extract_result = await asyncio.gather(classify_task, extract_task)
 
-        logger.debug(f"[RESULT] classify_category_and_type={classify_result}")
-        logger.debug(f"[RESULT] extract_message_fields={extract_result}")
+            logger.debug(f"[RESULT] classify_category_and_type={classify_result}")
+            logger.debug(f"[RESULT] extract_message_fields={extract_result}")
 
-        # dict 합치기 (중복 키 있으면 extract_result 우선)
-        combined = {**classify_result, **extract_result}
+            # dict 합치기 (중복 키 있으면 extract_result 우선)
+            combined = {**classify_result, **extract_result}
 
-        logger.info("Finished analyze_message")
-        logger.debug(f"[COMBINED RESULT] {combined}")
-        
-        return combined
+            logger.info("Finished analyze_message")
+            logger.debug(f"[COMBINED RESULT] {combined}")
+
+            return combined
+        except asyncio.TimeoutError as e:
+            logger.error(f"❌ chat_completion timeout: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Unexpected error: {str(e)}")
+            logger.exception(e)
+            raise
 
     async def classify_category_and_type(self, user_text: str, category_main: str, category_sub: list):
         messages = [
