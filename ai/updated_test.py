@@ -37,10 +37,8 @@ def main():
         result = generator.generate_template(request)
         
         print("성공!")
-        print(f"유사도 점수: {result.similarity_score:.3f}")
-        print(f"참고 템플릿 사용: {result.reference_used}")
-        print(f"생성 방법: {result.generation_method}")
         print(f"템플릿 제목: {result.template_title}")
+        print(f"생성 방법: {result.generation_method}")
         print(f"감지된 변수: {result.variables_detected}")
         
         if result.reference_template_id:
@@ -55,11 +53,9 @@ def main():
         output_json = {
             "template_text": result.template_text,
             "template_title": result.template_title,
-            "similarity_score": result.similarity_score,
-            "reference_used": result.reference_used,
-            "reference_template_id": result.reference_template_id,
             "variables_detected": result.variables_detected,
             "generation_method": result.generation_method,
+            "reference_template_id": result.reference_template_id,
             "metadata": result.metadata
         }
         

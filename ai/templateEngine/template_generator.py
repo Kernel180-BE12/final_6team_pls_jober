@@ -43,11 +43,9 @@ class TemplateResponse(BaseModel):
     """템플릿 생성 응답 모델"""
     template_text: str
     template_title: str
-    similarity_score: float
-    reference_used: bool
-    reference_template_id: Optional[str] = None
     variables_detected: List[str]
     generation_method: str  # "reference_based", "new_creation"
+    reference_template_id: Optional[str] = None
     metadata: Dict[str, Any]
 
 class TemplateGenerator:
@@ -275,7 +273,6 @@ class TemplateGenerator:
                 similarity_threshold=0.7
             )
             
-            reference_used = False
             reference_template_id = None
             generation_method = "new_creation"
             
@@ -284,7 +281,6 @@ class TemplateGenerator:
                 # 유사도 높음: 참고 템플릿 기반 생성
                 reference_template = similar_templates[0]
                 template_text = self.generate_template_with_reference(request, reference_template)
-                reference_used = True
                 reference_template_id = reference_template['id']
                 generation_method = "reference_based"
             else:
@@ -301,15 +297,11 @@ class TemplateGenerator:
             return TemplateResponse(
                 template_text=template_text,
                 template_title=template_title,
-                similarity_score=max_similarity,
-                reference_used=reference_used,
-                reference_template_id=reference_template_id,
                 variables_detected=variables_detected,
                 generation_method=generation_method,
+                reference_template_id=reference_template_id,
                 metadata={
-                    "request_info": request.dict(),
-                    "similar_templates_count": len(similar_templates),
-                    "processing_method": generation_method
+                    "request_info": request.dict()
                 }
             )
             
