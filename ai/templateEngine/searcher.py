@@ -1,9 +1,28 @@
 from ai.services.openai_service import OpenAIService
+import asyncio
 import json
 
 class Searcher:
     def __init__(self, service: OpenAIService):
         self.service = service
+    
+    async def analyze_message(self, user_text: str, category_main: str, category_sub: list):
+        """
+        classify_category_and_type + extract_message_fields 결과를 합쳐서 반환
+        """
+        # 두 메서드 동시에 실행
+        classify_task = asyncio.create_task(
+            self.classify_category_and_type(user_text, category_main, category_sub)
+        )
+        extract_task = asyncio.create_task(
+            self.extract_message_fields(user_text)
+        )
+
+        classify_result, extract_result = await asyncio.gather(classify_task, extract_task)
+
+        # dict 합치기 (중복 키 있으면 extract_result 우선)
+        combined = {**classify_result, **extract_result}
+        return combined
 
     async def classify_category_and_type(self, user_text: str, category_main: str, category_sub: list):
         messages = [
