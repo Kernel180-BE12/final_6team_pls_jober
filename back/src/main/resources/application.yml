@@ -18,7 +18,7 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQL8Dialect
-  
+
   # Redis 설정
   data:
     redis:
@@ -51,8 +51,8 @@ logging:
     com.example: DEBUG
     org.springframework.security: DEBUG
 
-# 외부 서비스 설정
 ai:
   fastapi:
-    url: https://f9a89dfd-9e25-4da1-935b-13488d1d5d6e.mock.pstmn.io
-    path: /generate-template # Postman Example에 설정한 경로
+    url: http://localhost:8000/ #예상경로
+    path: /generate-template # 예상경로
+

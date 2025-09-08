@@ -1,82 +1,59 @@
 <template>
-  <div class="template-create-page">
-    <!-- 헤더 -->
+  <div class="template-create-container">
+    <!-- 헤더 컴포넌트 -->
     <HeaderComponent />
     
     <!-- 메인 콘텐츠 -->
-    <v-main class="main-content">
-      <v-container fluid class="pa-0">
-        <section class="template-section">
-          <v-container class="template-container">
-            <v-row justify="center" align="center" class="min-height-screen">
-              <v-col cols="12" md="8" lg="6" class="text-center">
-                <div class="template-content">
-                  <!-- 제목 -->
-                  <h1 class="template-title mb-6">
-                    카카오 알림톡으로 발송할 메시지 내용을 입력하세요
-                  </h1>
-                  
-                  <!-- 부제목 -->
-                  <p class="template-subtitle mb-8">
-                    문자 메시지를 보낸다고 생각하시고 메시지를 입력해주세요
-                  </p>
-                  
-                  <!-- 카테고리 선택 -->
-                  <div class="category-section mb-8">
-                    <h3 class="category-title mb-4">카테고리 선택</h3>
-                    <div class="category-buttons">
-                      <v-btn
-                        v-for="category in categories"
-                        :key="category.id"
-                        :color="selectedCategory === category.id ? '#00C851' : '#E0E0E0'"
-                        :variant="selectedCategory === category.id ? 'flat' : 'outlined'"
-                        class="category-btn mr-4 mb-2"
-                        rounded="pill"
-                        size="large"
-                        @click="selectCategory(category.id)"
-                      >
-                        {{ category.name }}
-                      </v-btn>
-                    </div>
-                  </div>
-                  
-                  <!-- 메시지 입력 -->
-                  <div class="message-section mb-8">
-                    <h3 class="message-title mb-4">메시지 내용</h3>
-                    <v-textarea
-                      v-model="messageText"
-                      placeholder="여기에 메시지 내용을 입력하세요..."
-                      variant="outlined"
-                      rows="8"
-                      class="message-input"
-                      :rules="messageRules"
-                      counter
-                      maxlength="500"
-                      auto-grow
-                    ></v-textarea>
-                  </div>
-                  
-                  <!-- 제출 버튼 -->
-                  <div class="submit-section">
-                    <v-btn
-                      color="#00C851"
-                      variant="flat"
-                      size="x-large"
-                      class="submit-btn"
-                      rounded="pill"
-                      :disabled="!canSubmit"
-                      @click="submitTemplate"
-                    >
-                      템플릿 생성하기
-                    </v-btn>
-                  </div>
-                </div>
-              </v-col>
-            </v-row>
-          </v-container>
-        </section>
-      </v-container>
-    </v-main>
+    <div class="main-content">
+      <div class="content-wrapper">
+        <!-- 제목 및 설명 -->
+        <div class="header-section">
+          <h1 class="page-title">
+            만들고 싶은 알림톡 템플릿 주제를 알려주세요
+          </h1>
+        </div>
+        
+        <!-- 메인 콘텐츠 영역 -->
+        <div class="main-content-area">
+          <!-- 왼쪽: 카테고리 영역 -->
+          <div class="category-section">
+            <h3 class="section-title">카테고리 선택</h3>
+            <div class="category-grid">
+              <button
+                v-for="category in categories"
+                :key="category.id"
+                :class="['category-btn', { 'selected': selectedCategory === category.id }]"
+                @click="selectCategory(category.id)"
+              >
+                {{ category.name }}
+              </button>
+            </div>
+          </div>
+          
+          <!-- 오른쪽: 텍스트 입력 영역 -->
+          <div class="text-input-section">
+            <h3 class="section-title">메시지 내용</h3>
+            <textarea
+              v-model="messageText"
+              placeholder="ex. 우리 서비스에 맞는 법적 고지 내용을 빠르게 작성하고 적용할 수 있는 템플릿이 필요합니다."
+              class="message-textarea"
+              rows="12"
+            ></textarea>
+            
+            <!-- 제출 버튼 -->
+            <div class="submit-section">
+              <button
+                class="submit-btn"
+                :disabled="!canSubmit"
+                @click="handleSubmit"
+              >
+                템플릿 생성하기
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -89,193 +66,187 @@ const router = useRouter()
 
 // 카테고리 데이터
 const categories = [
-  { id: 'appointment', name: '예약 안내' },
-  { id: 'marketing', name: '마케팅' },
-  { id: 'notification', name: '공지사항' },
-  { id: 'reminder', name: '리마인더' },
-  { id: 'custom', name: '커스텀' }
+  { id: 1, name: '공지사항' },
+  { id: 2, name: '이벤트' },
+  { id: 3, name: '안내' },
+  { id: 4, name: '마케팅' },
+  { id: 5, name: '고객서비스' },
+  { id: 6, name: '주문확인' },
+  { id: 7, name: '배송안내' },
+  { id: 8, name: '결제완료' },
+  { id: 9, name: '예약확정' },
+  { id: 10, name: '취소안내' },
+  { id: 11, name: '기타' },
+  { id: 12, name: '없음' }
 ]
 
-// Reactive data
-const selectedCategory = ref('')
+const selectedCategory = ref<number | null>(null)
 const messageText = ref('')
-
-// 유효성 검사 규칙
-const messageRules = [
-  (v: string) => !!v || '메시지 내용을 입력해주세요',
-  (v: string) => v.length >= 10 || '메시지는 최소 10자 이상 입력해주세요'
-]
 
 // 제출 가능 여부
 const canSubmit = computed(() => {
-  return selectedCategory.value && messageText.value.trim().length >= 10
+  return selectedCategory.value !== null && messageText.value.trim().length > 0
 })
 
 // 카테고리 선택
-const selectCategory = (categoryId: string) => {
-  selectedCategory.value = categoryId
+const selectCategory = (categoryId: number) => {
+  selectedCategory.value = selectedCategory.value === categoryId ? null : categoryId
 }
 
-// 템플릿 제출
-const submitTemplate = () => {
+// 제출 처리
+const handleSubmit = async () => {
   if (!canSubmit.value) return
   
-  // 채팅 페이지로 이동
-  router.push({
-    name: 'chat',
-    query: {
+  try {
+    // TODO: 템플릿 생성 로직 구현
+    console.log('템플릿 생성:', {
       category: selectedCategory.value,
       message: messageText.value
-    }
-  })
+    })
+    
+    // 결과 페이지로 이동
+    router.push('/template/result')
+  } catch (error) {
+    console.error('템플릿 생성 실패:', error)
+  }
 }
 </script>
 
 <style scoped>
-.template-create-page {
+.template-create-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #FFF8E1 0%, #FFFDE7 50%, #F1F8E9 100%);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #E3F2FD 0%, #F1F8E9 100%);
 }
 
 .main-content {
-  padding-top: 70px; /* 헤더 높이만큼 여백 */
-}
-
-.template-section {
-  min-height: calc(100vh - 70px);
-  display: flex;
-  align-items: center;
-  background: linear-gradient(135deg, rgba(255, 248, 225, 0.9) 0%, rgba(255, 253, 231, 0.9) 50%, rgba(241, 248, 233, 0.9) 100%);
-}
-
-.template-container {
-  max-width: 1200px !important;
-}
-
-.min-height-screen {
-  min-height: calc(100vh - 140px);
-}
-
-.template-content {
+  flex: 1;
   padding: 2rem 0;
 }
 
-.template-title {
-  font-size: 2.5rem !important;
+.content-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.header-section {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 2.5rem;
   font-weight: 700;
-  color: #333;
+  color: #1a1a1a;
+  margin-bottom: 0.8rem;
   line-height: 1.3;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.template-subtitle {
-  font-size: 1.2rem;
+.page-description {
+  font-size: 1.25rem;
   color: #666;
-  font-weight: 400;
-  line-height: 1.5;
+  margin: 0;
 }
 
-.category-section, .message-section {
-  background: rgba(255, 255, 255, 0.8);
-  padding: 2rem;
-  border-radius: 16px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-.category-title, .message-title {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 1rem;
-}
-
-.category-buttons {
+.main-content-area {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
+  gap: 2rem;
+  min-height: 0;
+}
+
+.category-section,
+.text-input-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 1.2rem;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.6rem;
+  align-content: start;
 }
 
 .category-btn {
-  font-weight: 500 !important;
-  text-transform: none !important;
-  min-width: 120px;
-  transition: all 0.3s ease;
+  height: 2.4rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 0.1rem solid #e0e0e0;
+  background: white;
+  color: #666;
+  border-radius: 0.4rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .category-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #1976d2;
+  color: #1976d2;
 }
 
-.message-input {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 12px;
+.category-btn.selected {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
 }
 
-.message-input :deep(.v-field__outline) {
-  border-color: #E0E0E0;
+.text-input-section {
+  display: flex;
+  flex-direction: column;
 }
 
-.message-input :deep(.v-field--focused .v-field__outline) {
-  border-color: #00C851;
+.message-textarea {
+  flex: 1;
+  min-height: 15rem;
+  padding: 1rem;
+  border: 0.1rem solid #e0e0e0;
+  border-radius: 0.6rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.message-textarea:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 0.1rem rgba(25, 118, 210, 0.1);
 }
 
 .submit-section {
-  margin-top: 2rem;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.2rem;
 }
 
 .submit-btn {
-  font-weight: 600 !important;
-  text-transform: none !important;
-  padding: 0 3rem !important;
-  height: 56px !important;
-  box-shadow: 0 4px 12px rgba(0, 200, 81, 0.3);
-  transition: all 0.3s ease;
+  background: #1976d2;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.6rem;
+  border-radius: 0.4rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
 .submit-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 200, 81, 0.4);
+  background: #1565c0;
 }
 
 .submit-btn:disabled {
-  opacity: 0.6;
+  background: #ccc;
   cursor: not-allowed;
-}
-
-/* 반응형 디자인 */
-@media (max-width: 960px) {
-  .template-title {
-    font-size: 2rem !important;
-  }
-  
-  .template-subtitle {
-    font-size: 1.1rem;
-  }
-  
-  .category-section, .message-section {
-    padding: 1.5rem;
-  }
-}
-
-@media (max-width: 600px) {
-  .template-title {
-    font-size: 1.8rem !important;
-  }
-  
-  .template-content {
-    padding: 1rem 0;
-  }
-  
-  .category-buttons {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .category-btn {
-    width: 200px;
-  }
 }
 </style>

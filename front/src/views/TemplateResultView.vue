@@ -1,478 +1,842 @@
 <template>
-  <div class="template-result-page">
-    <!-- 헤더 -->
+  <div class="template-result-container">
+    <!-- 헤더 컴포넌트 -->
     <HeaderComponent />
     
     <!-- 메인 콘텐츠 -->
-    <v-main class="main-content">
-      <v-container fluid class="pa-0">
-        <section class="result-section">
-          <v-container class="result-container">
-            <v-row>
-              <!-- 왼쪽 섹션: 템플릿 편집 -->
-              <v-col cols="12" lg="6" class="left-section">
-                <div class="edit-content">
-                  <!-- 생성된 템플릿 내용 -->
-                  <div class="template-box mb-6">
-                    <div class="template-content">
-                      <p class="template-text">
-                        안녕하세요. ○○병원입니다. 예약하신 진료 일정 안내드립니다.
-                      </p>
-                      <ul class="template-list">
-                        <li>- 일시: 25.09.05(금) 14:30</li>
-                        <li>- 장소: ○○병원 3층 내과 진료실</li>
-                      </ul>
-                      <p class="template-text">
-                        예약 시간 10분 전 도착 부탁드립니다.
-                      </p>
+    <main class="main-content">
+      <div class="content-wrapper">
+        <!-- 좌우 분할 레이아웃 -->
+        <div class="split-layout">
+          <!-- 왼쪽: 메시지 편집/정보 (1/3) -->
+          <div class="left-panel">
+            <!-- 채팅 이력 표시 영역 -->
+            <div class="chat-history-container">
+              <div class="chat-history">
+                <template v-for="(message, index) in chatHistory" :key="index">
+                  <div :class="['chat-message', message.type]">
+                    <div class="message-content">{{ message.content }}</div>
+                    <div class="message-time">{{ message.time }}</div>
+                  </div>
+                  
+                  <!-- 해당 메시지 다음에 버전 버튼 표시 -->
+                  <div 
+                    v-for="version in versions.filter(v => v.messageIndex === index)" 
+                    :key="`version-${version.number}`"
+                    class="version-creation-point"
+                  >
+                    <div class="version-divider">
+                      <span class="version-label">버전 {{ version.number }} 생성</span>
                     </div>
-                  </div>
-                  
-                  <!-- 버전 정보 -->
-                  <div class="version-info mb-6">
-                    <v-btn
-                      color="#333"
-                      variant="outlined"
-                      class="version-btn"
-                      rounded="pill"
-                    >
-                      버전 1 >
-                    </v-btn>
-                  </div>
-                  
-                  <!-- 생성 설명 -->
-                  <div class="generation-info mb-6">
-                    <p class="info-text">
-                      {{ selectedCategoryName }} 카테고리에 대한 카카오 알림톡 템플릿이 생성되었습니다. 
-                      '사전 승인된 알림톡'을 기반으로 총 4개 변수가 적용되었으며, 
-                      '이 카톡 발송하기'에서 자유롭게 수정하실 수 있습니다.
-                    </p>
-                  </div>
-                  
-                  <!-- 추가 입력 필드 -->
-                  <div class="additional-input mb-6">
-                    <v-text-field
-                      v-model="additionalMessage"
-                      label="발송하고 싶은 내용을 입력해주세요"
-                      variant="outlined"
-                      class="additional-field"
-                      append-inner-icon="mdi-arrow-up"
-                      @click:append-inner="sendAdditionalMessage"
-                    ></v-text-field>
-                  </div>
-                  
-                  <!-- 정정 횟수 -->
-                  <div class="correction-count">
-                    <div class="correction-bar">
-                      <div class="correction-fill" :style="{ width: correctionPercentage + '%' }"></div>
-                    </div>
-                    <p class="correction-text">남은 정정 횟수: {{ remainingCorrections }}/3</p>
-                  </div>
-                </div>
-              </v-col>
-              
-              <!-- 오른쪽 섹션: 미리보기 -->
-              <v-col cols="12" lg="6" class="right-section">
-                <div class="preview-content">
-                  <!-- 컨트롤 바 -->
-                  <div class="control-bar mb-4">
-                    <div class="toggle-section">
-                      <span class="toggle-label">변수값 표시</span>
-                      <v-switch
-                        v-model="showVariables"
-                        color="#00C851"
-                        hide-details
-                      ></v-switch>
-                    </div>
-                    <v-btn
-                      color="#9C27B0"
-                      variant="flat"
-                      class="send-btn"
-                      rounded="pill"
-                      size="large"
-                    >
-                      이 카톡 발송하기
-                    </v-btn>
-                  </div>
-                  
-                  <!-- 메시지 미리보기 -->
-                  <div class="message-preview">
-                    <div class="preview-header">
-                      <span class="preview-title">알림톡 도착</span>
-                    </div>
-                    <div class="preview-content">
-                      <div class="preview-icon">
-                        <v-icon icon="mdi-calendar-check" size="40" color="#00C851"></v-icon>
-                      </div>
-                      <h3 class="preview-main-title">예약 안내</h3>
-                      <p class="preview-main-text">
-                        안녕하세요 고객님. 예약 일정 안내드립니다.
-                      </p>
-                      <div class="preview-details">
-                        <div class="detail-item">
-                          <span class="detail-icon">▶</span>
-                          <span class="detail-text">예약자: 고객</span>
-                        </div>
-                        <div class="detail-item">
-                          <span class="detail-icon">▶</span>
-                          <span class="detail-text">예약일시: 2025.09.05(금) 14:30</span>
-                        </div>
-                        <p class="detail-text">예약 시간 10분 전 도착 부탁드립니다.</p>
-                        <div class="detail-item">
-                          <span class="detail-icon">▶</span>
-                          <span class="detail-text">장소: ○○병원 3층 내과 진료실</span>
-                        </div>
-                      </div>
-                      <p class="preview-closing">감사합니다.</p>
-                      <v-btn
-                        color="#E0E0E0"
-                        variant="flat"
-                        class="action-btn"
-                        rounded="pill"
+                    <div class="version-buttons">
+                      <button 
+                        :class="['btn-version', { 'active': currentVersion === version.number }]"
+                        @click="selectVersion(version.number)"
                       >
-                        예약확인
-                      </v-btn>
+                        버전 {{ version.number }}
+                      </button>
                     </div>
                   </div>
-                  
-                  <!-- 하단 버튼들 -->
-                  <div class="bottom-buttons mt-6">
-                    <v-btn
-                      color="#E0E0E0"
-                      variant="flat"
-                      class="bottom-btn"
-                      rounded="pill"
-                      size="large"
-                    >
-                      사용자 수정
-                    </v-btn>
-                    <v-btn
-                      color="#E0E0E0"
-                      variant="flat"
-                      class="bottom-btn ml-4"
-                      rounded="pill"
-                      size="large"
-                    >
-                      제출하기
-                    </v-btn>
-                  </div>
-                </div>
-              </v-col>
-            </v-row>
-          </v-container>
-        </section>
-      </v-container>
-    </v-main>
+                </template>
+              </div>
+            </div>
+            
+            <!-- 채팅 입력 컨테이너 -->
+            <div class="chat-input-container">
+              <div class="input-field">
+                <input 
+                  v-model="chatInput"
+                  type="text" 
+                  placeholder="메시지를 입력하세요..."
+                  class="message-input"
+                  @keyup.enter="sendMessage"
+                />
+                <button class="btn-send" @click="sendMessage">↑</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 오른쪽: 카카오톡 미리보기 및 버튼들 (2/3) -->
+          <div class="right-panel">
+            <!-- 변수값 표시 토글 -->
+            <div class="variables-toggle">
+              <label class="toggle-label">
+                <input type="checkbox" v-model="showVariables" />
+                <span class="toggle-slider"></span>
+                변수값 표시
+              </label>
+            </div>
+            
+            <!-- 카카오톡 미리보기와 반려 사이드바를 함께 관리하는 컨테이너 -->
+            <div :class="['preview-and-sidebar-container', { 'with-rejection-sidebar': showRejectionSidebar }]">
+              <!-- 카카오톡 미리보기 -->
+              <div class="kakao-preview-wrapper">
+                <KakaoPreviewComponent
+                  :show-variables="showVariables"
+                  :variables="editedVariables"
+                  :is-modifying="isModifying"
+                  :is-rejected="isRejected"
+                  :rejected-variables="rejectedVariables"
+                  @variable-click="handleVariableClick"
+                  @update-variables="updateVariables"
+                  @reject-template="rejectTemplate"
+                  @submit-template="submitTemplate"
+                />
+              </div>
+              
+              <!-- 반려 사이드바 -->
+              <div class="rejection-sidebar-panel" v-if="showRejectionSidebar">
+                <RejectionSidebarComponent
+                  :show="showRejectionSidebar"
+                  :current-variable="currentVariable"
+                  :alternatives="currentAlternatives"
+                  :rejected-variables="rejectedVariables"
+                  @close="closeRejectionSidebar"
+                  @variable-click="handleVariableClick"
+                  @apply-alternative="applySelectedAlternative"
+                />
+              </div>
+            </div>
+            
+            <!-- 액션 버튼들 -->
+            <div class="action-buttons-container">
+              <div class="correction-count">남은 정정 횟수: 1/3</div>
+              <div class="action-buttons">
+                <button class="btn-modify" @click="toggleModification">
+                  {{ isModifying ? '수정 완료' : '사용자 수정' }}
+                </button>
+                <button class="btn-reject" @click="rejectTemplate">반려하기</button>
+                <button class="btn-submit" @click="submitTemplate">제출하기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref } from 'vue'
 import HeaderComponent from '@/components/HeaderComponent.vue'
+import KakaoPreviewComponent from '@/components/KakaoPreviewComponent.vue'
+import RejectionSidebarComponent from '@/components/RejectionSidebarComponent.vue'
 
-const route = useRoute()
+const showVariables = ref(true)
+const showRejectionSidebar = ref(false)
+const isRejected = ref(false)
+const currentVariable = ref('')
+const currentAlternatives = ref<any[]>([])
+const isModifying = ref(false)
+const rejectedVariables = ref<string[]>([])
 
-// 카테고리 매핑
-const categoryNames = {
-  'appointment': '예약 안내',
-  'marketing': '마케팅',
-  'notification': '공지사항',
-  'reminder': '리마인더',
-  'custom': '커스텀'
+// 채팅 관련 변수들
+const chatInput = ref('')
+const currentVersion = ref(1)
+const chatHistory = ref([
+  {
+    type: 'user',
+    content: '안녕하세요! 템플릿을 만들어주세요.',
+    time: '14:30'
+  },
+  {
+    type: 'bot',
+    content: '안녕하세요! 어떤 종류의 템플릿을 원하시나요?',
+    time: '14:31'
+  }
+])
+
+// 버전 관리
+const versions = ref([
+  { number: 1, template: '기본 템플릿', messageIndex: 0 }
+])
+
+// 사용자가 수정할 수 있는 변수 값들
+const editedVariables = ref({
+  recipient: '홍길동',
+  sender: '저희 회사',
+  couponName: '신규 가입 축하 쿠폰',
+  expiryDate: '2024년 12월 31일까지',
+  additionalMessage: '문의 사항은 언제든 편하게 연락주세요.'
+})
+
+
+
+// 추천 데이터
+const recommendations = ref([
+  {
+    placeholder: '이 영역을 어케 처리하지?',
+    status: 'pending'
+  }
+])
+
+// 변수별 대안 데이터
+const variableAlternatives = {
+  '수신자': [
+    { text: '고객', selected: false },
+    { text: '회원', selected: false },
+    { text: '사용자', selected: false }
+  ],
+  '발신 스페이스': [
+    { text: '저희 회사', selected: false },
+    { text: '저희 팀', selected: false },
+    { text: '저희', selected: false }
+  ],
+  '쿠폰명': [
+    { text: '할인 쿠폰', selected: false },
+    { text: '특별 혜택', selected: false },
+    { text: '프로모션 쿠폰', selected: false }
+  ],
+  '사용기한': [
+    { text: '유효기간', selected: false },
+    { text: '사용 가능 기간', selected: false },
+    { text: '만료일', selected: false }
+  ],
+  '추가 메시지': [
+    { text: '문의사항이 있으시면 언제든 연락주세요.', selected: false },
+    { text: '궁금한 점이 있으시면 편하게 문의해주세요.', selected: false },
+    { text: '도움이 필요하시면 언제든 연락주세요.', selected: false }
+  ]
 }
 
-// Reactive data
-const showVariables = ref(true)
-const additionalMessage = ref('')
-const remainingCorrections = ref(2)
+// 반려하기
+const rejectTemplate = () => {
+  isRejected.value = true
+  showRejectionSidebar.value = true
+  // 모든 변수를 반려된 것으로 설정 (테스트용)
+  rejectedVariables.value = ['수신자', '발신 스페이스', '쿠폰명', '사용기한', '추가 메시지']
+}
 
-// 계산된 속성
-const selectedCategory = computed(() => route.query.category as string || 'appointment')
-const selectedCategoryName = computed(() => categoryNames[selectedCategory.value as keyof typeof categoryNames] || '커스텀')
-const correctionPercentage = computed(() => ((3 - remainingCorrections.value) / 3) * 100)
-
-// 추가 메시지 전송
-const sendAdditionalMessage = () => {
-  if (additionalMessage.value.trim()) {
-    console.log('추가 메시지 전송:', additionalMessage.value)
-    additionalMessage.value = ''
+// 변수 클릭 처리
+const handleVariableClick = (variableName: string) => {
+  if (isRejected.value && rejectedVariables.value.includes(variableName)) {
+    currentVariable.value = variableName
+    currentAlternatives.value = JSON.parse(JSON.stringify(variableAlternatives[variableName as keyof typeof variableAlternatives]))
+    showRejectionSidebar.value = true
   }
 }
 
-onMounted(() => {
-  console.log('선택된 카테고리:', selectedCategory.value)
-  console.log('입력된 메시지:', route.query.message)
-})
+// 대안 선택
+const selectAlternative = (alternative: any) => {
+  // 다른 대안들의 선택 해제
+  currentAlternatives.value.forEach(alt => {
+    if (alt !== alternative) {
+      alt.selected = false
+    }
+  })
+  // 현재 대안 선택/해제
+  alternative.selected = !alternative.selected
+}
+
+// 선택한 대안 적용
+const applySelectedAlternative = (alternative: any) => {
+  // 여기서 실제 텍스트를 대체하는 로직을 구현할 수 있습니다
+  console.log(`${currentVariable.value}를 "${alternative.text}"로 대체`)
+  
+  // 반려된 변수 목록에서 제거
+  const index = rejectedVariables.value.indexOf(currentVariable.value)
+  if (index > -1) {
+    rejectedVariables.value.splice(index, 1)
+  }
+  
+  // 모든 반려된 변수가 해결되면 반려 상태 해제
+  if (rejectedVariables.value.length === 0) {
+    isRejected.value = false
+    showRejectionSidebar.value = false
+  }
+  
+  currentVariable.value = ''
+  currentAlternatives.value = []
+}
+
+// 반려 사이드바 닫기
+const closeRejectionSidebar = () => {
+  showRejectionSidebar.value = false
+  isRejected.value = false
+  rejectedVariables.value = []
+  currentVariable.value = ''
+  currentAlternatives.value = []
+}
+
+// 수정 모드 토글
+const toggleModification = () => {
+  isModifying.value = !isModifying.value
+}
+
+// 변수 업데이트
+const updateVariables = (newVariables: any) => {
+  editedVariables.value = { ...newVariables }
+}
+
+// 수정된 버전 표시
+const showModifiedVersion = () => {
+  // 여기에 수정된 버전을 보여주는 로직을 구현할 수 있습니다
+  console.log('수정된 버전 표시')
+  // 예: 모달 열기, 다른 템플릿 표시 등
+}
+
+// 템플릿 제출
+const submitTemplate = () => {
+  console.log('템플릿 제출')
+  // 실제 제출 로직 구현
+}
+
+// 채팅 메시지 전송
+const sendMessage = () => {
+  if (!chatInput.value.trim()) return
+  
+  const now = new Date()
+  const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  
+  // 사용자 메시지 추가
+  chatHistory.value.push({
+    type: 'user',
+    content: chatInput.value,
+    time: timeString
+  })
+  
+  // 챗봇 응답 (간단한 응답)
+  setTimeout(() => {
+    const botResponses = [
+      '좋은 아이디어네요!',
+      '더 구체적으로 설명해주세요.',
+      '이해했습니다. 계속 진행하겠습니다.',
+      '훌륭합니다!',
+      '추가로 필요한 것이 있나요?'
+    ]
+    const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)]
+    
+    chatHistory.value.push({
+      type: 'bot',
+      content: randomResponse,
+      time: timeString
+    })
+    
+         // 3번 대화마다 새 버전 생성
+     if (chatHistory.value.length % 6 === 0) {
+       const newVersionNumber = Math.floor(chatHistory.value.length / 6) + 1
+       versions.value.push({
+         number: newVersionNumber,
+         template: `버전 ${newVersionNumber} 템플릿`,
+         messageIndex: chatHistory.value.length - 1
+       })
+     }
+  }, 1000)
+  
+  chatInput.value = ''
+}
+
+// 버전 선택
+const selectVersion = (versionNumber: number) => {
+  currentVersion.value = versionNumber
+  console.log(`버전 ${versionNumber} 선택됨`)
+  // 여기서 해당 버전의 템플릿을 미리보기에 표시하는 로직 추가 가능
+}
 </script>
 
 <style scoped>
-.template-result-page {
+/* 전체 컨테이너 스타일 */
+.template-result-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #FFF8E1 0%, #FFFDE7 50%, #F1F8E9 100%);
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
+/* 메인 콘텐츠 영역 */
 .main-content {
-  padding-top: 70px;
+  flex: 1;
+  background: linear-gradient(135deg, #E3F2FD 0%, #F1F8E9 100%);
+  padding: 2rem 0 0 0;
+  overflow: auto;
 }
 
-.result-section {
-  padding: 2rem 0;
-  min-height: calc(100vh - 70px);
+/* 콘텐츠 래퍼 */
+.content-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.2rem;
+  overflow-x: hidden;
 }
 
-.result-container {
-  max-width: 1400px !important;
-}
-
-.left-section, .right-section {
-  padding: 1rem;
-}
-
-.edit-content, .preview-content {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  padding: 2rem;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+/* 좌우 분할 레이아웃 */
+.split-layout {
+  display: flex;
+  gap: 0;
   height: 100%;
+  position: relative;
+  min-width: 50rem;
 }
 
-/* 왼쪽 섹션 스타일 */
-.template-box {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid #E0E0E0;
+/* 분할선 스타일 */
+.split-layout::after {
+  content: '';
+  position: absolute;
+  left: calc(33.33% + 1rem);
+  top: 0;
+  bottom: 0;
+  width: 0.1rem;
+  background: linear-gradient(180deg, transparent, #e0e0e0, transparent);
+  box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.1);
 }
 
-.template-content {
-  line-height: 1.6;
+/* 왼쪽 패널 (채팅 영역) */
+.left-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding-right: 2rem;
+  width: 20rem;
 }
 
-.template-text {
+/* 오른쪽 패널 (미리보기 영역) */
+.right-panel {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding-left: 2rem;
+  width: 20rem;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 미리보기와 사이드바 컨테이너 */
+.preview-and-sidebar-container {
+  display: flex;
+  gap: 1rem;
+  transition: transform 0.3s ease;
+  align-self: center;
+  max-height: 70vh;
+  overflow: hidden;
   margin-bottom: 1rem;
+}
+
+/* 반려 사이드바가 열렸을 때의 상태 */
+.preview-and-sidebar-container.with-rejection-sidebar {
+  transform: translateX(1rem);
+}
+
+/* 카카오톡 미리보기 래퍼 */
+.kakao-preview-wrapper {
+  flex-shrink: 0;
+  align-self: center;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+/* 스크롤바 스타일링 */
+.kakao-preview-wrapper::-webkit-scrollbar {
+  width: 0.4rem;
+}
+
+.kakao-preview-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 0.2rem;
+}
+
+.kakao-preview-wrapper::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 0.2rem;
+}
+
+.kakao-preview-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 반려 사이드바 패널 */
+.rejection-sidebar-panel {
+  width: 14rem;
+  max-width: 14rem;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+/* 변수값 표시 토글 */
+.variables-toggle {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 1rem;
+}
+
+/* 토글 라벨 */
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  font-size: 0.9rem;
   color: #333;
+}
+
+.toggle-label input {
+  display: none;
+}
+
+/* 토글 슬라이더 */
+.toggle-slider {
+  width: 2rem;
+  height: 1rem;
+  background-color: #ccc;
+  border-radius: 0.5rem;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+/* 토글 슬라이더 내부 원형 버튼 */
+.toggle-slider:before {
+  content: '';
+  position: absolute;
+  width: 0.8rem;
+  height: 0.8rem;
+  background-color: white;
+  border-radius: 50%;
+  top: 0.1rem;
+  left: 0.1rem;
+  transition: transform 0.2s ease;
+}
+
+/* 토글 활성화 상태 */
+.toggle-label input:checked + .toggle-slider {
+  background-color: #1976d2;
+}
+
+/* 토글 활성화 시 슬라이더 버튼 이동 */
+.toggle-label input:checked + .toggle-slider:before {
+  transform: translateX(1rem);
+}
+
+/* 메시지 버블 */
+.message-bubble {
+  background-color: #f5f5f5;
+  padding: 1rem;
+  border-radius: 0.6rem;
   font-size: 1rem;
-}
-
-.template-list {
-  list-style: none;
-  padding: 0;
-  margin: 1rem 0;
-}
-
-.template-list li {
-  margin-bottom: 0.5rem;
-  color: #333;
-  font-size: 1rem;
-}
-
-.version-btn {
-  font-weight: 500;
-  border-color: #333;
-  color: #333;
-}
-
-.generation-info {
-  background: #F5F5F5;
-  padding: 1.5rem;
-  border-radius: 8px;
-}
-
-.info-text {
-  color: #666;
   line-height: 1.6;
-  margin: 0;
+  color: #333;
+  height: 12.5rem;
+}
+
+.message-bubble p {
+  margin: 0.4rem 0;
+}
+
+/* 버전 버튼 컨테이너 */
+.version-button {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+/* 버전 버튼 기본 스타일 */
+.btn-version {
+  background-color: #666;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.3rem;
+  font-weight: 500;
+  cursor: pointer;
+  flex: 1;
+  max-width: 6rem;
+}
+
+/* 수정된 버전 버튼 스타일 */
+.btn-version-modified {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.3rem;
+  font-weight: 500;
+  cursor: pointer;
+  flex: 1;
+  max-width: 6rem;
+  transition: background-color 0.2s ease;
+}
+
+.btn-version-modified:hover {
+  background-color: #218838;
+}
+
+/* 템플릿 설명 */
+.template-description {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 0.4rem;
   font-size: 0.95rem;
+  line-height: 1.6;
+  color: #555;
 }
 
-.additional-field {
-  background: white;
+.template-description p {
+  margin: 0;
 }
 
-.correction-count {
+
+
+
+
+/* ===== 채팅 관련 스타일 ===== */
+/* 채팅 이력 컨테이너 */
+.chat-history-container {
+  background-color: white;
+  border-radius: 0.6rem;
+  padding: 1rem;
+  height: 32rem;
+  box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 채팅 이력 목록 */
+.chat-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* 개별 채팅 메시지 */
+.chat-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+/* 사용자 메시지 정렬 */
+.chat-message.user {
+  align-items: flex-end;
+}
+
+/* 봇 메시지 정렬 */
+.chat-message.bot {
+  align-items: flex-start;
+}
+
+/* 메시지 내용 스타일 */
+.message-content {
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.9rem;
+  max-width: 80%;
+  word-wrap: break-word;
+}
+
+/* 사용자 메시지 배경색 */
+.chat-message.user .message-content {
+  background-color: #1976d2;
+  color: white;
+}
+
+/* 봇 메시지 배경색 */
+.chat-message.bot .message-content {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+/* 메시지 시간 표시 */
+.message-time {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0 0.4rem;
+}
+
+/* 버전 생성 지점 */
+.version-creation-point {
+  margin: 1rem 0;
   text-align: center;
 }
 
-.correction-bar {
-  width: 100%;
-  height: 8px;
-  background: #E0E0E0;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
+/* 버전 구분선 */
+.version-divider {
+  position: relative;
+  margin: 0.8rem 0;
 }
 
-.correction-fill {
-  height: 100%;
-  background: #00C851;
-  transition: width 0.3s ease;
+/* 버전 구분선 스타일 */
+.version-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 0.05rem;
+  background: linear-gradient(90deg, transparent, #ddd, transparent);
 }
 
-.correction-text {
+/* 버전 라벨 */
+.version-label {
+  background: white;
+  padding: 0 0.8rem;
   color: #666;
   font-size: 0.9rem;
-  margin: 0;
+  font-weight: 500;
+  position: relative;
+  z-index: 1;
 }
 
-/* 오른쪽 섹션 스타일 */
-.control-bar {
+/* 버전 버튼들 */
+.version-buttons {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+/* 버전 버튼 기본 스타일 (채팅 영역) */
+.btn-version {
+  background-color: #666;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+/* 버전 버튼 호버 효과 */
+.btn-version:hover {
+  background-color: #555;
+}
+
+/* 활성화된 버전 버튼 */
+.btn-version.active {
+  background-color: #1976d2;
+  transform: scale(1.05);
+}
+
+/* 채팅 입력 컨테이너 */
+.chat-input-container {
+  background-color: white;
+  border-radius: 0.6rem;
+  padding: 0.6rem;
+  height: 3.5rem;
+  box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
+}
+
+/* 입력 필드 컨테이너 */
+.input-field {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  height: 100%;
+}
+
+/* 메시지 입력 필드 */
+.message-input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 0.05rem solid #ddd;
+  border-radius: 1rem;
+  font-size: 1rem;
+  outline: none;
+  height: 2rem;
+}
+
+/* 메시지 입력 필드 포커스 상태 */
+.message-input:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 0.1rem rgba(25, 118, 210, 0.1);
+}
+
+/* 전송 버튼 */
+.btn-send {
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  padding: 0.4rem;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+/* 전송 버튼 호버 효과 */
+.btn-send:hover {
+  background-color: #1565c0;
+}
+
+/* ===== 액션 버튼들 스타일 ===== */
+/* 액션 버튼 컨테이너 */
+.action-buttons-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
+  margin-bottom: 1rem;
+  position: absolute;
+  bottom: -2rem;
+  left: 0;
+  right: 0;
+  padding: 1rem 0;
+  border-top: 0.05rem solid #e0e0e0;
 }
 
-.toggle-section {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.toggle-label {
-  color: #333;
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.send-btn {
-  font-weight: 600;
-  text-transform: none;
-  padding: 0 1.5rem;
-}
-
-.message-preview {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid #E0E0E0;
-}
-
-.preview-header {
-  background: #FFE066;
-  padding: 0.75rem 1rem;
-  text-align: center;
-}
-
-.preview-title {
-  color: #333;
-  font-weight: 600;
+/* 정정 횟수 표시 */
+.correction-count {
+  background-color: #1976d2;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 1rem;
   font-size: 0.9rem;
-}
-
-.preview-content {
-  padding: 2rem;
-  text-align: center;
-}
-
-.preview-icon {
-  margin-bottom: 1rem;
-}
-
-.preview-main-title {
-  color: #333;
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-}
-
-.preview-main-text {
-  color: #666;
-  margin-bottom: 1.5rem;
-  line-height: 1.5;
-}
-
-.preview-details {
-  text-align: left;
-  margin-bottom: 1.5rem;
-}
-
-.detail-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.detail-icon {
-  color: #00C851;
-  font-weight: bold;
-  margin-right: 0.5rem;
-  font-size: 1.1rem;
-}
-
-.detail-text {
-  color: #333;
-  line-height: 1.4;
-}
-
-.preview-closing {
-  color: #666;
-  margin-bottom: 1.5rem;
-  font-style: italic;
-}
-
-.action-btn {
-  background: #F5F5F5;
-  color: #333;
   font-weight: 500;
-  text-transform: none;
-  padding: 0 2rem;
+  margin-left: 1rem;
 }
 
-.bottom-buttons {
+/* 액션 버튼들 */
+.action-buttons {
   display: flex;
-  justify-content: center;
-  gap: 1rem;
+  gap: 0.6rem;
 }
 
-.bottom-btn {
-  background: #F5F5F5;
-  color: #333;
-  font-weight: 500;
-  text-transform: none;
-  padding: 0 2rem;
+/* 공통 버튼 스타일 */
+.btn-modify,
+.btn-submit,
+.btn-reject {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.2rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
 }
 
-/* 반응형 디자인 */
-@media (max-width: 1200px) {
-  .left-section, .right-section {
-    margin-bottom: 2rem;
-  }
+/* 제출 버튼 스타일 */
+.btn-submit {
+  background-color: #28a745;
 }
 
-@media (max-width: 960px) {
-  .control-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .send-btn {
-    width: 100%;
-  }
-  
-  .bottom-buttons {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .bottom-btn {
-    width: 200px;
-  }
+/* 제출 버튼 호버 효과 */
+.btn-submit:hover {
+  background-color: #218838;
 }
 
-@media (max-width: 600px) {
-  .edit-content, .preview-content {
-    padding: 1.5rem;
-  }
-  
-  .template-box {
-    padding: 1rem;
-  }
-  
-  .preview-content {
-    padding: 1.5rem;
-  }
+/* 반려 버튼 스타일 */
+.btn-reject {
+  background-color: #dc3545;
+}
+
+/* 반려 버튼 호버 효과 */
+.btn-reject:hover {
+  background-color: #c82333;
+}
+
+/* 수정 버튼 호버 효과 */
+.btn-modify:hover {
+  background-color: #5a6268;
 }
 </style>
