@@ -5,25 +5,22 @@ class BasePromptBuilder(ABC):
         self.user_text = user_text
         self.hints: list[dict] = []
 
-    def add_hint(self, description: str, content: str|list):
+    def add_hint(self, description: str, content: str):
         """모든 힌트는 system role"""
         self.hints.append({"description": description, "content": content})
         return self
 
     def _build_hint_messages(self) -> list[dict]:
-        messages = []
-        for h in self.hints:
-            content = h["content"]
-            if isinstance(content, list):
-                content = ", ".join(content)
-            messages.append({
+        return [
+            {
                 "role": "system",
-                "content": f"[{h['description']}] {content}"
-            })
-        return messages
+                "content": h["content"]  # 문자열 그대로 넣음
+            }
+            for h in self.hints
+        ]
 
 
     @abstractmethod
-    def build(self) -> list[dict]:
+    def build(self) -> list[str]:
         """프롬프트 빌드 로직은 구체 빌더가 구현"""
         pass

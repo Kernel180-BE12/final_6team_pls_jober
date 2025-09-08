@@ -4,6 +4,8 @@ class CategoryPromptBuilder(BasePromptBuilder):
     def __init__(self, user_text: str, category_main: str, category_sub_list: list):
         super().__init__(user_text)
         self.hints: list[dict] = []
+        self.category_main = category_main
+        self.category_sub_list = category_sub_list
     
     def build(self) -> list:
         prompt = [

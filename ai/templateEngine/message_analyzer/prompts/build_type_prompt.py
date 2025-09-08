@@ -3,9 +3,8 @@ from ai.templateEngine.message_analyzer.prompts.base_prompt_builder import BaseP
 class TypePromptBuilder(BasePromptBuilder):
     def __init__(self, user_text: str):
         super().__init__(user_text)
-        self.hints: list[dict] = []
 
-    def build(self) -> list:
+    def build(self) -> list[dict]:
             
         prompt = [
             {   
@@ -133,3 +132,4 @@ class TypePromptBuilder(BasePromptBuilder):
                 "content": f"본문: {self.user_text}"
             }
         ]
+        return prompt
