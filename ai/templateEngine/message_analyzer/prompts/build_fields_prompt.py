@@ -16,6 +16,10 @@ class FieldsPromptBuilder(BasePromptBuilder):
                     [스키마 설명]
                     - intent_type: 메시지의 의도 유형
                       - 반드시 ["정보성", "인증", "광고성", "기타"] 중 하나로 출력
+                    - label: 사람이 이해하기 쉬운 짧은 라벨 (5~15자, 제목형 명사구).
+                      - 예: "특강안내", "포인트 소멸 안내", "배송 지연 공지"
+                    - use_case: 메시지의 활용 맥락(유스케이스, 목적).
+                      - 예: "마케팅 특강 일정 및 장소 안내", "포인트 소멸 정책 및 만료일 고지"
                     - recipient_scope: 수신자 범위
                       - ["신규가입자", "전체회원", "구매자", "신청자", "기타"] 중 하나로 출력
                     - links_allowed: 본문 내 링크 허용 여부
@@ -35,6 +39,8 @@ class FieldsPromptBuilder(BasePromptBuilder):
                     [출력 형식(JSON)]
                     {
                     "intent_type": "string|null",
+                    "label": "string|null",
+                    "use_case": "string|null",
                     "recipient_scope": "string|null",
                     "links_allowed": true/false,
                     "variables": ["..."] or []
@@ -59,6 +65,8 @@ class FieldsPromptBuilder(BasePromptBuilder):
                 "content": r"""
                     {
                     "intent_type": "정보성",
+                    "label": "배달취소안내",
+                    "use_case": "주문 내역 취소 및 재주문 안내",
                     "recipient_scope": "구매자",
                     "links_allowed": true,
                     "variables": ["#{수신자명}", "#{주문 일시}", "#{주문 내역}", "#{취소 내역}"]
@@ -82,6 +90,8 @@ class FieldsPromptBuilder(BasePromptBuilder):
                 "content": r"""
                     {
                     "intent_type": "광고성",
+                    "label": "이벤트안내",
+                    "use_case": "무료 휴가 프로모션 일정 및 유의사항 안내",
                     "recipient_scope": "신청자",
                     "links_allowed": false,
                     "variables": ["#{이벤트명}", "#{수신자명}", "#{내용}", "#{기간}", "#{유의사항}"]
