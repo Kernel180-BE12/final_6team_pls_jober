@@ -11,11 +11,11 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     // 이메일 수정 시 중복 체크를 하기위함
     boolean existsByEmailAndIdNot(String email, Long accountId);
 
-    Optional<Account> findByUserName(String username);
+    Optional<Account> findByUserName(String userName);
 
     Optional<Account> findByEmail(String email);
 
-    boolean existsByUserName(String username);
+    boolean existsByUserName(String userName);
 
     boolean existsByEmail(String email);
 }

@@ -31,7 +31,8 @@ public class AccountService {
 
     // username으로 사용자 조회
     @Transactional(readOnly = true)
-    public Optional<Account> getAccountByUserName(String username) {
+    public Optional<Account> getAccountByUsername(String username) {
+
         return accountRepository.findByUserName(username);
     }
 
@@ -69,7 +70,8 @@ public class AccountService {
 
     // username 중복 확인
     @Transactional(readOnly = true)
-    public boolean existsByUserName(String username) {
+    public boolean existsByUsername(String username) {
+
         return accountRepository.existsByUserName(username);
     }
 

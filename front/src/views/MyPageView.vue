@@ -8,16 +8,28 @@
       <div class="content-wrapper">
         <!-- 사용자 정보 섹션 -->
         <div class="user-info-section">
-          <div class="user-profile">
+          <div v-if="loading" class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>사용자 정보를 불러오는 중...</p>
+          </div>
+          <div v-else-if="error" class="error-state">
+            <p class="error-message">{{ error }}</p>
+            <button class="btn-retry" @click="fetchUserInfo">다시 시도</button>
+          </div>
+          <div v-else class="user-profile">
             <div class="profile-avatar">
               <div class="avatar-icon">👤</div>
             </div>
             <div class="profile-info">
-              <h2 class="user-name">사용자님</h2>
-              <p class="user-email">user@example.com</p>
+              <h2 class="user-name">{{ userInfo.name || '사용자님' }}</h2>
+              <p class="user-email">{{ userInfo.email || 'user@example.com' }}</p>
             </div>
           </div>
-          <button class="btn-edit-profile">프로필 수정</button>
+          <div class="profile-actions">
+            <button class="btn-edit-profile" @click="openEditModal('name')">이름 수정</button>
+            <button class="btn-edit-profile" @click="openEditModal('email')">이메일 수정</button>
+            <button class="btn-edit-profile" @click="openEditModal('password')">비밀번호 수정</button>
+          </div>
         </div>
 
         <!-- 통계 섹션 -->
@@ -96,14 +108,244 @@
         </div>
       </div>
     </div>
+
+    <!-- 프로필 수정 모달 -->
+    <div v-if="showEditModal" class="modal-overlay" @click="closeEditModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">
+            {{ editMode === 'name' ? '이름 수정' : editMode === 'email' ? '이메일 수정' : '비밀번호 수정' }}
+          </h3>
+          <button class="modal-close" @click="closeEditModal">×</button>
+        </div>
+        
+        <div class="modal-body">
+          <div v-if="updateError" class="error-message">{{ updateError }}</div>
+          
+          <!-- 이름 수정 폼 -->
+          <div v-if="editMode === 'name'" class="edit-form">
+            <div class="form-group">
+              <label for="name">이름</label>
+              <input
+                id="name"
+                v-model="editForm.name"
+                type="text"
+                class="form-input"
+                placeholder="새로운 이름을 입력하세요"
+                :disabled="updating"
+              />
+            </div>
+          </div>
+          
+          <!-- 이메일 수정 폼 -->
+          <div v-if="editMode === 'email'" class="edit-form">
+            <div class="form-group">
+              <label for="email">새 이메일</label>
+              <input
+                id="email"
+                v-model="editForm.email"
+                type="email"
+                class="form-input"
+                placeholder="새로운 이메일을 입력하세요"
+                :disabled="updating"
+              />
+            </div>
+            <div class="form-group">
+              <label for="currentPassword">현재 비밀번호</label>
+              <input
+                id="currentPassword"
+                v-model="editForm.currentPassword"
+                type="password"
+                class="form-input"
+                placeholder="현재 비밀번호를 입력하세요"
+                :disabled="updating"
+              />
+            </div>
+          </div>
+          
+          <!-- 비밀번호 수정 폼 -->
+          <div v-if="editMode === 'password'" class="edit-form">
+            <div class="form-group">
+              <label for="currentPassword">현재 비밀번호</label>
+              <input
+                id="currentPassword"
+                v-model="editForm.currentPassword"
+                type="password"
+                class="form-input"
+                placeholder="현재 비밀번호를 입력하세요"
+                :disabled="updating"
+              />
+            </div>
+            <div class="form-group">
+              <label for="newPassword">새 비밀번호</label>
+              <input
+                id="newPassword"
+                v-model="editForm.newPassword"
+                type="password"
+                class="form-input"
+                placeholder="새 비밀번호를 입력하세요"
+                :disabled="updating"
+              />
+            </div>
+            <div class="form-group">
+              <label for="confirmPassword">새 비밀번호 확인</label>
+              <input
+                id="confirmPassword"
+                v-model="editForm.confirmPassword"
+                type="password"
+                class="form-input"
+                placeholder="새 비밀번호를 다시 입력하세요"
+                :disabled="updating"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="closeEditModal" :disabled="updating">취소</button>
+          <button 
+            class="btn-save" 
+            @click="editMode === 'name' ? updateName() : editMode === 'email' ? updateEmail() : updatePassword()"
+            :disabled="updating"
+          >
+            {{ updating ? '수정 중...' : '저장' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderComponent from '../components/HeaderComponent.vue'
+import { myPageApi } from '../api'
 
 const router = useRouter()
+
+// 사용자 정보 상태
+const userInfo = ref({
+  id: null as number | null,
+  name: '',
+  email: ''
+})
+
+// 로딩 상태
+const loading = ref(true)
+const error = ref('')
+
+// 프로필 수정 모달 상태
+const showEditModal = ref(false)
+const editMode = ref<'name' | 'email' | 'password'>('name')
+
+// 수정 폼 데이터
+const editForm = ref({
+  name: '',
+  email: '',
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+// 수정 중 상태
+const updating = ref(false)
+const updateError = ref('')
+
+// 사용자 정보 가져오기
+const fetchUserInfo = async () => {
+  try {
+    loading.value = true
+    error.value = ''
+    const response = await myPageApi.getMyInfo()
+    userInfo.value = response.data
+  } catch (err: any) {
+    error.value = err.response?.data?.message || '사용자 정보를 가져오는데 실패했습니다.'
+    console.error('Failed to fetch user info:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 컴포넌트 마운트 시 사용자 정보 가져오기
+onMounted(() => {
+  fetchUserInfo()
+})
+
+// 프로필 수정 모달 열기
+const openEditModal = (mode: 'name' | 'email' | 'password') => {
+  editMode.value = mode
+  editForm.value = {
+    name: userInfo.value.name || '',
+    email: userInfo.value.email || '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  }
+  updateError.value = ''
+  showEditModal.value = true
+}
+
+// 프로필 수정 모달 닫기
+const closeEditModal = () => {
+  showEditModal.value = false
+  editForm.value = {
+    name: '',
+    email: '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  }
+  updateError.value = ''
+}
+
+// 이름 수정
+const updateName = async () => {
+  try {
+    updating.value = true
+    updateError.value = ''
+    await myPageApi.updateName(editForm.value.name)
+    await fetchUserInfo() // 사용자 정보 다시 가져오기
+    closeEditModal()
+  } catch (err: any) {
+    updateError.value = err.response?.data?.message || '이름 수정에 실패했습니다.'
+  } finally {
+    updating.value = false
+  }
+}
+
+// 이메일 수정
+const updateEmail = async () => {
+  try {
+    updating.value = true
+    updateError.value = ''
+    await myPageApi.updateEmail(editForm.value.email, editForm.value.currentPassword)
+    await fetchUserInfo() // 사용자 정보 다시 가져오기
+    closeEditModal()
+  } catch (err: any) {
+    updateError.value = err.response?.data?.message || '이메일 수정에 실패했습니다.'
+  } finally {
+    updating.value = false
+  }
+}
+
+// 비밀번호 수정
+const updatePassword = async () => {
+  try {
+    updating.value = true
+    updateError.value = ''
+    await myPageApi.updatePassword(
+      editForm.value.currentPassword,
+      editForm.value.newPassword,
+      editForm.value.confirmPassword
+    )
+    closeEditModal()
+  } catch (err: any) {
+    updateError.value = err.response?.data?.message || '비밀번호 수정에 실패했습니다.'
+  } finally {
+    updating.value = false
+  }
+}
 
 const goToTemplateCreate = () => {
   router.push('/template/create')
@@ -374,5 +616,214 @@ const goToTemplateCreate = () => {
 .template-date {
   font-size: 0.9rem;
   color: #666;
+}
+
+/* 로딩 및 에러 상태 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 0.2rem solid #e9ecef;
+  border-top: 0.2rem solid #1976d2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.btn-retry {
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-retry:hover {
+  background: #1565c0;
+}
+
+/* 프로필 액션 버튼들 */
+.profile-actions {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.profile-actions .btn-edit-profile {
+  font-size: 0.9rem;
+  padding: 0.6rem 1.2rem;
+}
+
+/* 모달 스타일 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 1rem;
+  width: 90%;
+  max-width: 30rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 0.1rem solid #e9ecef;
+}
+
+.modal-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 2rem;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.form-input {
+  padding: 0.8rem;
+  border: 0.1rem solid #ddd;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.1);
+}
+
+.form-input:disabled {
+  background: #f8f9fa;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  border-top: 0.1rem solid #e9ecef;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  background: transparent;
+  color: #666;
+  border: 0.1rem solid #ddd;
+  padding: 0.8rem 1.6rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #f8f9fa;
+  border-color: #999;
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #1976d2 0%, #8E24AA 100%);
+  color: #fff;
+  border: none;
+  padding: 0.8rem 1.6rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-save:hover:not(:disabled) {
+  transform: translateY(-0.1rem);
+  box-shadow: 0 0.2rem 0.8rem rgba(25, 118, 210, 0.3);
+}
+
+.btn-cancel:disabled,
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 </style>
