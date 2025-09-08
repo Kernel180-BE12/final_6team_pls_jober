@@ -5,13 +5,20 @@ RAG 기반 최종 검증
 import re
 import json
 from typing import Dict, Any, List, Tuple, Optional
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from models.alimtalk_models import ValidationResult, CategoryType
-from services.chromadb_service import ChromaDBService
-from templateEngine.prompts.final_validation_prompt import create_final_validation_prompt
+try:
+    from ..models.alimtalk_models import ValidationResult, CategoryType
+    from ..services.chromadb_service import ChromaDBService
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from models.alimtalk_models import ValidationResult, CategoryType
+    from services.chromadb_service import ChromaDBService
+try:
+    from .final_validation_prompt import create_final_validation_prompt
+except ImportError:
+    # 직접 실행시 절대 import 사용
+    from validators.final_validation_prompt import create_final_validation_prompt
 try:
     import openai
     HAS_OPENAI = True
@@ -477,7 +484,7 @@ class SemanticValidator:
                 }
             
             response = self.openai_client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 max_tokens=1500
