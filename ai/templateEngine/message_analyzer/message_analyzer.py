@@ -1,20 +1,18 @@
-from ai.services.openai_service import OpenAIService
-from prompts.message_type_prompt import type_prompt
-from prompts.message_category_prompt import category_prompt
-from prompts.message_fields_prompt import fields_prompt
 import asyncio
 import json
 import logging
+
+from ai.services.openai_service import OpenAIService
+from prompts.build_type_prompt import build_type_prompt
+from prompts.build_category_prompt import build_category_prompt
+from prompts.build_fields_prompt import build_fields_prompt
 
 logger = logging.getLogger(__name__)
 
 class MessageAnalyzer:
     def __init__(self, service: OpenAIService):
         self.service = service
-        self.category_prompt = category_prompt
-        self.type_prompt = type_prompt
-        self.fields_prompt = fields_prompt
-    
+
     async def analyze_message(self, user_text: str, category_main: str, category_sub: list):
         """
         메시지 유형, 카테고리, 필드 추출 결과를 합쳐서 반환한다.
@@ -64,39 +62,36 @@ class MessageAnalyzer:
 
     async def classify_message_type(self, user_text: str):
         """
-        메세지 유형을 판단하는 메서드. \n
-        사용자 입력 내용을 받는다. \n
-        메세지 유형을 출력한다.
+        메시지 유형을 판단하는 메서드.
         """
-        content = await self.service.chat_completion(self.type_prompt, model="gpt-3.5-turbo")
-        
+        prompt = build_type_prompt(user_text)
+        content = await self.service.chat_completion(prompt, model="gpt-3.5-turbo")
+
         try:
-            return  json.loads(content.strip())
+            return json.loads(content.strip())
         except json.JSONDecodeError:
             raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
 
     async def classify_message_category(self, category_main: str, category_sub_list: list):
         """
-        메세지 카테고리를 판단하는 메서드 \n
-        카테고리 대분류, 카테고리 소분류 리스트를 받는다. \n
-        메세지 카테고리를 출력한다.
+        메시지 카테고리를 판단하는 메서드.
         """
-        content = await self.service.chat_completion(self.category_prompt, model="gpt-3.5-turbo")
+        prompt = build_category_prompt(category_main, category_sub_list)
+        content = await self.service.chat_completion(prompt, model="gpt-3.5-turbo")
 
         try:
-            return  json.loads(content.strip())
+            return json.loads(content.strip())
         except json.JSONDecodeError:
             raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
 
     async def extract_message_fields(self, user_text: str):
         """
-        메세지에서 필드를 뽑아내는 메서드 \n
-        사용자 입력 내용을 받는다. \n
-        필드 리스트를 반환한다.
+        메시지에서 필드를 뽑아내는 메서드.
         """
-        content = await self.service.chat_completion(self.fields_prompt, model="gpt-3.5-turbo")
+        prompt = build_fields_prompt(user_text)
+        content = await self.service.chat_completion(prompt, model="gpt-3.5-turbo")
 
         try:
-            return  json.loads(content.strip())
+            return json.loads(content.strip())
         except json.JSONDecodeError:
             raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
