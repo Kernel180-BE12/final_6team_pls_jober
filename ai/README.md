@@ -39,7 +39,7 @@ pip install -r requirements.txt
 
 ```bash
 # 환경 변수 예시 파일 복사
-cp env.example .env
+cp .env .env
 
 # .env 파일 편집하여 API 키 설정
 # OPENAI_API_KEY=your_openai_api_key_here

@@ -49,6 +49,10 @@ except ImportError as e:
 except Exception as e:
     print(f"❌ 알림톡 검증 라우터 등록 실패: {e}")
 
+# 템플릿 라우터 추가
+from routers import template_routes
+app.include_router(template_routes.router)
+
 # Pydantic 모델
 class ChatRequest(BaseModel):
     message: str

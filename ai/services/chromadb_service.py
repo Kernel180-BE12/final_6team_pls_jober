@@ -10,6 +10,10 @@ import os
 import json
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 class ChromaDBService:
     def __init__(self, 
                  collection_name: str = "alimtalk_guidelines",
@@ -17,7 +21,22 @@ class ChromaDBService:
         """
         ChromaDB 서비스 초기화
         """
-        self.db_path = db_path or os.getenv("CHROMA_DB_PATH", "./chroma_db")
+
+        # 환경 변수에서 ChromaDB 설정 읽기
+        persist_dir = os.getenv('CHROMA_PERSIST_DIR', './chroma_db')
+        chroma_host = os.getenv('CHROMA_HOST', None)
+        chroma_port = os.getenv('CHROMA_PORT', None)
+        
+        if chroma_host and chroma_port:
+            # 원격 ChromaDB 서버 연결
+            self.client = chromadb.HttpClient(
+                host=chroma_host,
+                port=int(chroma_port)
+            )
+        else:
+            # 로컬 ChromaDB 사용
+            self.client = chromadb.PersistentClient(path=persist_dir)
+        
         self.collection_name = collection_name
         self.mock_guidelines = []  # Mock 데이터용
         
