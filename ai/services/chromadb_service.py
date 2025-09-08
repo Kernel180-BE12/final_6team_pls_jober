@@ -7,6 +7,8 @@ except ImportError:
     print("Warning: ChromaDB 패키지가 설치되지 않았습니다. Mock 모드로 실행됩니다.")
 from typing import List, Dict, Any, Optional
 import os
+import json
+from pathlib import Path
 
 from dotenv import load_dotenv
 
