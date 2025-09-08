@@ -18,12 +18,12 @@ public class MyPageService {
     // Account 엔티티 객체를 MyPageDto.UserInfoResponse DTO로 변환
     @Transactional(readOnly = true)
     public MyPageDto.UserInfoResponse toUserInfoResponse(Long accountId) {
-        Account account = accountRepository.findById(accountId)
+        Account user = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         return new MyPageDto.UserInfoResponse(
-                account.getId(),
-                account.getUserName(),
-                account.getEmail()
+                user.getId(),
+                user.getUserName(),
+                user.getEmail()
         );
     }
 
