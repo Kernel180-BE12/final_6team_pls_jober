@@ -32,7 +32,7 @@ public class AuthService {
         if (accountRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
-        if (accountRepository.existsByUsername(request.getUsername())) {
+        if (accountRepository.existsByUserName(request.getUsername())) {
             throw new IllegalArgumentException("이미 사용 중인 사용자 이름입니다.");
         }
 

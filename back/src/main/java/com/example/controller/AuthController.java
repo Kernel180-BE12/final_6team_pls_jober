@@ -30,7 +30,7 @@ public class AuthController {
         Account account = authService.registerUser(request);
         return ResponseEntity.ok(Map.of(
                 "message", "회원가입 성공",
-                "username", account.getUsername()
+                "username", account.getUserName()
         ));
     }
 
@@ -41,10 +41,10 @@ public class AuthController {
                 .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다."));
 
         System.out.println("입력 비밀번호: " + request.getPassword());
-        System.out.println("DB 비밀번호 해시: " + account.getPassword());
-        System.out.println("매칭 결과: " + passwordEncoder.matches(request.getPassword(), account.getPassword()));
+        System.out.println("DB 비밀번호 해시: " + account.getPasswordHash());
+        System.out.println("매칭 결과: " + passwordEncoder.matches(request.getPassword(), account.getPasswordHash()));
 
-        if (!passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
             throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
