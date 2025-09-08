@@ -216,7 +216,7 @@ class FormValidator:
             return False
         
         # 82로 시작하는 한국 전화번호 형식
-        pattern = r'^82\d{9,11}$'
+        pattern = r'^(?:\+82|0)(10|11|16|17|18|19)\d{7,8}$'
         return bool(re.match(pattern, phone))
     
     @staticmethod
@@ -408,12 +408,12 @@ if __name__ == "__main__":
     # 설정 정보
     CONFIG = {
         'base_url': 'bizmsg-web.kakaoenterprise.com',
-        'access_token': 'your_access_token_here',
-        'sender_key': 'your_sender_key_here',
-        'sender_no': '8215881234'  # 발신번호
+        'access_token': '5241cdfe06275e36cd297c6b3a556e1d', # 카카오 developers
+        'sender_key': '12345678',
+        'sender_no': '01037069303'  # 발신번호
     }
     
-    # 파이프라인 초기화
+    # 파이프라인 초기화python
     pipeline = BizMessagePipeline(
         base_url=CONFIG['base_url'],
         access_token=CONFIG['access_token'],
@@ -425,15 +425,15 @@ if __name__ == "__main__":
     test_cases = [
         {
             'prompt': '회사명 테크컴퍼니에서 고객 김철수님의 회원가입이 2024-01-15에 완료되었습니다',
-            'phone': '82010-1234-5678'
+            'phone': '01037069303'
         },
         {
             'prompt': '마켓플레이스에서 주문번호 ORDER123 상품명 스마트폰 배송이 시작되었습니다 송장번호 1234567890 배송업체 로젠택배',
-            'phone': '821012345678'
+            'phone': '010-3706-9303'
         },
         {
             'prompt': '카페베네 2024년 1월 1일 휴무일 안내',
-            'phone': '82010-9876-5432'
+            'phone': '010-3706-9303'
         }
     ]
     
