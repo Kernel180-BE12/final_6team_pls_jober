@@ -68,12 +68,10 @@ public class Account {
     private String bizRegNo;
 
     @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
@@ -88,6 +86,28 @@ public class Account {
         this.updatedAt = LocalDateTime.now();
     }
 
-;
-
+    // Getter methods for compatibility
+    public String getUsername() {
+        return this.userName;
+    }
+    
+    public void setUsername(String username) {
+        this.userName = username;
+    }
+    
+    public String getUserName() {
+        return this.userName;
+    }
+    
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+    
+    public String getPassword() {
+        return this.passwordHash;
+    }
+    
+    public void setPassword(String password) {
+        this.passwordHash = password;
+    }
 }

@@ -32,7 +32,7 @@ public class AccountService {
     // username으로 사용자 조회
     @Transactional(readOnly = true)
     public Optional<Account> getAccountByUsername(String username) {
-        return accountRepository.findByUsername(username);
+        return accountRepository.findByUserName(username);
     }
 
     // 사용자 생성
@@ -70,7 +70,7 @@ public class AccountService {
     // username 중복 확인
     @Transactional(readOnly = true)
     public boolean existsByUsername(String username) {
-        return accountRepository.existsByUsername(username);
+        return accountRepository.existsByUserName(username);
     }
 
     // email 중복 확인
