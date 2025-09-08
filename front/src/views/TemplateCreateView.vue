@@ -6,50 +6,39 @@
     <!-- 메인 콘텐츠 -->
     <div class="main-content">
       <div class="content-wrapper">
-        <!-- 제목 및 설명 -->
+        <!-- 제목 -->
         <div class="header-section">
           <h1 class="page-title">
             만들고 싶은 알림톡 템플릿 주제를 알려주세요
           </h1>
         </div>
         
-        <!-- 메인 콘텐츠 영역 -->
-        <div class="main-content-area">
-          <!-- 왼쪽: 카테고리 영역 -->
-          <div class="category-section">
-            <h3 class="section-title">카테고리 선택</h3>
-            <div class="category-grid">
-              <button
-                v-for="category in categories"
-                :key="category.id"
-                :class="['category-btn', { 'selected': selectedCategory === category.id }]"
-                @click="selectCategory(category.id)"
-              >
-                {{ category.name }}
-              </button>
-            </div>
+        <!-- 카테고리 버튼들 -->
+        <div class="category-section">
+          <div class="category-grid">
+            <button
+              v-for="category in categories"
+              :key="category.id"
+              :class="['category-btn', { 'selected': selectedCategory === category.id }]"
+              @click="selectCategory(category.id)"
+            >
+              {{ category.name }}
+            </button>
           </div>
-          
-          <!-- 오른쪽: 텍스트 입력 영역 -->
-          <div class="text-input-section">
-            <h3 class="section-title">메시지 내용</h3>
+        </div>
+        
+        <!-- 텍스트 입력 영역 -->
+        <div class="text-input-section">
+          <div class="textarea-container">
             <textarea
               v-model="messageText"
               placeholder="ex. 우리 서비스에 맞는 법적 고지 내용을 빠르게 작성하고 적용할 수 있는 템플릿이 필요합니다."
               class="message-textarea"
-              rows="12"
+              rows="8"
             ></textarea>
-            
-            <!-- 제출 버튼 -->
-            <div class="submit-section">
-              <button
-                class="submit-btn"
-                :disabled="!canSubmit"
-                @click="handleSubmit"
-              >
-                템플릿 생성하기
-              </button>
-            </div>
+            <button class="submit-arrow-btn" @click="handleSubmit" :disabled="!canSubmit">
+              ↑
+            </button>
           </div>
         </div>
       </div>
@@ -126,14 +115,17 @@ const handleSubmit = async () => {
 }
 
 .content-wrapper {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .header-section {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
 }
 
 .page-title {
@@ -144,109 +136,104 @@ const handleSubmit = async () => {
   line-height: 1.3;
 }
 
-.page-description {
-  font-size: 1.25rem;
-  color: #666;
-  margin: 0;
-}
-
-.main-content-area {
-  display: flex;
-  gap: 2rem;
-  min-height: 0;
-}
-
-.category-section,
-.text-input-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.section-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 1.2rem;
+.category-section {
+  width: 100%;
+  margin-bottom: 3rem;
 }
 
 .category-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 0.6rem;
-  align-content: start;
+  gap: 1rem;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .category-btn {
-  height: 2.4rem;
-  font-size: 0.9rem;
+  height: 3rem;
+  font-size: 1rem;
   font-weight: 500;
-  border: 0.1rem solid #e0e0e0;
-  background: white;
-  color: #666;
-  border-radius: 0.4rem;
+  border: none;
+  background: #8E24AA;
+  color: white;
+  border-radius: 0.5rem;
   transition: all 0.2s ease;
   cursor: pointer;
+  box-shadow: 0 2px 4px rgba(142, 36, 170, 0.2);
 }
 
 .category-btn:hover {
-  border-color: #1976d2;
-  color: #1976d2;
+  background: #7B1FA2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(142, 36, 170, 0.3);
 }
 
 .category-btn.selected {
-  background: #1976d2;
-  color: white;
-  border-color: #1976d2;
+  background: #4A148C;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(74, 20, 140, 0.4);
 }
 
 .text-input-section {
-  display: flex;
-  flex-direction: column;
+  width: 100%;
+  max-width: 800px;
+}
+
+.textarea-container {
+  position: relative;
 }
 
 .message-textarea {
-  flex: 1;
-  min-height: 15rem;
-  padding: 1rem;
+  width: 100%;
+  min-height: 12rem;
+  padding: 1.5rem;
+  padding-right: 4rem;
   border: 0.1rem solid #e0e0e0;
-  border-radius: 0.6rem;
+  border-radius: 0.8rem;
   font-size: 1rem;
   line-height: 1.6;
   resize: vertical;
   font-family: inherit;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .message-textarea:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 0.1rem rgba(25, 118, 210, 0.1);
+  border-color: #8E24AA;
+  box-shadow: 0 0 0 0.2rem rgba(142, 36, 170, 0.1);
 }
 
-.submit-section {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1.2rem;
-}
-
-.submit-btn {
-  background: #1976d2;
-  color: white;
+.submit-arrow-btn {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  width: 3rem;
+  height: 3rem;
   border: none;
-  padding: 0.8rem 1.6rem;
-  border-radius: 0.4rem;
-  font-weight: 600;
-  font-size: 1.1rem;
+  background: #8E24AA;
+  color: white;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(142, 36, 170, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.submit-btn:hover:not(:disabled) {
-  background: #1565c0;
+.submit-arrow-btn:hover:not(:disabled) {
+  background: #7B1FA2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(142, 36, 170, 0.4);
 }
 
-.submit-btn:disabled {
+.submit-arrow-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 </style>
