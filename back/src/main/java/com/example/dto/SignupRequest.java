@@ -28,7 +28,7 @@ public class SignupRequest {
         this.password = password;
     }
 
-    // ✅ Getter & Setter
+    // Getter & Setter
     public String getUsername() {
         return username;
     }
