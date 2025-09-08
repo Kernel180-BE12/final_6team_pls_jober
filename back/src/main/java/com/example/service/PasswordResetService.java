@@ -51,7 +51,7 @@ public class PasswordResetService {
         }
 
         Account account = resetToken.getAccount();
-        account.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        account.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         accountRepository.save(account);
 
         // 토큰은 한 번 쓰면 제거

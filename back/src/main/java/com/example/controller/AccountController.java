@@ -32,7 +32,7 @@ public class AccountController {
     // 사용자 생성
     @PostMapping
     public ResponseEntity<Account> createAccount(@RequestBody Account account) {
-        if (accountService.existsByUsername(account.getUsername())) {
+        if (accountService.existsByUserName(account.getUserName())) {
             return ResponseEntity.badRequest().build();
         }
         if (accountService.existsByEmail(account.getEmail())) {
