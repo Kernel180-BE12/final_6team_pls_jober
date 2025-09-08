@@ -1,0 +1,102 @@
+from ai.services.openai_service import OpenAIService
+from prompts.message_type_prompt import type_prompt
+from prompts.message_category_prompt import category_prompt
+from prompts.message_fields_prompt import fields_prompt
+import asyncio
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+class MessageAnalyzer:
+    def __init__(self, service: OpenAIService):
+        self.service = service
+        self.category_prompt = category_prompt
+        self.type_prompt = type_prompt
+        self.fields_prompt = fields_prompt
+    
+    async def analyze_message(self, user_text: str, category_main: str, category_sub: list):
+        """
+        메시지 유형, 카테고리, 필드 추출 결과를 합쳐서 반환한다.
+        """
+        logger.info("Starting analyze_message")
+        logger.debug(f"[INPUT] user_text={user_text}, category_main={category_main}, category_sub={category_sub}")
+
+        try:
+            # 세 메서드 동시에 실행
+            logger.info("Calling classify_message_type")
+            type_task = asyncio.create_task(
+                self.classify_message_type(user_text)
+            )
+
+            logger.info("Calling classify_message_category")
+            category_task = asyncio.create_task(
+                self.classify_message_category(category_main, category_sub)
+            )
+
+            logger.info("Calling extract_message_fields")
+            extract_task = asyncio.create_task(
+                self.extract_message_fields(user_text)
+            )
+
+            type_result, category_result, extract_result = await asyncio.gather(
+                type_task, category_task, extract_task
+            )
+
+            logger.debug(f"[RESULT] classify_message_type={type_result}")
+            logger.debug(f"[RESULT] classify_message_category={category_result}")
+            logger.debug(f"[RESULT] extract_message_fields={extract_result}")
+
+            # dict 합치기 (중복 키 있으면 extract_result 우선)
+            combined = {**type_result, **category_result, **extract_result}
+
+            logger.info("Finished analyze_message")
+            logger.debug(f"[COMBINED RESULT] {combined}")
+
+            return combined
+        except asyncio.TimeoutError as e:
+            logger.error(f"❌ chat_completion timeout: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Unexpected error: {str(e)}")
+            logger.exception(e)
+            raise
+
+    async def classify_message_type(self, user_text: str):
+        """
+        메세지 유형을 판단하는 메서드. \n
+        사용자 입력 내용을 받는다. \n
+        메세지 유형을 출력한다.
+        """
+        content = await self.service.chat_completion(self.type_prompt, model="gpt-3.5-turbo")
+        
+        try:
+            return  json.loads(content.strip())
+        except json.JSONDecodeError:
+            raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
+
+    async def classify_message_category(self, category_main: str, category_sub_list: list):
+        """
+        메세지 카테고리를 판단하는 메서드 \n
+        카테고리 대분류, 카테고리 소분류 리스트를 받는다. \n
+        메세지 카테고리를 출력한다.
+        """
+        content = await self.service.chat_completion(self.category_prompt, model="gpt-3.5-turbo")
+
+        try:
+            return  json.loads(content.strip())
+        except json.JSONDecodeError:
+            raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
+
+    async def extract_message_fields(self, user_text: str):
+        """
+        메세지에서 필드를 뽑아내는 메서드 \n
+        사용자 입력 내용을 받는다. \n
+        필드 리스트를 반환한다.
+        """
+        content = await self.service.chat_completion(self.fields_prompt, model="gpt-3.5-turbo")
+
+        try:
+            return  json.loads(content.strip())
+        except json.JSONDecodeError:
+            raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
