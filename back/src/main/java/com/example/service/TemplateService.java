@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class TemplateService {
 
     private final TemplateRepository templateRepository;
@@ -46,7 +45,8 @@ public class TemplateService {
      * @return 조회된 Category2 엔티티
      * @throws ResourceNotFoundException 해당 ID의 Category2가 존재하지 않을 경우
      */
-    private Category2 findCategory2ById(Long category2Id) {
+    @Transactional(readOnly = true)
+    public Category2 findCategory2ById(Long category2Id) {
         return category2Repository.findById(category2Id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category2 not found with id: " + category2Id));
     }
