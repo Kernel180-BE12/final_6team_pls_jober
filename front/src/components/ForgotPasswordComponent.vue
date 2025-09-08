@@ -35,6 +35,26 @@
       </v-btn>
     </v-form>
     
+    <!-- 성공 메시지 표시 -->
+    <v-alert
+      v-if="successMessage"
+      type="success"
+      variant="tonal"
+      class="mb-4"
+    >
+      {{ successMessage }}
+    </v-alert>
+    
+    <!-- 에러 메시지 표시 -->
+    <v-alert
+      v-if="errorMessage"
+      type="error"
+      variant="tonal"
+      class="mb-4"
+    >
+      {{ errorMessage }}
+    </v-alert>
+    
     <div class="text-center">
       <v-btn
         variant="text"
@@ -49,6 +69,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { authApi } from '@/api'
 
 interface Emits {
   (e: 'switchForm', form: string): void
@@ -59,6 +80,8 @@ const emit = defineEmits<Emits>()
 const email = ref('')
 const isFormValid = ref(false)
 const isLoading = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
 
 const emailRules = [
   (v: string) => !!v || '이메일을 입력해주세요',
@@ -69,12 +92,21 @@ const handleForgotPassword = async () => {
   if (!isFormValid.value) return
   
   isLoading.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  
   try {
-    // TODO: 비밀번호 재설정 로직 구현
-    console.log('비밀번호 재설정 시도:', { email: email.value })
-    await new Promise(resolve => setTimeout(resolve, 1000)) // 임시 딜레이
-  } catch (error) {
+    const response = await authApi.forgotPassword(email.value)
+    
+    successMessage.value = '비밀번호 재설정 토큰이 발급되었습니다. 이메일을 확인해주세요.'
+    
+    // 성공 후 로그인 폼으로 전환
+    setTimeout(() => {
+      emit('switchForm', 'login')
+    }, 3000)
+  } catch (error: any) {
     console.error('비밀번호 재설정 실패:', error)
+    errorMessage.value = error.response?.data?.message || '비밀번호 재설정 요청에 실패했습니다.'
   } finally {
     isLoading.value = false
   }

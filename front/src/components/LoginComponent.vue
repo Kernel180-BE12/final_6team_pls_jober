@@ -38,6 +38,16 @@
       </v-btn>
     </v-form>
     
+    <!-- 에러 메시지 표시 -->
+    <v-alert
+      v-if="errorMessage"
+      type="error"
+      variant="tonal"
+      class="mb-4"
+    >
+      {{ errorMessage }}
+    </v-alert>
+    
     <div class="text-center">
       <v-btn
         variant="text"
@@ -61,17 +71,21 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { authApi } from '@/api'
+import { useRouter } from 'vue-router'
 
 interface Emits {
   (e: 'switchForm', form: string): void
 }
 
 const emit = defineEmits<Emits>()
+const router = useRouter()
 
 const email = ref('')
 const password = ref('')
 const isFormValid = ref(false)
 const isLoading = ref(false)
+const errorMessage = ref('')
 
 const emailRules = [
   (v: string) => !!v || '이메일을 입력해주세요',
@@ -87,12 +101,20 @@ const handleLogin = async () => {
   if (!isFormValid.value) return
   
   isLoading.value = true
+  errorMessage.value = ''
+  
   try {
-    // TODO: 로그인 로직 구현
-    console.log('로그인 시도:', { email: email.value, password: password.value })
-    await new Promise(resolve => setTimeout(resolve, 1000)) // 임시 딜레이
-  } catch (error) {
+    const response = await authApi.login(email.value, password.value)
+    
+    // 토큰 저장
+    localStorage.setItem('accessToken', response.data.accessToken)
+    localStorage.setItem('refreshToken', response.data.refreshToken)
+    
+    // 로그인 성공 시 홈으로 이동
+    router.push('/')
+  } catch (error: any) {
     console.error('로그인 실패:', error)
+    errorMessage.value = error.response?.data?.message || '로그인에 실패했습니다.'
   } finally {
     isLoading.value = false
   }
