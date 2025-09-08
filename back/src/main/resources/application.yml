@@ -37,7 +37,8 @@ spring:
 # JWT 설정
 jwt:
   secret: ${JWT_SECRET:your-secret-key-here-make-it-long-and-secure}
-  expiration: 86400000 # 24시간
+  access-expiration: 3600000     # 1시간 (ms)
+  refresh-expiration: 604800000  # 7일 (ms)
 
 # 서버 설정
 server:

@@ -1,0 +1,5 @@
+# application.yml 무시
+src/main/resources/application.yml
+
+# application-*.yml (profile 별 설정도 무시)
+src/main/resources/application-*.yml

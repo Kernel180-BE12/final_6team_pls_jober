@@ -1,5 +1,7 @@
 package com.example.entity;
 
+import jakarta.persistence.*;
+import lombok.*;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,13 +13,18 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import org.hibernate.annotations.ColumnDefault;
+import java.time.LocalDateTime;
 
 import java.time.Instant;
 
 @Getter
+@Setter
 @Entity
 @Table(name = "account")
+@NoArgsConstructor
+@AllArgsConstructor
 public class Account {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "account_id", nullable = false)
@@ -62,12 +69,25 @@ public class Account {
 
     @NotNull
     @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     @NotNull
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+;
 
 }
