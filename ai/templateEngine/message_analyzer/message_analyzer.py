@@ -3,9 +3,9 @@ import json
 import logging
 
 from ai.services.openai_service import OpenAIService
-from prompts.build_type_prompt import build_type_prompt
-from prompts.build_category_prompt import build_category_prompt
-from prompts.build_fields_prompt import build_fields_prompt
+from ai.templateEngine.message_analyzer.prompts.build_type_prompt import build_type_prompt
+from ai.templateEngine.message_analyzer.prompts.build_category_prompt import build_category_prompt
+from ai.templateEngine.message_analyzer.prompts.build_fields_prompt import build_fields_prompt
 
 logger = logging.getLogger(__name__)
 
