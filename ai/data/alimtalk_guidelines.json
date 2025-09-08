@@ -1,0 +1,102 @@
+[
+  {
+    "id": "guide_001",
+    "content": "알림톡 본문은 1000자를 초과할 수 없습니다.",
+    "category": "length",
+    "type": "rule",
+    "metadata": {
+      "priority": "high",
+      "source": "kakaotalk_policy"
+    }
+  },
+  {
+    "id": "guide_002",
+    "content": "거래성 알림톡에는 광고성 표현을 포함할 수 없습니다.",
+    "category": "content",
+    "type": "policy",
+    "metadata": {
+      "priority": "high",
+      "source": "kakaotalk_policy"
+    }
+  },
+  {
+    "id": "guide_003",
+    "content": "마케팅 알림톡에는 '(광고)' 표기가 필수입니다.",
+    "category": "marketing",
+    "type": "rule",
+    "metadata": {
+      "priority": "critical",
+      "source": "kakaotalk_policy"
+    }
+  },
+  {
+    "id": "guide_004",
+    "content": "개인정보(주민번호, 카드번호 등)는 템플릿에 직접 포함할 수 없습니다.",
+    "category": "privacy",
+    "type": "policy",
+    "metadata": {
+      "priority": "critical",
+      "source": "privacy_law"
+    }
+  },
+  {
+    "id": "guide_005",
+    "content": "금융 관련 과장 표현(100% 보장, 무조건 등)은 사용할 수 없습니다.",
+    "category": "financial",
+    "type": "policy",
+    "metadata": {
+      "priority": "high",
+      "source": "financial_law"
+    }
+  },
+  {
+    "id": "guide_006",
+    "content": "의료 관련 단정적 표현(치료, 완치 등)은 사용할 수 없습니다.",
+    "category": "medical",
+    "type": "policy",
+    "metadata": {
+      "priority": "high",
+      "source": "medical_law"
+    }
+  },
+  {
+    "id": "guide_007",
+    "content": "버튼은 최대 5개까지만 추가할 수 있습니다.",
+    "category": "button",
+    "type": "rule",
+    "metadata": {
+      "priority": "medium",
+      "source": "kakaotalk_policy"
+    }
+  },
+  {
+    "id": "guide_008",
+    "content": "버튼명은 14자를 초과할 수 없습니다.",
+    "category": "button",
+    "type": "rule",
+    "metadata": {
+      "priority": "medium",
+      "source": "kakaotalk_policy"
+    }
+  },
+  {
+    "id": "guide_009",
+    "content": "변수명은 본문에서 사용되어야 합니다.",
+    "category": "variable",
+    "type": "rule",
+    "metadata": {
+      "priority": "medium",
+      "source": "best_practice"
+    }
+  },
+  {
+    "id": "guide_010",
+    "content": "수신거부 방법을 명시하는 것을 권장합니다.",
+    "category": "marketing",
+    "type": "recommendation",
+    "metadata": {
+      "priority": "low",
+      "source": "best_practice"
+    }
+  }
+]
