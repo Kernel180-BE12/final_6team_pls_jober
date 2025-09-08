@@ -21,28 +21,19 @@ class MessageAnalyzer:
         logger.debug(f"[INPUT] user_text={user_text}, category_main={category_main}, category_sub={category_sub}")
 
         try:
-            # 세 메서드 동시에 실행
+            # 메세지 유형 판별
             logger.info("Calling classify_message_type")
-            type_task = asyncio.create_task(
-                self.classify_message_type(user_text)
-            )
-
-            logger.info("Calling classify_message_category")
-            category_task = asyncio.create_task(
-                self.classify_message_category(category_main, category_sub)
-            )
-
-            logger.info("Calling extract_message_fields")
-            extract_task = asyncio.create_task(
-                self.extract_message_fields(user_text)
-            )
-
-            type_result, category_result, extract_result = await asyncio.gather(
-                type_task, category_task, extract_task
-            )
-
+            type_result = await self.classify_message_type(user_text)
             logger.debug(f"[RESULT] classify_message_type={type_result}")
+
+            # 메세지 카테고리 판별
+            logger.info("Calling classify_message_category")
+            category_result = await self.classify_message_category(category_main, category_sub)
             logger.debug(f"[RESULT] classify_message_category={category_result}")
+
+            # 메세지 필드 추출
+            logger.info("Calling extract_message_fields")
+            extract_result = await self.extract_message_fields(user_text)
             logger.debug(f"[RESULT] extract_message_fields={extract_result}")
 
             # dict 합치기 (중복 키 있으면 extract_result 우선)
