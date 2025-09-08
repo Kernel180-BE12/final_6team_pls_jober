@@ -38,5 +38,22 @@ api.interceptors.response.use(
   }
 )
 
+// 마이페이지 관련 API
+export const myPageApi = {
+  // 내 정보 조회
+  getMyInfo: () => api.get('/mypage'),
+  
+  // 이름 수정
+  updateName: (name: string) => api.put('/mypage/name', { name }),
+  
+  // 이메일 변경
+  updateEmail: (email: string, currentPassword: string) => 
+    api.put('/mypage/email', { email, currentPassword }),
+  
+  // 비밀번호 변경
+  updatePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
+    api.put('/mypage/password', { currentPassword, newPassword, confirmPassword })
+}
+
 export default api
 
