@@ -37,9 +37,9 @@ public class AuthService {
         }
 
         Account account = new Account();
-        account.setUsername(request.getUsername());
+        account.setUserName(request.getUsername());
         account.setEmail(request.getEmail());
-        account.setPassword(passwordEncoder.encode(request.getPassword()));
+        account.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 
         // 기본값 세팅
         account.setRole("USER");
@@ -56,7 +56,7 @@ public class AuthService {
         Account account = accountRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다."));
 
-        if (!passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
             throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 

@@ -3,50 +3,78 @@ package com.example.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "account")
+import java.time.Instant;
+
 @Getter
 @Setter
-
+@Entity
+@Table(name = "account")
 @NoArgsConstructor
 @AllArgsConstructor
 public class Account {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "account_id")
+    @Column(name = "account_id", nullable = false)
     private Long id;
 
-    @Column(name = "user_name", nullable = false, length = 50, unique = true)
-    private String username;
+    @Size(max = 50)
+    @NotNull
+    @Column(name = "user_name", nullable = false, length = 50)
+    private String userName;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Size(max = 255)
+    @NotNull
+    @Column(name = "email", nullable = false)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
-    private String password;
+    @Size(max = 255)
+    @NotNull
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
 
+    @Size(max = 20)
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
-    @Column(length = 20)
+    @Size(max = 20)
+    @NotNull
+    @Column(name = "role", nullable = false, length = 20)
     private String role;
 
-    @Column(length = 20)
+    @Size(max = 20)
+    @NotNull
+    @Column(name = "status", nullable = false, length = 20)
     private String status;
 
+    @Size(max = 100)
     @Column(name = "company_name", length = 100)
     private String companyName;
 
-    @Column(name = "biz_reg_no", length = 12, unique = true)
+    @Size(max = 12)
+    @Column(name = "biz_reg_no", length = 12)
     private String bizRegNo;
 
-    @Column(name = "created_at", updatable = false)
+    @NotNull
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @NotNull
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
@@ -60,13 +88,6 @@ public class Account {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // 권한 ENUM
-    public enum Role {
-        USER, ADMIN
-    }
+;
 
-    // 상태 ENUM
-    public enum Status {
-        ACTIVE, INACTIVE, BANNED
-    }
 }
