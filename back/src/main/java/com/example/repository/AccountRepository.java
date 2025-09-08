@@ -9,3 +9,4 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     // 이메일 수정 시 중복 체크를 하기위함
     boolean existsByEmailAndIdNot(String email, Long accountId);
 }
+

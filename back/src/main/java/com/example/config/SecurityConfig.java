@@ -43,7 +43,6 @@ public class SecurityConfig {
                         .requestMatchers("/", "/health", "/auth/**").permitAll()
                         .anyRequest().authenticated()
                 );
-
         return http.build();
     }
 
@@ -71,6 +70,7 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
 
     // JWT 시크릿 키를 사용한 대칭키 디코더
     @Bean
@@ -138,5 +138,4 @@ public class SecurityConfig {
         }
         return null;
     }
-
 }

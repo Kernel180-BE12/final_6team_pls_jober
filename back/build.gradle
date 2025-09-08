@@ -27,8 +27,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux' // WebClient를 사용하기 위한 의존성
     implementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server"
     implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
 
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
@@ -37,7 +39,8 @@ dependencies {
     
     // MySQL
     runtimeOnly 'com.mysql:mysql-connector-j'
-    
+
+
     // H2 (테스트용)
     testRuntimeOnly 'com.h2database:h2'
     
@@ -53,4 +56,3 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
-
