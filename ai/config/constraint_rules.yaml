@@ -1,0 +1,123 @@
+# 알림톡 제약 규칙 설정
+
+# URL 도메인 화이트리스트
+allowed_domains:
+  - "*.naver.com"
+  - "*.kakao.com"
+  - "*.google.com"
+  - "*.daum.net"
+  - "*.samsung.com"
+  - "*.lge.com"
+  - "*.example.com"
+
+# URL 도메인 블랙리스트
+blocked_domains:
+  - "*.suspicious.com"
+  - "*.malware.net"
+  - "*.phishing.org"
+
+# 금칙어 리스트
+forbidden_words:
+  - "도박"
+  - "카지노"
+  - "성인"
+  - "대출"
+  - "투자보장"
+  - "무료체험"
+  - "100% 보장"
+  - "즉시승인"
+  - "무조건"
+  - "반드시"
+
+# 제한적 허용 단어 (맥락에 따라 판단)
+contextual_words:
+  - "무료"
+  - "할인"
+  - "이벤트"
+  - "당첨"
+  - "선착순"
+
+# 버튼 타입별 제약
+button_constraints:
+  WL:  # 웹링크
+    max_count: 3
+    required_fields: ["url_mobile", "url_pc"]
+    url_validation: true
+  AL:  # 앱링크
+    max_count: 2
+    required_fields: ["scheme_android", "scheme_ios"]
+    url_validation: false
+  DS:  # 배송조회
+    max_count: 1
+    required_fields: []
+    url_validation: false
+  BF:  # 비즈폼
+    max_count: 1
+    required_fields: []
+    url_validation: false
+  BK:  # 봇키워드
+    max_count: 1
+    required_fields: []
+    url_validation: false
+  MD:  # 메시지 전달
+    max_count: 1
+    required_fields: []
+    url_validation: false
+
+# 길이 제한
+length_limits:
+  title:
+    max: 50
+    warning_threshold: 40
+  body:
+    max: 1000
+    warning_threshold: 800
+  button_name:
+    max: 14
+    warning_threshold: 12
+  variable_name:
+    max: 20
+    warning_threshold: 15
+  variable_value:
+    max: 100
+    warning_threshold: 80
+
+# 변수 패턴 규칙
+variable_rules:
+  # 변수명은 영문자, 숫자, 언더스코어만 허용
+  name_pattern: "^[a-zA-Z_][a-zA-Z0-9_]*$"
+  # 변수 참조 패턴 (본문에서 #{변수명} 형태)
+  reference_pattern: "#{([a-zA-Z_][a-zA-Z0-9_]*)}"
+  # 최대 변수 개수
+  max_variables: 10
+
+# 채널별 특별 규칙
+channel_rules:
+  alimtalk:
+    require_sender_key: true
+    max_buttons: 5
+    allow_ad_notice: false
+  friendtalk:
+    require_sender_key: false
+    max_buttons: 5
+    allow_ad_notice: true
+
+# 카테고리별 제약
+category_constraints:
+  transaction:
+    forbidden_marketing_words: ["할인", "이벤트", "무료"]
+    required_transaction_info: true
+  marketing:
+    require_ad_notice: true
+    max_promotional_words: 3
+  mixed:
+    require_classification: true
+    
+# 시간 관련 제약
+time_constraints:
+  # 발송 가능 시간 (24시간 형식)
+  allowed_send_hours:
+    start: 8
+    end: 21
+  # 휴일 발송 제한
+  restrict_holidays: true
