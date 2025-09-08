@@ -15,15 +15,22 @@ try:
 except ImportError:
     HAS_OPENAI_SERVICE = False
     print("Warning: OpenAI 서비스를 로드할 수 없습니다. Mock 모드로 실행됩니다.")
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from models.alimtalk_models import (
-    ValidationRequest, ValidationResponse, ValidationResult, 
-    AlimtalkTemplate, GuidelineSearchResult, SystemStats
-)
-from validators.validator_pipeline import ValidationPipeline
+try:
+    from ..models.alimtalk_models import (
+        ValidationRequest, ValidationResponse, ValidationResult, 
+        AlimtalkTemplate, GuidelineSearchResult, SystemStats
+    )
+    from ..validators.validator_pipeline import ValidationPipeline
+except ImportError:
+    # 절대 import로 시도
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from models.alimtalk_models import (
+        ValidationRequest, ValidationResponse, ValidationResult, 
+        AlimtalkTemplate, GuidelineSearchResult, SystemStats
+    )
+    from validators.validator_pipeline import ValidationPipeline
 
 
 class AlimtalkValidationService:
@@ -190,48 +197,85 @@ class AlimtalkValidationService:
             )
     
     async def get_template_examples(self) -> Dict[str, Any]:
-        """템플릿 예시 반환 (ChromaDB 컬렉션에서 조회)"""
+        """템플릿 예시 반환"""
+        examples_file = Path(__file__).parent.parent / "data" / "example_templates.json"
+        
         try:
-            if not self.is_initialized:
-                await self.initialize()
-            
-            # 각 컬렉션에서 템플릿 조회
-            blacklist_templates = self.chromadb_service.get_blacklist_templates()
-            whitelist_templates = self.chromadb_service.get_whitelist_templates()
-            approved_templates = self.chromadb_service.get_approved_templates()
-            
-            return {
-                "blacklist": blacklist_templates,
-                "whitelist": whitelist_templates,
-                "approved": approved_templates,
-                "summary": {
-                    "blacklist_count": len(blacklist_templates),
-                    "whitelist_count": len(whitelist_templates),
-                    "approved_count": len(approved_templates)
-                }
-            }
+            if examples_file.exists():
+                with open(examples_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            else:
+                return self._get_default_examples()
                 
         except Exception as e:
-            print(f"템플릿 예시 로드 중 오류: {e}")
+            print(f"예시 로드 중 오류: {e}")
             return self._get_default_examples()
     
     async def _load_initial_guidelines(self):
-        """초기 가이드라인 로드 (이제 ChromaDB에서 직접 로드)"""
+        """초기 가이드라인 로드"""
+        guidelines_file = Path(__file__).parent.parent / "data" / "alimtalk_guidelines.json"
+        
+        if not guidelines_file.exists():
+            # 기본 가이드라인 생성
+            await self._create_default_guidelines(guidelines_file)
+        
         try:
-            # ChromaDB에서 가이드라인 로드
-            await self.chromadb_service.load_initial_guidelines()
-            print("✅ 가이드라인 로드 완료")
+            with open(guidelines_file, 'r', encoding='utf-8') as f:
+                guidelines_data = json.load(f)
+            
+            # ChromaDB에 추가
+            self.chromadb_service.add_guidelines(guidelines_data)
+            print(f"✅ 가이드라인 {len(guidelines_data)}개 로드 완료")
             
         except Exception as e:
             print(f"❌ 가이드라인 로드 실패: {e}")
     
-    def add_template_to_collection(self, collection_name: str, template_data: Dict[str, Any]):
-        """특정 컬렉션에 템플릿 추가"""
-        return self.chromadb_service.add_template_to_collection(collection_name, template_data)
-    
-    def search_templates_in_collection(self, collection_name: str, query: str, n_results: int = 5):
-        """특정 컬렉션에서 템플릿 검색"""
-        return self.chromadb_service.search_templates_in_collection(collection_name, query, n_results)
+    async def _create_default_guidelines(self, file_path: Path):
+        """기본 가이드라인 생성"""
+        default_guidelines = [
+            {
+                "id": "guide_001",
+                "content": "알림톡 본문은 1000자를 초과할 수 없습니다.",
+                "category": "length",
+                "type": "rule",
+                "metadata": {"priority": "high", "source": "kakaotalk_policy"}
+            },
+            {
+                "id": "guide_002", 
+                "content": "거래성 알림톡에는 광고성 표현을 포함할 수 없습니다.",
+                "category": "content",
+                "type": "policy",
+                "metadata": {"priority": "high", "source": "kakaotalk_policy"}
+            },
+            {
+                "id": "guide_003",
+                "content": "마케팅 알림톡에는 '(광고)' 표기가 필수입니다.",
+                "category": "marketing", 
+                "type": "rule",
+                "metadata": {"priority": "critical", "source": "kakaotalk_policy"}
+            },
+            {
+                "id": "guide_004",
+                "content": "개인정보(주민번호, 카드번호 등)는 템플릿에 직접 포함할 수 없습니다.",
+                "category": "privacy",
+                "type": "policy", 
+                "metadata": {"priority": "critical", "source": "privacy_law"}
+            },
+            {
+                "id": "guide_005",
+                "content": "금융 관련 과장 표현(100% 보장, 무조건 등)은 사용할 수 없습니다.",
+                "category": "financial",
+                "type": "policy",
+                "metadata": {"priority": "high", "source": "financial_law"}
+            }
+        ]
+        
+        # 디렉토리 생성
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # 파일 저장
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(default_guidelines, f, ensure_ascii=False, indent=2)
     
     def _get_default_examples(self) -> Dict[str, Any]:
         """기본 예시 템플릿"""
