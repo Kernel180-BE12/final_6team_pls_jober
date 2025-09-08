@@ -40,9 +40,8 @@ dependencies {
     // MySQL
     runtimeOnly 'com.mysql:mysql-connector-j'
 
-
-    // H2 (테스트용)
-    testRuntimeOnly 'com.h2database:h2'
+    // H2 (개발용)
+    runtimeOnly 'com.h2database:h2'
     
     // Lombok
     compileOnly 'org.projectlombok:lombok'
