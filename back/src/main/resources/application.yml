@@ -4,10 +4,10 @@ spring:
   
   # 데이터베이스 설정
   datasource:
-    url: jdbc:mysql://localhost:3306/final_project?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
+    url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: ${DB_DRIVER}
 
   # flyway 마이그레이션 설정
   flyway:
@@ -46,7 +46,8 @@ spring:
 # JWT 설정
 jwt:
   secret: ${JWT_SECRET:your-secret-key-here-make-it-long-and-secure}
-  expiration: 86400000 # 24시간
+  access-expiration: 3600000     # 1시간 (ms)
+  refresh-expiration: 604800000  # 7일 (ms)
 
 # 서버 설정
 server:
@@ -59,3 +60,9 @@ logging:
   level:
     com.example: DEBUG
     org.springframework.security: DEBUG
+
+ai:
+  fastapi:
+    url: http://localhost:8000/ #예상경로
+    path: /generate-template # 예상경로
+

@@ -18,12 +18,12 @@ public class MyPageService {
     // Account 엔티티 객체를 MyPageDto.UserInfoResponse DTO로 변환
     @Transactional(readOnly = true)
     public MyPageDto.UserInfoResponse toUserInfoResponse(Long accountId) {
-        Account account = accountRepository.findById(accountId)
+        Account user = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         return new MyPageDto.UserInfoResponse(
-                account.getAccountId(),
-                account.getUserName(),
-                account.getEmail()
+                user.getId(),
+                user.getUserName(),
+                user.getEmail()
         );
     }
 
@@ -38,7 +38,7 @@ public class MyPageService {
         }
 
         user.setUserName(req.getName().trim());
-        return toUserInfoResponse(user.getAccountId());
+        return toUserInfoResponse(user.getId());
     }
 
     // 이메일(=로그인 아이디) 변경: 현재 비번 재검증 + 중복 검사 + 버전 증가
@@ -56,7 +56,7 @@ public class MyPageService {
         String newEmail = req.getEmail().trim().toLowerCase();
 
         // 3) 본인 제외 중복 검사
-        if (accountRepository.existsByEmailAndAccountIdNot(newEmail, id)) {
+        if (accountRepository.existsByEmailAndIdNot(newEmail, id)) {
             throw new IllegalArgumentException("Email already exists");
         }
 
@@ -64,7 +64,7 @@ public class MyPageService {
         user.setEmail(newEmail);
         // ToDo: 자격증명 버전 증가
 
-        return toUserInfoResponse(user.getAccountId());
+        return toUserInfoResponse(user.getId());
     }
 
     // 비밀번호 변경: 현재 비번 검증 + 새/확인 일치(Validator) + 해시 저장 + 버전 증가
@@ -89,6 +89,6 @@ public class MyPageService {
     public MyPageDto.UserInfoResponse getMe(Long id) {
         Account user = accountRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
-        return toUserInfoResponse(user.getAccountId());
+        return toUserInfoResponse(user.getId());
     }
 }
