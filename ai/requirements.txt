@@ -19,3 +19,6 @@ langchain-openai>=0.1.0
 langchain-text-splitters>=0.1.0
 onnxruntime>=1.15.0
 typing-extensions>=4.0.0
+pymysql>=1.0.0
+sqlalchemy>=2.0.0
+aiomysql>=0.1.1

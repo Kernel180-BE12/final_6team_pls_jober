@@ -1,0 +1,88 @@
+{
+  "valid_transaction_template": {
+    "template_pk": "TPL_TRANS_001",
+    "channel": "alimtalk",
+    "title": "주문 배송 완료 안내",
+    "body": "안녕하세요 #{customer_name}님,\n\n주문하신 상품이 배송 완료되었습니다.\n\n- 주문번호: #{order_number}\n- 배송일시: #{delivery_date}\n- 수령인: #{recipient_name}\n\n배송 관련 문의사항이 있으시면 고객센터로 연락해 주세요.\n\n감사합니다.",
+    "buttons": [
+      {
+        "name": "배송조회",
+        "type": "WL",
+        "url_mobile": "https://example.com/track/#{order_number}",
+        "url_pc": "https://example.com/track/#{order_number}"
+      },
+      {
+        "name": "고객센터",
+        "type": "WL", 
+        "url_mobile": "https://example.com/support",
+        "url_pc": "https://example.com/support"
+      }
+    ],
+    "variables": {
+      "customer_name": "홍길동",
+      "order_number": "ORD-20240101-001", 
+      "delivery_date": "2024년 1월 5일 14:30",
+      "recipient_name": "홍길동"
+    },
+    "category": "transaction"
+  },
+  
+  "valid_marketing_template": {
+    "template_pk": "TPL_MARKET_001",
+    "channel": "alimtalk",
+    "title": "(광고) 신상품 특가 이벤트",
+    "body": "(광고) 안녕하세요 #{customer_name}님!\n\n신상품 출시 기념 특별 할인 이벤트를 진행합니다.\n\n- 할인율: 최대 30%\n- 기간: #{event_start_date} ~ #{event_end_date}\n- 대상: 전 상품\n\n이번 기회를 놓치지 마세요!\n\n* 수신거부: 080-000-0000",
+    "buttons": [
+      {
+        "name": "이벤트 보기",
+        "type": "WL",
+        "url_mobile": "https://example.com/event/#{event_id}",
+        "url_pc": "https://example.com/event/#{event_id}"
+      }
+    ],
+    "variables": {
+      "customer_name": "김고객",
+      "event_start_date": "2024년 1월 10일",
+      "event_end_date": "2024년 1월 20일",
+      "event_id": "EVT2024001"
+    },
+    "category": "marketing"
+  },
+  
+  "invalid_schema_template": {
+    "template_pk": "TPL_INVALID_001",
+    "channel": "invalid_channel",
+    "body": "",
+    "buttons": [
+      {
+        "name": "",
+        "type": "INVALID_TYPE"
+      }
+    ]
+  },
+  
+  "invalid_constraint_template": {
+    "template_pk": "TPL_CONSTRAINT_001",
+    "channel": "alimtalk",
+    "title": "도박 사이트 광고",
+    "body": "100% 보장된 투자 기회! 무조건 돈을 벌 수 있는 카지노 사이트입니다. 지금 가입하면 무료체험 혜택을 드립니다!",
+    "buttons": [
+      {
+        "name": "가입하기",
+        "type": "WL",
+        "url_mobile": "https://suspicious.com/casino",
+        "url_pc": "https://suspicious.com/casino"
+      }
+    ],
+    "category": "marketing"
+  },
+  
+  "invalid_semantic_template": {
+    "template_pk": "TPL_SEMANTIC_001",
+    "channel": "alimtalk", 
+    "title": "개인정보 확인 요청",
+    "body": "안녕하세요. 본인 확인을 위해 다음 정보를 확인해 주세요.\n\n주민등록번호: 123456-1234567\n카드번호: 1234-5678-9012-3456\n계좌번호: 123-45-678901\n\n이 정보가 맞는지 확인해 주시기 바랍니다.",
+    "variables": {},
+    "category": "transaction"
+  }
+}
