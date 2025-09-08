@@ -32,6 +32,7 @@ public class AccountService {
     // username으로 사용자 조회
     @Transactional(readOnly = true)
     public Optional<Account> getAccountByUsername(String username) {
+
         return accountRepository.findByUserName(username);
     }
 
@@ -39,7 +40,7 @@ public class AccountService {
     @Transactional
     public Account createAccount(Account account) {
         // 비밀번호 해시화
-        account.setPassword(passwordEncoder.encode(account.getPassword()));
+        account.setPasswordHash(passwordEncoder.encode(account.getPasswordHash()));
         // 기본값 설정
         account.setRole("USER");
         account.setStatus("ACTIVE");
@@ -51,10 +52,10 @@ public class AccountService {
     public Account updateAccount(Long id, Account accountDetails) {
         return accountRepository.findById(id)
                 .map(account -> {
-                    account.setUsername(accountDetails.getUsername());
+                    account.setUserName(accountDetails.getUserName());
                     account.setEmail(accountDetails.getEmail());
-                    if (accountDetails.getPassword() != null && !accountDetails.getPassword().isEmpty()) {
-                        account.setPassword(passwordEncoder.encode(accountDetails.getPassword()));
+                    if (accountDetails.getPasswordHash() != null && !accountDetails.getPasswordHash().isEmpty()) {
+                        account.setPasswordHash(passwordEncoder.encode(accountDetails.getPasswordHash()));
                     }
                     return accountRepository.save(account);
                 })
@@ -70,6 +71,7 @@ public class AccountService {
     // username 중복 확인
     @Transactional(readOnly = true)
     public boolean existsByUsername(String username) {
+
         return accountRepository.existsByUserName(username);
     }
 
