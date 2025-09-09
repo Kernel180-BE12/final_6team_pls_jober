@@ -14,6 +14,12 @@ from dotenv import load_dotenv
 import openai
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from templateEngine.prompts.message_analyzer_prompts import (
+    ReferenceBasedTemplatePromptBuilder,
+    PolicyGuidedTemplatePromptBuilder,
+    NewTemplatePromptBuilder,
+    TemplateTitlePromptBuilder
+)
 
 # 환경 변수 로드
 load_dotenv()
@@ -126,41 +132,9 @@ class TemplateGenerator:
     def generate_template_with_reference(self, request: TemplateRequest, reference_template: Dict) -> str:
         """참고 템플릿을 기반으로 새 템플릿 생성"""
         try:
-            prompt = f"""
-다음은 승인받은 카카오톡 알림톡 템플릿입니다:
-
-=== 참고 템플릿 ===
-제목: {reference_template['metadata'].get('auto_generated_title', '')}
-분류: {reference_template['metadata'].get('category_primary', '')} > {reference_template['metadata'].get('category_secondary', '')}
-템플릿: {reference_template['text']}
-업종: {reference_template['metadata'].get('industry', '')}
-목적: {reference_template['metadata'].get('purpose', '')}
-
-=== 새 템플릿 요청 정보 ===
-카테고리 대분류: {request.category_main}
-카테고리 소분류: {request.category_sub}
-메시지 유형: {request.type}
-채널 링크 여부: {request.has_channel_link}
-부가 설명 여부: {request.has_extra_info}
-라벨: {request.label}
-사용 사례: {request.use_case}
-의도 유형: {request.intent_type}
-수신자 범위: {request.recipient_scope}
-링크 허용: {request.links_allowed}
-변수: {request.variables}
-원본 사용자 텍스트: {request.user_text}
-
-위 참고 템플릿의 구조와 스타일을 따라하되, 새 요청 정보에 맞게 카카오톡 알림톡 템플릿을 생성해주세요.
-
-중요 규칙:
-1. 변수는 #{{변수명}} 형태로 표현
-2. 광고성 내용 금지, 정보성/안내성 내용만 포함
-3. 발송 근거를 템플릿 하단에 명시 (*표시로 시작)
-4. 참고 템플릿과 유사한 톤앤매너 유지
-5. 버튼이 필요한 경우 #{{버튼명}} 형태로 표시
-
-템플릿만 생성해주세요:
-"""
+            # 프롬프트 빌더 사용
+            prompt_builder = ReferenceBasedTemplatePromptBuilder(request, reference_template)
+            prompt = prompt_builder.build()
             
             response = openai.chat.completions.create(
                 model="gpt-4o",
@@ -211,27 +185,9 @@ class TemplateGenerator:
         try:
             guidelines_text = "\n".join([g['text'] for g in guidelines])
             
-            prompt = f"""
-=== 알림톡 정책 가이드라인 ===
-{guidelines_text}
-
-=== 템플릿 생성 요청 ===
-카테고리: {request.category_main} > {request.category_sub}
-사용 사례: {request.use_case}
-의도 유형: {request.intent_type}
-수신자 범위: {request.recipient_scope}
-원본 메시지: {request.user_text}
-
-위 정책 가이드라인을 엄격히 준수하여 카카오톡 알림톡 템플릿을 생성해주세요.
-
-중요 사항:
-1. 가이드라인에 명시된 금지사항 절대 포함 금지
-2. 허용된 카테고리와 목적에만 부합하는 내용
-3. 변수는 #{{변수명}} 형태로 표현
-4. 발송 근거를 템플릿 하단에 명시
-
-템플릿만 생성해주세요:
-"""
+            # 프롬프트 빌더 사용
+            prompt_builder = PolicyGuidedTemplatePromptBuilder(request, guidelines_text)
+            prompt = prompt_builder.build()
             
             response = openai.chat.completions.create(
                 model="gpt-4o",
@@ -252,31 +208,9 @@ class TemplateGenerator:
     def generate_new_template(self, request: TemplateRequest) -> str:
         """완전히 새로운 템플릿 생성"""
         try:
-            prompt = f"""
-다음 정보를 바탕으로 카카오톡 알림톡 템플릿을 생성해주세요:
-
-=== 템플릿 요청 정보 ===
-라벨: {request.label}
-카테고리: {request.category_main} > {request.category_sub}
-사용 사례: {request.use_case}
-의도 유형: {request.intent_type}
-수신자 범위: {request.recipient_scope}
-링크 허용: {request.links_allowed}
-변수: {request.variables}
-원본 메시지: {request.user_text}
-
-카카오톡 알림톡 규정에 맞는 템플릿을 생성해주세요.
-
-중요 규칙:
-1. 변수는 #{{변수명}} 형태로 표현
-2. 광고성 내용 금지, 정보성/안내성 내용만 포함
-3. 발송 근거를 템플릿 하단에 명시 (*표시로 시작)
-4. 명확하고 간결한 안내 메시지
-5. 버튼이 필요한 경우 #{{버튼명}} 형태로 표시
-6. 수신자가 요청했거나 관련 서비스를 이용하는 경우에만 발송되는 내용
-
-템플릿만 생성해주세요:
-"""
+            # 프롬프트 빌더 사용
+            prompt_builder = NewTemplatePromptBuilder(request)
+            prompt = prompt_builder.build()
             
             response = openai.chat.completions.create(
                 model="gpt-4o",
@@ -303,20 +237,9 @@ class TemplateGenerator:
     def generate_title(self, request: TemplateRequest, template_text: str) -> str:
         """템플릿 제목 생성"""
         try:
-            prompt = f"""
-다음 카카오톡 알림톡 템플릿에 대한 간단한 제목을 생성해주세요:
-
-템플릿: {template_text}
-카테고리: {request.category_main} > {request.category_sub}
-사용 사례: {request.use_case}
-
-제목 규칙:
-1. 10자 이내의 간단한 제목
-2. 템플릿의 주요 목적을 나타내는 제목
-3. "안내", "알림", "발송" 등의 단어 활용
-
-제목만 생성해주세요:
-"""
+            # 프롬프트 빌더 사용
+            prompt_builder = TemplateTitlePromptBuilder(request, template_text)
+            prompt = prompt_builder.build()
             
             response = openai.chat.completions.create(
                 model="gpt-4o-mini",

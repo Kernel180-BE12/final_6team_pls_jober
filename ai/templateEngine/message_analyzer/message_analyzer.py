@@ -5,9 +5,7 @@ import os
 from typing import Optional
 
 from ai.services.openai_service import OpenAIService
-from ai.templateEngine.message_analyzer.prompts.build_type_prompt import TypePromptBuilder
-from ai.templateEngine.message_analyzer.prompts.build_category_prompt import CategoryPromptBuilder
-from ai.templateEngine.message_analyzer.prompts.build_fields_prompt import FieldsPromptBuilder
+from ai.templateEngine.prompts.message_analyzer_prompts import TypePromptBuilder, CategoryPromptBuilder, FieldsPromptBuilder
 from dotenv import load_dotenv
 
 load_dotenv()
