@@ -39,7 +39,6 @@ jobs:
          uses: docker/build-push-action@v5
          with:
            context: ./back
-           file: ./back/Dockerfile
            push: true
            tags: |
              hy7012/pls-jober-backend:latest
