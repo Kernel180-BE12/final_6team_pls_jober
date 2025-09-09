@@ -49,7 +49,7 @@ public class AuthController {
         }
 
         // AccessToken + RefreshToken 발급
-        String accessToken = jwtTokenProvider.createAccessToken(account.getEmail(), account.getRole());
+        String accessToken = jwtTokenProvider.createAccessToken(account.getEmail(), account.getRole(), account.getId());
         String refreshToken = jwtTokenProvider.createRefreshToken();
 
         Map<String, String> tokens = new HashMap<>();
