@@ -1,10 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches: [ "develop", "workflow" ]
   pull_request:
-    branches: [ "develop", "workflow" ]
+    branches: ["main", "develop"]
 
 jobs:
   node-build:
