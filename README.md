@@ -5,7 +5,7 @@
 ```
 final_project/
 ├── back/          # Spring Boot 백엔드 (포트 8080)
-├── front/         # Vue 3 프론트엔드 (포트 3000)
+├── front/         # Vue 3 프론트엔드 (포트 3000)gdgdgdgd
 ├── ai/            # FastAPI AI 서비스 (포트 8000)
 └── README.md
 ```
