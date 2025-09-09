@@ -1,48 +1,52 @@
 import asyncio
 import json
 import logging
+import os
+from typing import Optional
 
 from ai.services.openai_service import OpenAIService
-from ai.templateEngine.message_analyzer.prompts.build_type_prompt import build_type_prompt
-from ai.templateEngine.message_analyzer.prompts.build_category_prompt import build_category_prompt
-from ai.templateEngine.message_analyzer.prompts.build_fields_prompt import build_fields_prompt
+from ai.templateEngine.message_analyzer.prompts.build_type_prompt import TypePromptBuilder
+from ai.templateEngine.message_analyzer.prompts.build_category_prompt import CategoryPromptBuilder
+from ai.templateEngine.message_analyzer.prompts.build_fields_prompt import FieldsPromptBuilder
+from dotenv import load_dotenv
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 class MessageAnalyzer:
     def __init__(self, service: OpenAIService):
         self.service = service
 
-    async def analyze_message(self, user_text: str, category_main: str, category_sub: list):
+    async def analyze_message(self, user_text: str, category_main: str, category_sub_list: list):
         """
         메시지 유형, 카테고리, 필드 추출 결과를 합쳐서 반환한다.
         """
         logger.info("Starting analyze_message")
-        logger.debug(f"[INPUT] user_text={user_text}, category_main={category_main}, category_sub={category_sub}")
+        logger.debug(f"[INPUT] user_text={user_text}, category_main={category_main}, category_sub={category_sub_list}")
 
         try:
-            # 세 메서드 동시에 실행
+            # 메세지 유형 판별
             logger.info("Calling classify_message_type")
-            type_task = asyncio.create_task(
-                self.classify_message_type(user_text)
-            )
-
-            logger.info("Calling classify_message_category")
-            category_task = asyncio.create_task(
-                self.classify_message_category(category_main, category_sub)
-            )
-
-            logger.info("Calling extract_message_fields")
-            extract_task = asyncio.create_task(
-                self.extract_message_fields(user_text)
-            )
-
-            type_result, category_result, extract_result = await asyncio.gather(
-                type_task, category_task, extract_task
-            )
-
+            type_result = await self.classify_message_type(user_text)
             logger.debug(f"[RESULT] classify_message_type={type_result}")
+
+            # 메세지 카테고리 판별
+            logger.info("Calling classify_message_category")
+            category_result = await self.classify_message_category(user_text, category_main, category_sub_list)
             logger.debug(f"[RESULT] classify_message_category={category_result}")
+
+            # 메세지 필드 추출
+            logger.info("Calling extract_message_fields")
+            
+            # 메세지 필드 추출 힌트 생성
+            fields_hint = [f"""
+                [힌트 제공]
+                - 메시지 유형: {type_result.get("type")}
+                - 카테고리: {category_result.get("category_sub")}
+
+                위 힌트를 참고하여 본문에서 필드를 더 정확하게 추출하라.
+            """]
+            extract_result = await self.extract_message_fields(user_text, fields_hint)
             logger.debug(f"[RESULT] extract_message_fields={extract_result}")
 
             # dict 합치기 (중복 키 있으면 extract_result 우선)
@@ -60,38 +64,52 @@ class MessageAnalyzer:
             logger.exception(e)
             raise
 
-    async def classify_message_type(self, user_text: str):
+    async def classify_message_type(self, user_text: str, hint: Optional[list[str]] = None):
         """
         메시지 유형을 판단하는 메서드.
         """
-        prompt = build_type_prompt(user_text)
-        content = await self.service.chat_completion(prompt, model="gpt-3.5-turbo")
+        prompt_builder = TypePromptBuilder(user_text)
+        self._apply_hints(prompt_builder, hint)
+        prompt = prompt_builder.build()
+        content = await self.service.chat_completion(prompt, model=os.getenv('OPENAI_MODEL', None))
 
         try:
             return json.loads(content.strip())
         except json.JSONDecodeError:
             raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
 
-    async def classify_message_category(self, category_main: str, category_sub_list: list):
+    async def classify_message_category(self, user_text: str, category_main: str, category_sub_list: list, hint: Optional[list[str]] = None):
         """
         메시지 카테고리를 판단하는 메서드.
         """
-        prompt = build_category_prompt(category_main, category_sub_list)
-        content = await self.service.chat_completion(prompt, model="gpt-3.5-turbo")
+        prompt_builder = CategoryPromptBuilder(user_text, category_main, category_sub_list)
+        self._apply_hints(prompt_builder, hint)
+        prompt = prompt_builder.build()
+        content = await self.service.chat_completion(prompt, model=os.getenv('OPENAI_MODEL', None))
 
         try:
             return json.loads(content.strip())
         except json.JSONDecodeError:
             raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
 
-    async def extract_message_fields(self, user_text: str):
+    async def extract_message_fields(self, user_text: str, hint: Optional[list[str]] = None):
         """
         메시지에서 필드를 뽑아내는 메서드.
         """
-        prompt = build_fields_prompt(user_text)
-        content = await self.service.chat_completion(prompt, model="gpt-3.5-turbo")
+        prompt_builder = FieldsPromptBuilder(user_text)
+        self._apply_hints(prompt_builder, hint)
+        prompt = prompt_builder.build()
+        content = await self.service.chat_completion(prompt, model=os.getenv('OPENAI_MODEL', None))
 
         try:
             return json.loads(content.strip())
         except json.JSONDecodeError:
             raise ValueError(f"LLM 응답이 JSON 파싱 불가: {content}")
+        
+        
+    def _apply_hints(self, builder, hint: Optional[list[str]]):
+        """hint 문자열 리스트를 받아 builder에 적용"""
+        if not hint:
+            return
+        for h in hint:
+            builder.add_hint("hint", h)
