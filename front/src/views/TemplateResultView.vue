@@ -382,13 +382,17 @@ const submitTemplate = async () => {
     } else {
       // 검증 실패 - 반려 사유 표시
       console.log('템플릿 검증 실패:', response.data.final_message)
+      console.log('전체 검증 응답:', response.data)
       
       // 검증 결과에서 오류가 있는 변수들을 추출
       const failedValidations = response.data.validation_results?.filter((result: any) => !result.is_valid) || []
+      console.log('실패한 검증들:', failedValidations)
+      
       const rejectedVars: string[] = []
       
       // 오류가 있는 변수들을 반려된 변수로 설정
       failedValidations.forEach((validation: any) => {
+        console.log('검증 상세:', validation)
         if (validation.details && validation.details.variables) {
           // variables가 배열인지 확인하고 처리
           if (Array.isArray(validation.details.variables)) {
@@ -400,8 +404,26 @@ const submitTemplate = async () => {
             rejectedVars.push(...Object.keys(validation.details.variables))
           }
         }
+        
+        // 에러 메시지에서 변수명 추출 시도
+        if (validation.errors && validation.errors.length > 0) {
+          validation.errors.forEach((error: string) => {
+            console.log('에러 메시지:', error)
+            // 변수명 패턴 찾기: {변수명}, {{변수명}}, #{변수명}
+            const variableMatches = error.match(/\{([^}]+)\}/g) || error.match(/#\{([^}]+)\}/g)
+            if (variableMatches) {
+              variableMatches.forEach(match => {
+                const varName = match.replace(/[{}#]/g, '')
+                if (!rejectedVars.includes(varName)) {
+                  rejectedVars.push(varName)
+                }
+              })
+            }
+          })
+        }
       })
       
+      console.log('반려된 변수들:', rejectedVars)
       rejectedVariables.value = rejectedVars
       isRejected.value = true
       showRejectionSidebar.value = true
@@ -548,7 +570,6 @@ const getChatPlaceholder = () => {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 1.2rem;
-  overflow-x: hidden;
 }
 
 /* 좌우 분할 레이아웃 */
@@ -589,8 +610,8 @@ const getChatPlaceholder = () => {
   flex-direction: column;
   gap: 1.2rem;
   padding-left: 2rem;
-  width: 20rem;
-  overflow: hidden;
+  min-width: 22rem;
+  overflow: visible;
   position: relative;
 }
 
@@ -601,13 +622,15 @@ const getChatPlaceholder = () => {
   transition: transform 0.3s ease;
   align-self: center;
   max-height: 80vh;
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 1rem;
+  width: 100%;
+  justify-content: center;
 }
 
 /* 반려 사이드바가 열렸을 때의 상태 */
 .preview-and-sidebar-container.with-rejection-sidebar {
-  transform: translateX(1rem);
+  transform: translateX(-1rem);
 }
 
 /* 카카오톡 미리보기 래퍼 */
@@ -640,8 +663,9 @@ const getChatPlaceholder = () => {
 
 /* 반려 사이드바 패널 */
 .rejection-sidebar-panel {
-  width: 14rem;
-  max-width: 14rem;
+  width: 20rem;
+  min-width: 20rem;
+  max-width: 20rem;
   flex-shrink: 0;
   z-index: 10;
 }

@@ -20,6 +20,7 @@
               v-for="category in categories"
               :key="category.id"
               :class="['category-btn', { 'selected': selectedCategory === category.id }]"
+              :disabled="isGenerating"
               @click="selectCategory(category.id)"
             >
               {{ category.name }}
@@ -34,11 +35,25 @@
               v-model="messageText"
               placeholder="ex. 우리 서비스에 맞는 법적 고지 내용을 빠르게 작성하고 적용할 수 있는 템플릿이 필요합니다."
               class="message-textarea"
+              :class="{ 'loading': isGenerating }"
+              :disabled="isGenerating"
               rows="8"
             ></textarea>
-            <button class="submit-arrow-btn" @click="handleSubmit" :disabled="!canSubmit">
-              ↑
+            <button 
+              class="submit-arrow-btn" 
+              :class="{ 'loading': isGenerating }"
+              @click="handleSubmit" 
+              :disabled="!canSubmit"
+            >
+              <span v-if="isGenerating" class="loading-spinner"></span>
+              <span v-else>↑</span>
             </button>
+          </div>
+          
+          <!-- 로딩 메시지 -->
+          <div v-if="isGenerating" class="loading-message">
+            <div class="loading-text">AI가 템플릿을 생성하고 있습니다...</div>
+            <div class="loading-subtext">잠시만 기다려주세요</div>
           </div>
         </div>
       </div>
@@ -88,10 +103,11 @@ const categoryIdMapping: Record<string, number> = {
 
 const selectedCategory = ref<number | null>(null)
 const messageText = ref('')
+const isGenerating = ref(false)
 
 // 제출 가능 여부
 const canSubmit = computed(() => {
-  return selectedCategory.value !== null && messageText.value.trim().length > 0
+  return selectedCategory.value !== null && messageText.value.trim().length > 0 && !isGenerating.value
 })
 
 // 카테고리 선택
@@ -102,6 +118,8 @@ const selectCategory = (categoryId: number) => {
 // 제출 처리
 const handleSubmit = async () => {
   if (!canSubmit.value) return
+  
+  isGenerating.value = true
   
   try {
     const selectedCategoryName = categories.find(cat => cat.id === selectedCategory.value)?.name || '기타'
@@ -130,6 +148,8 @@ const handleSubmit = async () => {
   } catch (error) {
     console.error('템플릿 생성 실패:', error)
     alert('템플릿 생성에 실패했습니다. 다시 시도해주세요.')
+  } finally {
+    isGenerating.value = false
   }
 }
 </script>
@@ -207,6 +227,20 @@ const handleSubmit = async () => {
   box-shadow: 0 4px 8px rgba(74, 20, 140, 0.4);
 }
 
+.category-btn:disabled {
+  background: #e0e0e0;
+  color: #9e9e9e;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.category-btn:disabled:hover {
+  background: #e0e0e0;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .text-input-section {
   width: 100%;
   max-width: 800px;
@@ -268,5 +302,67 @@ const handleSubmit = async () => {
   cursor: not-allowed;
   transform: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.submit-arrow-btn.loading {
+  background: #8E24AA;
+  cursor: not-allowed;
+}
+
+/* 로딩 스피너 */
+.loading-spinner {
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 로딩 중 텍스트 영역 스타일 */
+.message-textarea.loading {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.message-textarea:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* 로딩 메시지 */
+.loading-message {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #8E24AA, #7B1FA2);
+  color: white;
+  border-radius: 0.8rem;
+  box-shadow: 0 4px 12px rgba(142, 36, 170, 0.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.loading-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.loading-subtext {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
 }
 </style>
