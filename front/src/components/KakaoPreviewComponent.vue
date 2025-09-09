@@ -10,75 +10,13 @@
           <div class="coupon-icon">🎫</div>
         </div>
         
-        <div class="kakao-message">
-          <p>안녕하세요, 
-            <span v-if="props.showVariables && !isRejected" 
-                  :class="['variable', { 'clickable': isModifying, 'editing': editingField === 'recipient' }]" 
-                  :contenteditable="isModifying && editingField === 'recipient'"
-                  @click="isModifying && startEditing('recipient')"
-                  @blur="finishEditing('recipient')"
-                  @keydown.enter.prevent="finishEditing('recipient')"
-                  @keydown.esc="cancelEditing">{{ variables.recipient }}</span>
-            <span v-else-if="isRejected && rejectedVariables.includes('수신자')" 
-                  :class="['variable', 'rejected-highlight']"
-                  @click="$emit('variableClick', '수신자')">{{ variables.recipient }}</span>
-            <span v-else>{{ variables.recipient }}</span> 회원님!</p>
-          
-          <p>
-            <span v-if="props.showVariables && !isRejected" 
-                  :class="['variable', { 'clickable': isModifying, 'editing': editingField === 'sender' }]" 
-                  :contenteditable="isModifying && editingField === 'sender'"
-                  @click="isModifying && startEditing('sender')"
-                  @blur="finishEditing('sender')"
-                  @keydown.enter.prevent="finishEditing('sender')"
-                  @keydown.esc="cancelEditing">{{ variables.sender }}</span>
-            <span v-else-if="isRejected && rejectedVariables.includes('발신 스페이스')" 
-                  :class="['variable', 'rejected-highlight']"
-                  @click="$emit('variableClick', '발신 스페이스')">{{ variables.sender }}</span>
-            <span v-else>{{ variables.sender }}</span>입니다.</p>
-          
-          <p>회원님께 발급된 쿠폰을 안내드립니다.</p>
-          
-          <p>▶ 쿠폰명 : 
-            <span v-if="props.showVariables && !isRejected" 
-                  :class="['variable', { 'clickable': isModifying, 'editing': editingField === 'couponName' }]" 
-                  :contenteditable="isModifying && editingField === 'couponName'"
-                  @click="isModifying && startEditing('couponName')"
-                  @blur="finishEditing('couponName')"
-                  @keydown.enter.prevent="finishEditing('couponName')"
-                  @keydown.esc="cancelEditing">{{ variables.couponName }}</span>
-            <span v-else-if="isRejected && rejectedVariables.includes('쿠폰명')" 
-                  :class="['variable', 'rejected-highlight']"
-                  @click="$emit('variableClick', '쿠폰명')">{{ variables.couponName }}</span>
-            <span v-else>{{ variables.couponName }}</span></p>
-          
-          <p>▶ 사용기한 : 
-            <span v-if="props.showVariables && !isRejected" 
-                  :class="['variable', { 'clickable': isModifying, 'editing': editingField === 'expiryDate' }]" 
-                  :contenteditable="isModifying && editingField === 'expiryDate'"
-                  @click="isModifying && startEditing('expiryDate')"
-                  @blur="finishEditing('expiryDate')"
-                  @keydown.enter.prevent="finishEditing('expiryDate')"
-                  @keydown.esc="cancelEditing">{{ variables.expiryDate }}</span>
-            <span v-else-if="isRejected && rejectedVariables.includes('사용기한')" 
-                  :class="['variable', 'rejected-highlight']"
-                  @click="$emit('variableClick', '사용기한')">{{ variables.expiryDate }}</span>
-            <span v-else>{{ variables.expiryDate }}</span></p>
-          
-          <p>
-            <span v-if="props.showVariables && !isRejected" 
-                  :class="['variable', { 'clickable': isModifying, 'editing': editingField === 'additionalMessage' }]" 
-                  :contenteditable="isModifying && editingField === 'additionalMessage'"
-                  @click="isModifying && startEditing('additionalMessage')"
-                  @blur="finishEditing('additionalMessage')"
-                  @keydown.enter.prevent="finishEditing('additionalMessage')"
-                  @keydown.esc="cancelEditing">{{ variables.additionalMessage }}</span>
-            <span v-else-if="isRejected && rejectedVariables.includes('추가 메시지')" 
-                  :class="['variable', 'rejected-highlight']"
-                  @click="$emit('variableClick', '추가 메시지')">{{ variables.additionalMessage }}</span>
-            <span v-else>{{ variables.additionalMessage }}</span></p>
-          
-          <p class="disclaimer">* 이 메시지는 이용약관(계약서) 동의에 따라 지급된 쿠폰 안내 메시지입니다.</p>
+        <div 
+          class="kakao-message" 
+          v-html="formattedTemplateContent" 
+          @click="handleVariableClick"
+          @input="handleVariableChange"
+          @blur="handleVariableBlur"
+        >
         </div>
       </div>
     </div>
@@ -88,19 +26,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
-
-interface Variables {
-  recipient: string
-  sender: string
-  couponName: string
-  expiryDate: string
-  additionalMessage: string
-}
+import { ref, watch, nextTick, computed } from 'vue'
 
 interface KakaoPreviewProps {
+  templateContent?: string
   showVariables: boolean
-  variables: Variables
+  variables: Record<string, string>
   isModifying: boolean
   isRejected: boolean
   rejectedVariables: string[]
@@ -109,15 +40,65 @@ interface KakaoPreviewProps {
 const props = defineProps<KakaoPreviewProps>()
 const emit = defineEmits<{
   variableClick: [variableName: string]
-
   rejectTemplate: []
   submitTemplate: []
-  updateVariables: [variables: Variables]
+  updateVariables: [variables: Record<string, string>]
 }>()
 
 const editedVariables = ref({ ...props.variables })
 const editingField = ref<string | null>(null)
-const originalValues = ref<Variables>({ ...props.variables })
+const originalValues = ref<Record<string, string>>({ ...props.variables })
+
+// 템플릿 내용을 포맷팅하여 변수를 적절한 스타일로 렌더링
+const formattedTemplateContent = computed(() => {
+  if (!props.templateContent) {
+    // 기본 템플릿 내용
+    return `
+      <p>안녕하세요, <span class="variable">${props.variables.recipient}</span> 회원님!</p>
+      <p><span class="variable">${props.variables.sender}</span>입니다.</p>
+      <p>회원님께 발급된 쿠폰을 안내드립니다.</p>
+      <p>▶ 쿠폰명 : <span class="variable">${props.variables.couponName}</span></p>
+      <p>▶ 사용기한 : <span class="variable">${props.variables.expiryDate}</span></p>
+      <p><span class="variable">${props.variables.additionalMessage}</span></p>
+      <p class="disclaimer">* 이 메시지는 이용약관(계약서) 동의에 따라 지급된 쿠폰 안내 메시지입니다.</p>
+    `
+  }
+  
+  let content = props.templateContent
+  
+  // 변수들을 적절한 스타일로 교체
+  Object.keys(props.variables).forEach(key => {
+    const value = props.variables[key]
+    const variablePattern = new RegExp(`\\{\\{${key}\\}\\}`, 'g')
+    
+    let variableClass = 'variable'
+    
+    // 변수값 표시 토글에 따른 스타일 적용
+    if (props.showVariables) {
+      variableClass += ' highlighted'
+    }
+    
+    // 수정 모드일 때 편집 가능한 스타일 추가
+    if (props.isModifying && !props.isRejected) {
+      variableClass += ' clickable editable'
+    }
+    
+    // 반려된 변수 하이라이트
+    if (props.isRejected && props.rejectedVariables.includes(key)) {
+      variableClass += ' rejected-highlight'
+    }
+    
+    content = content.replace(variablePattern, 
+      `<span class="${variableClass}" ${props.isModifying ? 'contenteditable="true"' : ''} data-variable="${key}">${value}</span>`
+    )
+  })
+  
+  // 줄바꿈을 <p> 태그로 변환
+  content = content.replace(/\n/g, '</p><p>')
+  content = `<p>${content}</p>`
+  
+  return content
+})
 
 // props.variables가 변경될 때마다 editedVariables 업데이트
 watch(() => props.variables, (newVariables) => {
@@ -130,7 +111,7 @@ const startEditing = (fieldName: string) => {
   if (!props.isModifying) return
   
   editingField.value = fieldName
-  originalValues.value[fieldName as keyof Variables] = editedVariables.value[fieldName as keyof Variables]
+  originalValues.value[fieldName] = editedVariables.value[fieldName]
   
   // 다음 tick에서 해당 요소에 포커스
   nextTick(() => {
@@ -151,11 +132,11 @@ const startEditing = (fieldName: string) => {
 
 // 편집 완료
 const finishEditing = (fieldName: string) => {
-  const newValue = editedVariables.value[fieldName as keyof Variables]
+  const newValue = editedVariables.value[fieldName]
   
   // 빈 값이면 원래 값으로 복원
   if (!newValue || newValue.trim() === '') {
-    editedVariables.value[fieldName as keyof Variables] = originalValues.value[fieldName as keyof Variables]
+    editedVariables.value[fieldName] = originalValues.value[fieldName]
   }
   
   editingField.value = null
@@ -167,8 +148,54 @@ const finishEditing = (fieldName: string) => {
 // 편집 취소
 const cancelEditing = () => {
   if (editingField.value) {
-    editedVariables.value[editingField.value as keyof Variables] = originalValues.value[editingField.value as keyof Variables]
+    editedVariables.value[editingField.value] = originalValues.value[editingField.value]
     editingField.value = null
+  }
+}
+
+// 변수 클릭 이벤트 처리
+const handleVariableClick = (event: Event) => {
+  const target = event.target as HTMLElement
+  const variableElement = target.closest('[data-variable]') as HTMLElement
+  
+  if (variableElement && props.isModifying) {
+    const variableName = variableElement.getAttribute('data-variable')
+    if (variableName) {
+      // 변수 편집 시작
+      startEditing(variableName)
+    }
+  } else if (variableElement && props.isRejected) {
+    const variableName = variableElement.getAttribute('data-variable')
+    if (variableName && props.rejectedVariables.includes(variableName)) {
+      // 반려된 변수 클릭 시 부모 컴포넌트에 이벤트 전달
+      emit('variableClick', variableName)
+    }
+  }
+}
+
+// 변수 값 변경 감지
+const handleVariableChange = (event: Event) => {
+  const target = event.target as HTMLElement
+  const variableElement = target.closest('[data-variable]') as HTMLElement
+  
+  if (variableElement) {
+    const variableName = variableElement.getAttribute('data-variable')
+    if (variableName) {
+      editedVariables.value[variableName] = variableElement.textContent || ''
+    }
+  }
+}
+
+// 변수 편집 완료 감지
+const handleVariableBlur = (event: Event) => {
+  const target = event.target as HTMLElement
+  const variableElement = target.closest('[data-variable]') as HTMLElement
+  
+  if (variableElement) {
+    const variableName = variableElement.getAttribute('data-variable')
+    if (variableName) {
+      finishEditing(variableName)
+    }
   }
 }
 
@@ -191,6 +218,9 @@ const cancelEditing = () => {
   width: 20rem;
   flex-shrink: 0;
   align-self: center;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .kakao-header {
@@ -203,6 +233,10 @@ const cancelEditing = () => {
 
 .kakao-content {
   padding: 1rem;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .kakao-title {
@@ -229,20 +263,46 @@ const cancelEditing = () => {
 .kakao-message {
   margin-bottom: 1rem;
   line-height: 1.6;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .kakao-message p {
   margin: 0.4rem 0;
 }
 
+/* 카카오톡 메시지 스크롤바 스타일링 */
+.kakao-message::-webkit-scrollbar {
+  width: 0.3rem;
+}
+
+.kakao-message::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 0.15rem;
+}
+
+.kakao-message::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 0.15rem;
+}
+
+.kakao-message::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
 .variable {
-  background-color: #fff3cd;
+  background-color: transparent;
   padding: 0.1rem 0.3rem;
   border-radius: 0.2rem;
-  color: #856404;
+  color: inherit;
   transition: all 0.2s ease;
   min-width: 1rem;
   display: inline-block;
+}
+
+.variable.highlighted {
+  background-color: #fff3cd;
+  color: #856404;
 }
 
 .variable.clickable {
@@ -253,6 +313,28 @@ const cancelEditing = () => {
   background-color: #ffeaa7;
   transform: scale(1.02);
   box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.15);
+}
+
+.variable.editable {
+  background-color: #e8f5e8;
+  border: 0.1rem dashed #4caf50;
+  position: relative;
+}
+
+.variable.editable:hover {
+  background-color: #d4edda;
+  border-color: #28a745;
+  transform: scale(1.02);
+  box-shadow: 0 0.1rem 0.4rem rgba(76, 175, 80, 0.3);
+}
+
+.variable.editable::after {
+  content: '✏️';
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  font-size: 0.7rem;
+  opacity: 0.7;
 }
 
 .variable.editing {

@@ -110,8 +110,8 @@ const handleLogin = async () => {
     localStorage.setItem('accessToken', response.data.accessToken)
     localStorage.setItem('refreshToken', response.data.refreshToken)
     
-    // 로그인 성공 시 홈으로 이동
-    router.push('/')
+    // 로그인 성공 시 마이페이지로 이동
+    router.push('/mypage')
   } catch (error: any) {
     console.error('로그인 실패:', error)
     errorMessage.value = error.response?.data?.message || '로그인에 실패했습니다.'

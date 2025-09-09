@@ -75,5 +75,68 @@ export const myPageApi = {
     api.put('/mypage/password', { currentPassword, newPassword, confirmPassword })
 }
 
+// 템플릿 관련 API
+export const templateApi = {
+  // AI를 통한 템플릿 생성
+  generateTemplate: (categoryId: number, userMessage: string) => 
+    api.post('/ai-generation', { category2Id: categoryId, userMessage }),
+  
+  // 템플릿 검증
+  validateTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string) => {
+    const aiApi = axios.create({
+      baseURL: 'http://localhost:8000',
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
+    const validationRequest = {
+      template: {
+        channel: 'alimtalk',
+        body: templateContent,
+        variables: variables,
+        category: category || 'marketing'
+      },
+      user_input: userMessage || ''
+    }
+    
+    return aiApi.post('/alimtalk/validate', validationRequest)
+  },
+  
+  // 템플릿 수정 요청 (채팅을 통한)
+  modifyTemplate: (currentTemplate: string, userMessage: string, chatHistory: any[]) => {
+    const aiApi = axios.create({
+      baseURL: 'http://localhost:8000',
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    return aiApi.post('/ai/template/modify', {
+      current_template: currentTemplate,
+      user_message: userMessage,
+      chat_history: chatHistory
+    })
+  }
+}
+
+// AI 서버 직접 호출용 API (템플릿 생성)
+export const aiApi = {
+  // AI 서버에 직접 템플릿 생성 요청
+  generateTemplate: (category: string, userMessage: string) => {
+    const aiApi = axios.create({
+      baseURL: 'http://localhost:8000',
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    return aiApi.post('/ai/template/generate', { category, user_message: userMessage })
+  }
+}
+
 export default api
 

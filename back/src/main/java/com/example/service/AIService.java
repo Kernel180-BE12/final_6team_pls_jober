@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import java.util.Map;
 
 
 /**
@@ -53,5 +54,34 @@ public class AIService {
                 .retrieve()
                 .bodyToMono(FastAPIResponseDto.class)
                 .block();
+    }
+
+    /**
+     * FastAPI 서버에 템플릿 검증을 요청하고 결과를 받아옵니다.
+     *
+     * @param validationRequest 검증 요청 데이터
+     * @return AI 검증 결과
+     * @throws RuntimeException AI 서버 통신 실패 시
+     */
+    public Map<String, Object> validateTemplateWithFastAPI(Map<String, Object> validationRequest) {
+        log.info("FastAPI 템플릿 검증 요청 시작");
+        
+        try {
+            return webClient.post()
+                    .uri("/alimtalk/validate")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(validationRequest)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+        } catch (Exception e) {
+            log.error("FastAPI 템플릿 검증 요청 실패", e);
+            // 검증 실패 시 기본 반려 응답 반환
+            return Map.of(
+                "success", false,
+                "rejected_variables", java.util.List.of("템플릿 내용"),
+                "alternatives", Map.of("템플릿 내용", java.util.List.of("더 적절한 표현으로 수정해주세요"))
+            );
+        }
     }
 }
