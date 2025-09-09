@@ -3,60 +3,71 @@
 수정된 JSON 형태로 템플릿 생성 테스트
 """
 
-from templateEngine.template_generator import TemplateGenerator, TemplateRequest
 import json
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from services.alimtalk_service import AlimtalkValidationService
+from models.alimtalk_models import ValidationRequest, AlimtalkTemplate
 
 def main():
     print("=" * 60)
-    print("수정된 JSON 형태 템플릿 생성 테스트")
+    print("알림톡 템플릿 검증 테스트")
     print("=" * 60)
     
     try:
-        generator = TemplateGenerator()
+        # 알림톡 검증 서비스 초기화
+        validation_service = AlimtalkValidationService()
         
-        # 새로운 JSON 형태로 테스트
-        request = TemplateRequest(
-            category_main="이벤트",
-            category_sub="교육/특강",
-            type="BASIC",
-            has_channel_link=False,
-            has_extra_info=True,
-            label="특강안내",
-            use_case="마케팅 특강 일정 및 장소 안내",
-            intent_type="information",
-            recipient_scope="신청자",
-            links_allowed=True,
-            variables=["일시", "장소", "링크"],
-            section_path=["서비스이용", "이용안내/공지"],
-            source="user_request",
-            source_tag=None,
-            user_text="안녕하세요. 마케팅 리즈입니다. 지난번 공지드린 마케팅 특강이 이번주에 시작합니다. -일시 : 25.11.11(화) 18시 - 장소: 서울 마포구 양화로 186, 6층 참석을 원하시면 미리 답장을 주세요."
+        # 테스트용 템플릿 생성
+        test_template = AlimtalkTemplate(
+            template_pk="TEST_001",
+            channel="alimtalk",
+            title="마케팅 특강 안내",
+            body="안녕하세요 #{customer_name}님!\n\n마케팅 특강이 시작됩니다.\n- 일시: #{event_date}\n- 장소: #{location}\n\n참석을 원하시면 답장을 주세요.",
+            variables={
+                "customer_name": "홍길동",
+                "event_date": "2024년 1월 15일 18:00",
+                "location": "서울 마포구 양화로 186, 6층"
+            },
+            category="marketing"
         )
         
-        print("템플릿 생성 중...")
-        result = generator.generate_template(request)
+        # 검증 요청 생성
+        validation_request = ValidationRequest(
+            template=test_template,
+            user_input="마케팅 특강 일정 및 장소 안내"
+        )
         
-        print("성공!")
-        print(f"템플릿 제목: {result.template_title}")
-        print(f"생성 방법: {result.generation_method}")
-        print(f"감지된 변수: {result.variables_detected}")
+        print("템플릿 검증 중...")
+        result = validation_service.validate_template(validation_request)
         
-        if result.reference_template_id:
-            print(f"참고 템플릿 ID: {result.reference_template_id}")
+        print("검증 완료!")
+        print(f"검증 성공: {result.success}")
+        print(f"최종 메시지: {result.final_message}")
         
-        print("\n생성된 템플릿:")
-        print("-" * 50)
-        print(result.template_text)
-        print("-" * 50)
+        if result.validation_results:
+            print(f"검증 결과 수: {len(result.validation_results)}")
+            for i, validation_result in enumerate(result.validation_results, 1):
+                print(f"  {i}단계 - {validation_result.stage}: {'통과' if validation_result.is_valid else '실패'}")
+                if validation_result.errors:
+                    print(f"    오류: {validation_result.errors}")
+                if validation_result.warnings:
+                    print(f"    경고: {validation_result.warnings}")
         
         # 최종 JSON 출력
         output_json = {
-            "template_text": result.template_text,
-            "template_title": result.template_title,
-            "variables_detected": result.variables_detected,
-            "generation_method": result.generation_method,
-            "reference_template_id": result.reference_template_id,
-            "metadata": result.metadata
+            "success": result.success,
+            "final_message": result.final_message,
+            "validation_results": [
+                {
+                    "stage": vr.stage,
+                    "is_valid": vr.is_valid,
+                    "errors": vr.errors,
+                    "warnings": vr.warnings
+                } for vr in result.validation_results
+            ]
         }
         
         print(f"\n최종 JSON 출력:")
@@ -66,6 +77,8 @@ def main():
         
     except Exception as e:
         print(f"오류: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

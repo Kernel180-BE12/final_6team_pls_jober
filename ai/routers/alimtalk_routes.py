@@ -7,15 +7,12 @@ from typing import Dict, Any, List
 import traceback
 import logging
 
-try:
-    from ..services.alimtalk_service import AlimtalkValidationService
-    from ..models.alimtalk_models import ValidationRequest, ValidationResponse
-except ImportError:
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from services.alimtalk_service import AlimtalkValidationService
-    from models.alimtalk_models import ValidationRequest, ValidationResponse
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from services.alimtalk_service import AlimtalkValidationService
+from models.alimtalk_models import ValidationRequest, ValidationResponse
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)

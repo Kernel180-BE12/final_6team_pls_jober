@@ -15,22 +15,15 @@ try:
 except ImportError:
     HAS_OPENAI_SERVICE = False
     print("Warning: OpenAI 서비스를 로드할 수 없습니다. Mock 모드로 실행됩니다.")
-try:
-    from ..models.alimtalk_models import (
-        ValidationRequest, ValidationResponse, ValidationResult, 
-        AlimtalkTemplate, GuidelineSearchResult, SystemStats
-    )
-    from ..validators.validator_pipeline import ValidationPipeline
-except ImportError:
-    # 절대 import로 시도
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from models.alimtalk_models import (
-        ValidationRequest, ValidationResponse, ValidationResult, 
-        AlimtalkTemplate, GuidelineSearchResult, SystemStats
-    )
-    from validators.validator_pipeline import ValidationPipeline
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models.alimtalk_models import (
+    ValidationRequest, ValidationResponse, ValidationResult, 
+    AlimtalkTemplate, GuidelineSearchResult, SystemStats
+)
+from validators.validator_pipeline import ValidationPipeline
 
 
 class AlimtalkValidationService:

@@ -27,6 +27,9 @@ class ChromaDBService:
         chroma_host = os.getenv('CHROMA_HOST', None)
         chroma_port = os.getenv('CHROMA_PORT', None)
         
+        # db_path 설정
+        self.db_path = db_path or persist_dir
+        
         if chroma_host and chroma_port:
             # 원격 ChromaDB 서버 연결
             self.client = chromadb.HttpClient(
@@ -58,9 +61,9 @@ class ChromaDBService:
                     )
                 else:
                     # 로컬 ChromaDB 연결
-                    print(f"로컬 ChromaDB에 연결 중: {self.db_path}")
+                    print(f"로컬 ChromaDB에 연결 중: {persist_dir}")
                     self.client = chromadb.PersistentClient(
-                        path=self.db_path,
+                        path=persist_dir,
                         settings=Settings(anonymized_telemetry=False)
                     )
                 
@@ -176,6 +179,32 @@ class ChromaDBService:
             }
         except Exception as e:
             raise Exception(f"컬렉션 정보 조회 실패: {str(e)}")
+    
+    def get_all_documents(self):
+        """
+        모든 문서 조회 (ConstraintValidator에서 사용)
+        """
+        try:
+            if self.is_mock:
+                return self.mock_guidelines
+            
+            # ChromaDB에서 모든 문서 조회
+            results = self.collection.get()
+            documents = []
+            
+            if results['documents']:
+                for i in range(len(results['documents'])):
+                    documents.append({
+                        'id': results['ids'][i],
+                        'content': results['documents'][i],
+                        'metadata': results['metadatas'][i] if results['metadatas'] else {}
+                    })
+            
+            return documents
+            
+        except Exception as e:
+            print(f"모든 문서 조회 중 오류: {e}")
+            return []
     
     async def initialize(self):
         """서비스 초기화"""

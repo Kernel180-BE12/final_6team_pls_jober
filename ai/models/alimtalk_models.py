@@ -89,4 +89,19 @@ class ValidationResponse(BaseModel):
     final_message: str
 
 
+class GuidelineSearchResult(BaseModel):
+    """가이드라인 검색 결과 모델"""
+    id: str
+    content: str
+    metadata: Dict[str, Any]
+    similarity: float
+
+
+class SystemStats(BaseModel):
+    """시스템 통계 모델"""
+    vector_db: Dict[str, Any]
+    validation_pipeline: Dict[str, Any]
+    service_status: str
+
+
 

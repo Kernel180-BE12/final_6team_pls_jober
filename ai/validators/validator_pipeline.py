@@ -2,17 +2,13 @@
 검증 파이프라인 - 2단계 검증을 순차적으로 실행
 """
 from typing import Dict, Any, List
-try:
-    from .constraint_validator import ConstraintValidator  
-    from .semantic_validator import SemanticValidator
-    from ..models.alimtalk_models import ValidationResult
-except ImportError:
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from validators.constraint_validator import ConstraintValidator
-    from validators.semantic_validator import SemanticValidator
-    from models.alimtalk_models import ValidationResult
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from validators.constraint_validator import ConstraintValidator
+from validators.semantic_validator import SemanticValidator
+from models.alimtalk_models import ValidationResult
 
 
 class ValidationPipeline:

@@ -22,3 +22,4 @@ typing-extensions>=4.0.0
 pymysql>=1.0.0
 sqlalchemy>=2.0.0
 aiomysql>=0.1.1
+jinja2>=3.0.0

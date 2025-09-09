@@ -5,20 +5,13 @@ RAG 기반 최종 검증
 import re
 import json
 from typing import Dict, Any, List, Tuple, Optional
-try:
-    from ..models.alimtalk_models import ValidationResult, CategoryType
-    from ..services.chromadb_service import ChromaDBService
-except ImportError:
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from models.alimtalk_models import ValidationResult, CategoryType
-    from services.chromadb_service import ChromaDBService
-try:
-    from .final_validation_prompt import create_final_validation_prompt
-except ImportError:
-    # 직접 실행시 절대 import 사용
-    from validators.final_validation_prompt import create_final_validation_prompt
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models.alimtalk_models import ValidationResult, CategoryType
+from services.chromadb_service import ChromaDBService
+from validators.final_validation_prompt import create_final_validation_prompt
 try:
     import openai
     HAS_OPENAI = True

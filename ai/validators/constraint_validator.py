@@ -5,15 +5,12 @@ ChromaDB에서 제약사항을 검색하여 정확한 스키마 매칭 검증
 import re
 from typing import Dict, Any, List
 
-try:
-    from ..models.alimtalk_models import ValidationResult
-    from ..services.chromadb_service import ChromaDBService
-except ImportError:
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from models.alimtalk_models import ValidationResult
-    from services.chromadb_service import ChromaDBService
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models.alimtalk_models import ValidationResult
+from services.chromadb_service import ChromaDBService
 
 
 class ConstraintValidator:
