@@ -54,6 +54,17 @@ class TemplateGenerationResponse(BaseModel):
     category: str
     model: str
 
+class TemplateModificationRequest(BaseModel):
+    current_template: str
+    user_message: str
+    chat_history: List[Dict[str, Any]] = []
+
+class TemplateModificationResponse(BaseModel):
+    modified_template: str
+    variables: List[Dict[str, Any]]
+    explanation: str
+    model: str
+
 # OpenAI 라우트
 @router.post("/openai/chat", response_model=ChatResponse)
 async def openai_chat(request: ChatRequest):
@@ -230,6 +241,69 @@ async def generate_template(request: TemplateGenerationRequest):
             variables=variables,
             category=request.category,
             model=request.model
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 템플릿 수정 라우트
+@router.post("/template/modify", response_model=TemplateModificationResponse)
+async def modify_template(request: TemplateModificationRequest):
+    """채팅을 통한 템플릿 수정"""
+    try:
+        # 채팅 히스토리를 포함한 프롬프트 구성
+        chat_context = ""
+        if request.chat_history:
+            chat_context = "\n".join([
+                f"{msg.get('type', 'user')}: {msg.get('content', '')}" 
+                for msg in request.chat_history[-5:]  # 최근 5개 메시지만 사용
+            ])
+        
+        prompt = f"""
+현재 알림톡 템플릿:
+{request.current_template}
+
+채팅 히스토리:
+{chat_context}
+
+사용자 요청: {request.user_message}
+
+위 정보를 바탕으로 사용자의 요청에 따라 템플릿을 수정해주세요.
+- 기존 템플릿의 구조와 변수는 유지하면서 요청사항을 반영
+- 수정된 부분에 대한 간단한 설명 제공
+- 변수({{변수명}}) 형태는 그대로 유지
+
+수정된 템플릿:
+"""
+        
+        # OpenAI를 통한 템플릿 수정
+        messages = [{"role": "user", "content": prompt}]
+        response = await openai_service.chat_completion(messages, "gpt-3.5-turbo")
+        
+        # 응답에서 템플릿과 변수 추출
+        modified_template = response
+        variables = []
+        
+        # 변수 추출 ({{변수명}} 형태)
+        import re
+        variable_pattern = r'\{\{([^}]+)\}\}'
+        found_variables = re.findall(variable_pattern, response)
+        
+        for var in set(found_variables):
+            variables.append({
+                "name": var.strip(),
+                "type": "string",
+                "description": f"{var} 관련 정보"
+            })
+        
+        # 수정 설명 생성
+        explanation = f"사용자 요청 '{request.user_message}'에 따라 템플릿을 수정했습니다."
+        
+        return TemplateModificationResponse(
+            modified_template=modified_template,
+            variables=variables,
+            explanation=explanation,
+            model="gpt-3.5-turbo"
         )
         
     except Exception as e:

@@ -10,7 +10,13 @@
           <div class="coupon-icon">🎫</div>
         </div>
         
-        <div class="kakao-message" v-html="formattedTemplateContent">
+        <div 
+          class="kakao-message" 
+          v-html="formattedTemplateContent" 
+          @click="handleVariableClick"
+          @input="handleVariableChange"
+          @blur="handleVariableBlur"
+        >
         </div>
       </div>
     </div>
@@ -66,15 +72,24 @@ const formattedTemplateContent = computed(() => {
     const variablePattern = new RegExp(`\\{\\{${key}\\}\\}`, 'g')
     
     let variableClass = 'variable'
-    if (props.showVariables && !props.isRejected) {
-      variableClass += props.isModifying ? ' clickable' : ''
+    
+    // 변수값 표시 토글에 따른 스타일 적용
+    if (props.showVariables) {
+      variableClass += ' highlighted'
     }
+    
+    // 수정 모드일 때 편집 가능한 스타일 추가
+    if (props.isModifying && !props.isRejected) {
+      variableClass += ' clickable editable'
+    }
+    
+    // 반려된 변수 하이라이트
     if (props.isRejected && props.rejectedVariables.includes(key)) {
       variableClass += ' rejected-highlight'
     }
     
     content = content.replace(variablePattern, 
-      `<span class="${variableClass}" ${props.isModifying ? 'contenteditable="true"' : ''}>${value}</span>`
+      `<span class="${variableClass}" ${props.isModifying ? 'contenteditable="true"' : ''} data-variable="${key}">${value}</span>`
     )
   })
   
@@ -138,6 +153,52 @@ const cancelEditing = () => {
   }
 }
 
+// 변수 클릭 이벤트 처리
+const handleVariableClick = (event: Event) => {
+  const target = event.target as HTMLElement
+  const variableElement = target.closest('[data-variable]') as HTMLElement
+  
+  if (variableElement && props.isModifying) {
+    const variableName = variableElement.getAttribute('data-variable')
+    if (variableName) {
+      // 변수 편집 시작
+      startEditing(variableName)
+    }
+  } else if (variableElement && props.isRejected) {
+    const variableName = variableElement.getAttribute('data-variable')
+    if (variableName && props.rejectedVariables.includes(variableName)) {
+      // 반려된 변수 클릭 시 부모 컴포넌트에 이벤트 전달
+      emit('variableClick', variableName)
+    }
+  }
+}
+
+// 변수 값 변경 감지
+const handleVariableChange = (event: Event) => {
+  const target = event.target as HTMLElement
+  const variableElement = target.closest('[data-variable]') as HTMLElement
+  
+  if (variableElement) {
+    const variableName = variableElement.getAttribute('data-variable')
+    if (variableName) {
+      editedVariables.value[variableName] = variableElement.textContent || ''
+    }
+  }
+}
+
+// 변수 편집 완료 감지
+const handleVariableBlur = (event: Event) => {
+  const target = event.target as HTMLElement
+  const variableElement = target.closest('[data-variable]') as HTMLElement
+  
+  if (variableElement) {
+    const variableName = variableElement.getAttribute('data-variable')
+    if (variableName) {
+      finishEditing(variableName)
+    }
+  }
+}
+
 
 </script>
 
@@ -157,6 +218,9 @@ const cancelEditing = () => {
   width: 20rem;
   flex-shrink: 0;
   align-self: center;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .kakao-header {
@@ -169,6 +233,10 @@ const cancelEditing = () => {
 
 .kakao-content {
   padding: 1rem;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .kakao-title {
@@ -195,20 +263,46 @@ const cancelEditing = () => {
 .kakao-message {
   margin-bottom: 1rem;
   line-height: 1.6;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .kakao-message p {
   margin: 0.4rem 0;
 }
 
+/* 카카오톡 메시지 스크롤바 스타일링 */
+.kakao-message::-webkit-scrollbar {
+  width: 0.3rem;
+}
+
+.kakao-message::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 0.15rem;
+}
+
+.kakao-message::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 0.15rem;
+}
+
+.kakao-message::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
 .variable {
-  background-color: #fff3cd;
+  background-color: transparent;
   padding: 0.1rem 0.3rem;
   border-radius: 0.2rem;
-  color: #856404;
+  color: inherit;
   transition: all 0.2s ease;
   min-width: 1rem;
   display: inline-block;
+}
+
+.variable.highlighted {
+  background-color: #fff3cd;
+  color: #856404;
 }
 
 .variable.clickable {
@@ -219,6 +313,28 @@ const cancelEditing = () => {
   background-color: #ffeaa7;
   transform: scale(1.02);
   box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.15);
+}
+
+.variable.editable {
+  background-color: #e8f5e8;
+  border: 0.1rem dashed #4caf50;
+  position: relative;
+}
+
+.variable.editable:hover {
+  background-color: #d4edda;
+  border-color: #28a745;
+  transform: scale(1.02);
+  box-shadow: 0 0.1rem 0.4rem rgba(76, 175, 80, 0.3);
+}
+
+.variable.editable::after {
+  content: '✏️';
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  font-size: 0.7rem;
+  opacity: 0.7;
 }
 
 .variable.editing {

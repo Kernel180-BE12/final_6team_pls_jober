@@ -47,11 +47,18 @@
                 <input 
                   v-model="chatInput"
                   type="text" 
-                  placeholder="메시지를 입력하세요..."
+                  :placeholder="getChatPlaceholder()"
                   class="message-input"
+                  :disabled="isChatDisabled()"
                   @keyup.enter="sendMessage"
                 />
-                <button class="btn-send" @click="sendMessage">↑</button>
+                <button 
+                  class="btn-send" 
+                  :disabled="isChatDisabled() || !chatInput.trim()"
+                  @click="sendMessage"
+                >
+                  ↑
+                </button>
               </div>
             </div>
           </div>
@@ -101,7 +108,7 @@
             
             <!-- 액션 버튼들 -->
             <div class="action-buttons-container">
-              <div class="correction-count">남은 정정 횟수: 1/3</div>
+              <div class="correction-count">남은 정정 횟수: {{ remainingCorrections }}/{{ maxCorrections }}</div>
               <div class="action-buttons">
                 <button class="btn-modify" @click="toggleModification">
                   {{ isModifying ? '수정 완료' : '사용자 수정' }}
@@ -148,18 +155,12 @@ const userMessage = ref('')
 // 채팅 관련 변수들
 const chatInput = ref('')
 const currentVersion = ref(1)
-const chatHistory = ref([
-  {
-    type: 'user',
-    content: '안녕하세요! 템플릿을 만들어주세요.',
-    time: '14:30'
-  },
-  {
-    type: 'bot',
-    content: '안녕하세요! 어떤 종류의 템플릿을 원하시나요?',
-    time: '14:31'
-  }
-])
+const chatHistory = ref<any[]>([])
+const isGenerating = ref(false)
+
+// 정정 횟수 관리
+const maxCorrections = 3
+const remainingCorrections = ref(maxCorrections)
 
 // 버전 관리
 const versions = ref([
@@ -202,6 +203,23 @@ onMounted(() => {
         initialVariables[variable.name] = `${displayName} 값`
       })
       editedVariables.value = initialVariables
+      
+      // 채팅 히스토리 초기화 - 템플릿 생성 시 입력한 메시지를 첫 메시지로 설정
+      const now = new Date()
+      const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+      
+      chatHistory.value = [
+        {
+          type: 'user',
+          content: userMessage.value,
+          time: timeString
+        },
+        {
+          type: 'bot',
+          content: `네, "${templateCategory.value}" 카테고리의 템플릿을 생성해드렸습니다. 추가로 수정하고 싶은 부분이 있으시면 말씀해주세요!`,
+          time: timeString
+        }
+      ]
       
       console.log('생성된 템플릿 로드됨:', generatedTemplate.value)
     } catch (error) {
@@ -264,9 +282,14 @@ const rejectTemplate = () => {
 // 변수 클릭 처리
 const handleVariableClick = (variableName: string) => {
   if (isRejected.value && rejectedVariables.value.includes(variableName)) {
+    // 반려된 변수 클릭 시 - 대안 선택 사이드바 표시
     currentVariable.value = variableName
     currentAlternatives.value = JSON.parse(JSON.stringify(variableAlternatives[variableName as keyof typeof variableAlternatives]))
     showRejectionSidebar.value = true
+  } else if (isModifying.value) {
+    // 수정 모드에서 변수 클릭 시 - 직접 편집 가능하도록 처리
+    console.log(`변수 "${variableName}" 편집 시작`)
+    // KakaoPreviewComponent에서 직접 편집이 가능하도록 처리됨
   }
 }
 
@@ -315,6 +338,14 @@ const closeRejectionSidebar = () => {
 // 수정 모드 토글
 const toggleModification = () => {
   isModifying.value = !isModifying.value
+  
+  if (isModifying.value) {
+    // 수정 모드 진입 시 사용자에게 안내
+    console.log('수정 모드 활성화: 변수 부분을 클릭하여 편집할 수 있습니다.')
+  } else {
+    // 수정 모드 종료 시 변경사항 저장
+    console.log('수정 모드 비활성화: 변경사항이 저장되었습니다.')
+  }
 }
 
 // 변수 업데이트
@@ -350,12 +381,33 @@ const submitTemplate = async () => {
       router.push('/success')
     } else {
       // 검증 실패 - 반려 사유 표시
-      console.log('템플릿 검증 실패, 반려된 변수:', response.data.rejectedVariables)
+      console.log('템플릿 검증 실패:', response.data.final_message)
       
-      rejectedVariables.value = response.data.rejectedVariables || []
-      currentAlternatives.value = response.data.alternatives || {}
+      // 검증 결과에서 오류가 있는 변수들을 추출
+      const failedValidations = response.data.validation_results?.filter((result: any) => !result.is_valid) || []
+      const rejectedVars: string[] = []
+      
+      // 오류가 있는 변수들을 반려된 변수로 설정
+      failedValidations.forEach((validation: any) => {
+        if (validation.details && validation.details.variables) {
+          // variables가 배열인지 확인하고 처리
+          if (Array.isArray(validation.details.variables)) {
+            rejectedVars.push(...validation.details.variables)
+          } else if (typeof validation.details.variables === 'string') {
+            rejectedVars.push(validation.details.variables)
+          } else if (typeof validation.details.variables === 'object') {
+            // 객체인 경우 키들을 추출
+            rejectedVars.push(...Object.keys(validation.details.variables))
+          }
+        }
+      })
+      
+      rejectedVariables.value = rejectedVars
       isRejected.value = true
       showRejectionSidebar.value = true
+      
+      // 사용자에게 오류 메시지 표시
+      alert(`템플릿 검증 실패: ${response.data.final_message}`)
     }
   } catch (error) {
     console.error('템플릿 검증 실패:', error)
@@ -364,48 +416,88 @@ const submitTemplate = async () => {
 }
 
 // 채팅 메시지 전송
-const sendMessage = () => {
-  if (!chatInput.value.trim()) return
+const sendMessage = async () => {
+  if (!chatInput.value.trim() || isGenerating.value) return
   
   const now = new Date()
   const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
   
   // 사용자 메시지 추가
-  chatHistory.value.push({
+  const userMessage = {
     type: 'user',
     content: chatInput.value,
     time: timeString
-  })
+  }
+  chatHistory.value.push(userMessage)
   
-  // 챗봇 응답 (간단한 응답)
-  setTimeout(() => {
-    const botResponses = [
-      '좋은 아이디어네요!',
-      '더 구체적으로 설명해주세요.',
-      '이해했습니다. 계속 진행하겠습니다.',
-      '훌륭합니다!',
-      '추가로 필요한 것이 있나요?'
-    ]
-    const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)]
+  const currentMessage = chatInput.value
+  chatInput.value = ''
+  isGenerating.value = true
+  
+  try {
+    // 정정 횟수 감소
+    remainingCorrections.value--
     
-    chatHistory.value.push({
+    // AI 서버에 템플릿 수정 요청
+    const response = await templateApi.modifyTemplate(
+      templateContent.value,
+      currentMessage,
+      chatHistory.value
+    )
+    
+    // AI 응답 추가
+    const botMessage = {
       type: 'bot',
-      content: randomResponse,
+      content: response.data.explanation,
       time: timeString
+    }
+    chatHistory.value.push(botMessage)
+    
+    // 템플릿 업데이트
+    templateContent.value = response.data.modified_template
+    templateVariables.value = response.data.variables
+    
+    // 변수 값 업데이트
+    const updatedVariables: Record<string, string> = {}
+    response.data.variables.forEach((variable: any) => {
+      const koreanNames: Record<string, string> = {
+        'recipient': '수신자',
+        'sender': '발신자',
+        'couponName': '쿠폰명',
+        'expiryDate': '사용기한',
+        'additionalMessage': '추가 메시지'
+      }
+      const displayName = koreanNames[variable.name] || variable.name
+      updatedVariables[variable.name] = `${displayName} 값`
+    })
+    editedVariables.value = updatedVariables
+    
+    // 새 버전 생성
+    const newVersionNumber = versions.value.length + 1
+    versions.value.push({
+      number: newVersionNumber,
+      template: `버전 ${newVersionNumber} 템플릿`,
+      messageIndex: chatHistory.value.length - 1
     })
     
-         // 3번 대화마다 새 버전 생성
-     if (chatHistory.value.length % 6 === 0) {
-       const newVersionNumber = Math.floor(chatHistory.value.length / 6) + 1
-       versions.value.push({
-         number: newVersionNumber,
-         template: `버전 ${newVersionNumber} 템플릿`,
-         messageIndex: chatHistory.value.length - 1
-       })
-     }
-  }, 1000)
-  
-  chatInput.value = ''
+    console.log('템플릿 수정 완료:', response.data)
+    
+  } catch (error) {
+    console.error('템플릿 수정 실패:', error)
+    
+    // 오류 발생 시 정정 횟수 복원
+    remainingCorrections.value++
+    
+    // 오류 메시지 추가
+    const errorMessage = {
+      type: 'bot',
+      content: '죄송합니다. 템플릿 수정 중 오류가 발생했습니다. 다시 시도해주세요.',
+      time: timeString
+    }
+    chatHistory.value.push(errorMessage)
+  } finally {
+    isGenerating.value = false
+  }
 }
 
 // 버전 선택
@@ -413,6 +505,24 @@ const selectVersion = (versionNumber: number) => {
   currentVersion.value = versionNumber
   console.log(`버전 ${versionNumber} 선택됨`)
   // 여기서 해당 버전의 템플릿을 미리보기에 표시하는 로직 추가 가능
+}
+
+// 채팅 비활성화 조건 확인
+const isChatDisabled = () => {
+  return remainingCorrections.value <= 0 || isGenerating.value || isModifying.value
+}
+
+// 채팅 placeholder 텍스트 결정
+const getChatPlaceholder = () => {
+  if (remainingCorrections.value <= 0) {
+    return '정정 횟수가 모두 소진되었습니다.'
+  } else if (isModifying.value) {
+    return '사용자 수정 모드입니다. 수정 완료 후 채팅이 가능합니다.'
+  } else if (isGenerating.value) {
+    return 'AI가 응답을 생성 중입니다...'
+  } else {
+    return '메시지를 입력하세요...'
+  }
 }
 </script>
 
@@ -490,7 +600,7 @@ const selectVersion = (versionNumber: number) => {
   gap: 1rem;
   transition: transform 0.3s ease;
   align-self: center;
-  max-height: 70vh;
+  max-height: 80vh;
   overflow: hidden;
   margin-bottom: 1rem;
 }
@@ -504,7 +614,7 @@ const selectVersion = (versionNumber: number) => {
 .kakao-preview-wrapper {
   flex-shrink: 0;
   align-self: center;
-  max-height: 70vh;
+  max-height: 80vh;
   overflow-y: auto;
   padding-right: 0.5rem;
 }
@@ -827,6 +937,13 @@ const selectVersion = (versionNumber: number) => {
   box-shadow: 0 0 0 0.1rem rgba(25, 118, 210, 0.1);
 }
 
+/* 메시지 입력 필드 비활성화 상태 */
+.message-input:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
 /* 전송 버튼 */
 .btn-send {
   background-color: #1976d2;
@@ -845,8 +962,15 @@ const selectVersion = (versionNumber: number) => {
 }
 
 /* 전송 버튼 호버 효과 */
-.btn-send:hover {
+.btn-send:hover:not(:disabled) {
   background-color: #1565c0;
+}
+
+/* 전송 버튼 비활성화 상태 */
+.btn-send:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* ===== 액션 버튼들 스타일 ===== */
