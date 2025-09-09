@@ -7,13 +7,17 @@ on:
   push:
     branches: [ "develop" ]
   pull_request:
-    branches: [ "develvop" ]
+    branches: [ "develop" ]
 
 jobs:
   build:
 
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: frontend
+        
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
