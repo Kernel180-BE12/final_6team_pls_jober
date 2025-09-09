@@ -38,7 +38,7 @@ jobs:
        - name: Build and push
          uses: docker/build-push-action@v5
          with:
-           context: .
+           context: ./back
            file: ./back/Dockerfile
            push: true
            tags: |
