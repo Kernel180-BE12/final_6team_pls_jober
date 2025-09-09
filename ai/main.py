@@ -1,17 +1,17 @@
+from dotenv import load_dotenv
+# 환경 변수 로드
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import os
-from dotenv import load_dotenv
 from routers import ai_routes
-
-# 환경 변수 로드
-load_dotenv()
 
 app = FastAPI(
     title="AI Service API",
-    description="FastAPI + ChromaDB + OpenAI + Hugging Face AI 서비스",
+    description="FastAPI + ChromaDB + OpenAI + Hugging Face AI 서비스\n\n포함된 서비스:\n- 기본 AI 서비스\n- 알림톡 템플릿 검증 시스템",
     version="1.0.0"
 )
 
@@ -26,6 +26,32 @@ app.add_middleware(
 
 # 라우터 등록
 app.include_router(ai_routes.router)
+
+# 알림톡 검증 라우터 추가
+try:
+    from routers import alimtalk_routes
+    app.include_router(alimtalk_routes.router)
+    print("✅ 알림톡 검증 라우터 등록 완료")
+    
+    # 알림톡 서비스 초기화
+    @app.on_event("startup")
+    async def initialize_alimtalk():
+        """알림톡 서비스 초기화"""
+        try:
+            print("🔧 알림톡 검증 서비스 초기화 중...")
+            await alimtalk_routes.validation_service.initialize()
+            print("✅ 알림톡 검증 서비스 초기화 완료!")
+        except Exception as e:
+            print(f"❌ 알림톡 서비스 초기화 실패: {e}")
+            
+except ImportError as e:
+    print(f"⚠️ 알림톡 검증 라우터 로드 실패: {e}")
+except Exception as e:
+    print(f"❌ 알림톡 검증 라우터 등록 실패: {e}")
+
+# 템플릿 라우터 추가 (존재하지 않으므로 제거)
+# from routers import template_routes
+# app.include_router(template_routes.router)
 
 # Pydantic 모델
 class ChatRequest(BaseModel):

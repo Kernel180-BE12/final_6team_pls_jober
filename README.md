@@ -89,7 +89,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 환경 변수 설정
-cp env.example .env
+cp .env .env
 # .env 파일을 편집하여 OpenAI API 키 등 설정
 
 # 서버 실행 (포트 8000)
