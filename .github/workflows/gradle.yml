@@ -55,9 +55,14 @@ jobs:
   dependency-submission:
 
     runs-on: ubuntu-latest
+      
+    defaults:
+      run:
+        working-directory: back
+    
     permissions:
       contents: write
-
+        
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 17
