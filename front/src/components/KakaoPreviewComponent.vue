@@ -66,10 +66,36 @@ const formattedTemplateContent = computed(() => {
   
   let content = props.templateContent
   
+  // 변수 목록 부분 제거 (AI가 생성한 템플릿에서 변수 목록이 포함된 경우)
+  if (content) {
+    // "변수 목록:" 또는 "변수:" 이후의 모든 내용을 제거
+    const variableListPattern = /(변수\s*목록\s*:|변수\s*:).*$/s
+    content = content.replace(variableListPattern, '').trim()
+    
+    // "알림톡 템플릿은..." 같은 설명 문구도 제거
+    const disclaimerPattern = /알림톡\s*템플릿은.*$/s
+    content = content.replace(disclaimerPattern, '').trim()
+    
+    // 빈 줄들 정리
+    content = content.replace(/\n\s*\n\s*\n/g, '\n\n').trim()
+  }
+  
+  console.log('원본 템플릿 내용:', props.templateContent)
+  console.log('정리된 템플릿 내용:', content)
+  console.log('사용 가능한 변수들:', Object.keys(props.variables))
+  console.log('반려 상태:', props.isRejected)
+  console.log('반려된 변수들:', props.rejectedVariables)
+  
   // 변수들을 적절한 스타일로 교체
   Object.keys(props.variables).forEach(key => {
     const value = props.variables[key]
-    const variablePattern = new RegExp(`\\{\\{${key}\\}\\}`, 'g')
+    
+    // 여러 변수 패턴 지원: #{변수명}, {{변수명}}, {변수명}
+    const patterns = [
+      new RegExp(`#\\{${key}\\}`, 'g'),
+      new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
+      new RegExp(`\\{${key}\\}`, 'g')
+    ]
     
     let variableClass = 'variable'
     
@@ -86,17 +112,35 @@ const formattedTemplateContent = computed(() => {
     // 반려된 변수 하이라이트
     if (props.isRejected && props.rejectedVariables.includes(key)) {
       variableClass += ' rejected-highlight'
+      console.log(`변수 "${key}"가 반려되어 하이라이트 적용됨`)
     }
     
-    content = content.replace(variablePattern, 
-      `<span class="${variableClass}" ${props.isModifying ? 'contenteditable="true"' : ''} data-variable="${key}">${value}</span>`
-    )
+    // 모든 패턴에 대해 교체 수행
+    patterns.forEach((pattern, index) => {
+      const beforeReplace = content
+      content = content.replace(pattern, 
+        `<span class="${variableClass}" ${props.isModifying ? 'contenteditable="true"' : ''} data-variable="${key}">${value}</span>`
+      )
+      if (beforeReplace !== content) {
+        console.log(`변수 "${key}" 패턴 ${index + 1}에서 교체됨:`, pattern)
+      }
+    })
   })
+  
+  // 버튼 처리: (버튼) 텍스트를 실제 버튼으로 변환
+  content = content.replace(/\(버튼\)\s*([^\n]+)/g, '<div class="kakao-button">$1</div>')
+  
+  // 부가 정보/가이드라인 처리 (연한 색으로 표시)
+  content = content.replace(/\*([^*]+)\*/g, '<span class="guide-text">$1</span>')
+  
+  // 쿠폰 사용방법, 이벤트 기간 등 부가 정보 처리
+  content = content.replace(/(쿠폰\s*사용방법|이벤트\s*기간|고객센터|더욱\s*편리한).*$/gm, '<span class="guide-text">$&</span>')
   
   // 줄바꿈을 <p> 태그로 변환
   content = content.replace(/\n/g, '</p><p>')
   content = `<p>${content}</p>`
   
+  console.log('최종 포맷된 템플릿:', content)
   return content
 })
 
@@ -291,18 +335,24 @@ const handleVariableBlur = (event: Event) => {
 }
 
 .variable {
-  background-color: transparent;
+  background-color: #f8f9fa;
   padding: 0.1rem 0.3rem;
   border-radius: 0.2rem;
-  color: inherit;
+  color: #495057;
+  border: 1px solid #dee2e6;
   transition: all 0.2s ease;
   min-width: 1rem;
   display: inline-block;
+  font-weight: 500;
 }
 
 .variable.highlighted {
   background-color: #fff3cd;
   color: #856404;
+  border: 1px solid #ffc107;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 500;
 }
 
 .variable.clickable {
@@ -374,6 +424,37 @@ const handleVariableBlur = (event: Event) => {
   color: #666;
   margin-top: 0.8rem;
   line-height: 1.4;
+}
+
+/* 카카오톡 버튼 스타일 */
+.kakao-button {
+  display: inline-block;
+  background-color: #fee500;
+  color: #3c1e1e;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 0.3rem 0;
+  text-align: center;
+  border: 1px solid #fdd835;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.kakao-button:hover {
+  background-color: #fdd835;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 가이드라인/부가 정보 텍스트 스타일 */
+.guide-text {
+  color: #888;
+  font-size: 0.85rem;
+  font-style: italic;
+  opacity: 0.8;
 }
 
 

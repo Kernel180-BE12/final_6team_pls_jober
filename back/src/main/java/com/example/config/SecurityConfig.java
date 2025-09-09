@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -90,7 +91,7 @@ public class SecurityConfig {
     public Converter<Jwt, AbstractAuthenticationToken> jwtAuthConverter() {
         return new Converter<Jwt, AbstractAuthenticationToken>() {
             @Override
-            public AbstractAuthenticationToken convert(Jwt jwt) {
+            public AbstractAuthenticationToken convert(@NonNull Jwt jwt) {
                 // 1) JWT claim에서 account_id 우선 추출, 없으면 sub 사용
                 final Long accountId = firstNonNull(
                         toLong(jwt.getClaim("account_id")),

@@ -1,50 +1,24 @@
 """
 최종 검증용 GPT 프롬프트 템플릿
-이미지의 프롬프트 구조를 기반으로 구성됨
 """
 import json
 from typing import Dict, Any, List
 
 
-def create_final_validation_prompt(
-    template_data: Dict[str, Any],
-    det_report_summary: Dict[str, Any], 
-    rag_guidelines: List[Dict[str, Any]],
-    template_pk: str = None
-) -> str:
-    """
-    최종 검증용 프롬프트 생성
+class FinalValidationPromptBuilder:
+    def __init__(self, template_data: Dict[str, Any], det_report_summary: Dict[str, Any], 
+                 rag_guidelines: List[Dict[str, Any]], template_pk: str = None):
+        self.template_data = template_data
+        self.det_report_summary = det_report_summary
+        self.rag_guidelines = rag_guidelines
+        self.template_pk = template_pk
     
-    Args:
-        template_data: 검증할 템플릿 데이터
-        det_report_summary: 2차 검증 결과 요약
-        rag_guidelines: RAG에서 가져온 가이드라인 목록
-        template_pk: 템플릿 Primary Key
+    def build(self) -> str:
+        """최종 검증용 프롬프트 생성"""
+        # RAG 가이드라인 문서 구성
+        rag_context = self._build_rag_context()
         
-    Returns:
-        str: 완성된 프롬프트
-    """
-    
-    # RAG 가이드라인 문서 구성
-    rag_context = ""
-    if rag_guidelines:
-        rag_docs = []
-        for i, guideline in enumerate(rag_guidelines[:5]):
-            title = guideline.get('title', guideline.get('metadata', {}).get('category', '정책'))
-            content = guideline.get('content', '')[:100]
-            doc_type = guideline.get('metadata', {}).get('type', 'policy')
-            
-            rag_docs.append(
-                f"[DOC:pol-{i+231}] type={doc_type}, title=\"{title}\", excerpt=\"{content}...\""
-            )
-        rag_context = "\n".join(rag_docs)
-    else:
-        # 기본 예시 문서
-        rag_context = """[DOC:pol-231] type=policy, title="심사가이드 5장", excerpt="과장·기만 금지..."
-[DOC:tpl-882] type=approved_template, title="승인된-배송완료", excerpt="주문하신 상품이 배송완료되었습니다..."
-{order_no}..."""
-
-    prompt = f"""[system]
+        return f"""[system]
 너는 카카오 알림톡 최종 검증 담당자이다.
 - 정책적 검사 결과(det_report)와 정책 컨텍스트(RAG 문서)가 구체 공지.
 - 결과는 '통력' 스키마의 JSON만 반환(설명/마크업 그런 공지).
@@ -52,13 +26,13 @@ def create_final_validation_prompt(
 
 [user]
 # template_pk
-{template_pk or template_data.get('template_pk', template_data.get('id', 'unknown'))}
+{self.template_pk or self.template_data.get('template_pk', self.template_data.get('id', 'unknown'))}
 
 # 접점 대상 템플릿(JSON)
-{json.dumps(template_data, ensure_ascii=False, indent=2)}
+{json.dumps(self.template_data, ensure_ascii=False, indent=2)}
 
 # 정책적 검사 요약(2차 검증 코드 결과)  
-{json.dumps(det_report_summary, ensure_ascii=False, indent=2)}
+{json.dumps(self.det_report_summary, ensure_ascii=False, indent=2)}
 
 # 정책/가이드 컨텍스트 (RAG Top-K))
 {rag_context}
@@ -86,8 +60,47 @@ def create_final_validation_prompt(
 }},
 "policy_refs": ["string"]
 }}"""
+    
+    def _build_rag_context(self) -> str:
+        """RAG 가이드라인 문서 구성"""
+        if self.rag_guidelines:
+            rag_docs = []
+            for i, guideline in enumerate(self.rag_guidelines[:5]):
+                title = guideline.get('title', guideline.get('metadata', {}).get('category', '정책'))
+                content = guideline.get('content', '')[:100]
+                doc_type = guideline.get('metadata', {}).get('type', 'policy')
+                
+                rag_docs.append(
+                    f"[DOC:pol-{i+231}] type={doc_type}, title=\"{title}\", excerpt=\"{content}...\""
+                )
+            return "\n".join(rag_docs)
+        else:
+            # 기본 예시 문서
+            return """[DOC:pol-231] type=policy, title="심사가이드 5장", excerpt="과장·기만 금지..."
+[DOC:tpl-882] type=approved_template, title="승인된-배송완료", excerpt="주문하신 상품이 배송완료되었습니다..."
+{order_no}..."""
 
-    return prompt
+
+def create_final_validation_prompt(
+    template_data: Dict[str, Any],
+    det_report_summary: Dict[str, Any], 
+    rag_guidelines: List[Dict[str, Any]],
+    template_pk: str = None
+) -> str:
+    """
+    최종 검증용 프롬프트 생성 (기존 함수 호환성 유지)
+    
+    Args:
+        template_data: 검증할 템플릿 데이터
+        det_report_summary: 2차 검증 결과 요약
+        rag_guidelines: RAG에서 가져온 가이드라인 목록
+        template_pk: 템플릿 Primary Key
+        
+    Returns:
+        str: 완성된 프롬프트
+    """
+    builder = FinalValidationPromptBuilder(template_data, det_report_summary, rag_guidelines, template_pk)
+    return builder.build()
 
 
 def get_prompt_examples():

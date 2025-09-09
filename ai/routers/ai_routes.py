@@ -4,6 +4,7 @@ from typing import List, Optional, Dict, Any
 from services.openai_service import OpenAIService
 from services.chromadb_service import ChromaDBService
 from services.huggingface_service import HuggingFaceService
+from templateEngine.prompts.message_analyzer_prompts import TemplateGenerationPromptBuilder, TemplateModificationPromptBuilder
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 
@@ -198,23 +199,13 @@ async def generate_template(request: TemplateGenerationRequest):
         if guidelines and 'documents' in guidelines:
             context = "\n".join(guidelines['documents'][:3])
         
-        prompt = f"""
-카테고리: {request.category}
-사용자 요청: {request.user_message}
-
-관련 가이드라인:
-{context}
-
-위 정보를 바탕으로 알림톡 템플릿을 생성해주세요. 
-템플릿에는 변수(예: {{변수명}})를 포함하고, 
-변수 목록도 함께 제공해주세요.
-
-템플릿 형식:
-- 친근하고 정중한 톤
-- 명확한 정보 전달
-- 적절한 변수 사용
-- 카카오톡 알림톡 가이드라인 준수
-"""
+        # 프롬프트 빌더 사용
+        prompt_builder = TemplateGenerationPromptBuilder(
+            category=request.category,
+            user_message=request.user_message,
+            context=context
+        )
+        prompt = prompt_builder.build()
         
         # OpenAI를 통한 템플릿 생성
         messages = [{"role": "user", "content": prompt}]
@@ -259,22 +250,13 @@ async def modify_template(request: TemplateModificationRequest):
                 for msg in request.chat_history[-5:]  # 최근 5개 메시지만 사용
             ])
         
-        prompt = f"""
-현재 알림톡 템플릿:
-{request.current_template}
-
-채팅 히스토리:
-{chat_context}
-
-사용자 요청: {request.user_message}
-
-위 정보를 바탕으로 사용자의 요청에 따라 템플릿을 수정해주세요.
-- 기존 템플릿의 구조와 변수는 유지하면서 요청사항을 반영
-- 수정된 부분에 대한 간단한 설명 제공
-- 변수({{변수명}}) 형태는 그대로 유지
-
-수정된 템플릿:
-"""
+        # 프롬프트 빌더 사용
+        prompt_builder = TemplateModificationPromptBuilder(
+            current_template=request.current_template,
+            user_message=request.user_message,
+            chat_context=chat_context
+        )
+        prompt = prompt_builder.build()
         
         # OpenAI를 통한 템플릿 수정
         messages = [{"role": "user", "content": prompt}]

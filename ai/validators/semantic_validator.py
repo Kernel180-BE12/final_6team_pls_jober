@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.alimtalk_models import ValidationResult, CategoryType
 from services.chromadb_service import ChromaDBService
-from validators.final_validation_prompt import create_final_validation_prompt
+from templateEngine.prompts.final_validation_prompt import create_final_validation_prompt
 try:
     import openai
     HAS_OPENAI = True

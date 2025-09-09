@@ -67,13 +67,15 @@ public class AIService {
         log.info("FastAPI 템플릿 검증 요청 시작");
         
         try {
-            return webClient.post()
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = webClient.post()
                     .uri("/alimtalk/validate")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(validationRequest)
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();
+            return result;
         } catch (Exception e) {
             log.error("FastAPI 템플릿 검증 요청 실패", e);
             // 검증 실패 시 기본 반려 응답 반환

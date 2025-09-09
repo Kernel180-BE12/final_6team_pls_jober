@@ -106,16 +106,17 @@ const applySelectedAlternative = () => {
 
 <style scoped>
 .rejection-sidebar {
-  width: 14rem;
-  max-width: 14rem;
+  width: 20rem;
+  min-width: 20rem;
   height: auto;
   background: white;
   border-radius: 0.6rem;
-  padding: 0.8rem;
+  padding: 1rem;
   box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
   border: 0.05rem solid #e0e0e0;
   overflow-y: auto;
   align-self: center;
+  flex-shrink: 0;
 }
 
 .sidebar-header {

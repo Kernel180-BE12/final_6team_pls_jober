@@ -1,18 +1,17 @@
 package com.example.config;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
 
-    private final Key key;
+    private final SecretKey key;
     private final long accessTokenValidity;   // ms 단위
     private final long refreshTokenValidity;  // ms 단위
 
@@ -32,12 +31,12 @@ public class JwtTokenProvider {
         Date expiry = new Date(now.getTime() + accessTokenValidity);
 
         return Jwts.builder()
-                .setSubject(email)               // sub: 사용자 식별자
+                .subject(email)               // sub: 사용자 식별자
                 .claim("role", role)             // 사용자 권한
                 .claim("account_id", accountId)  // 계정 ID (인증에 필요)
-                .setIssuedAt(now)                // iat
-                .setExpiration(expiry)           // exp
-                .signWith(key, SignatureAlgorithm.HS256)
+                .issuedAt(now)                // iat
+                .expiration(expiry)           // exp
+                .signWith(key)
                 .compact();
     }
 
@@ -47,19 +46,19 @@ public class JwtTokenProvider {
         Date expiry = new Date(now.getTime() + refreshTokenValidity);
 
         return Jwts.builder()
-                .setIssuedAt(now)
-                .setExpiration(expiry)
-                .signWith(key, SignatureAlgorithm.HS256)
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(key)
                 .compact();
     }
 
     // 이메일 추출
     public String getEmail(String token) {
         return Jwts.parser()
-                .setSigningKey(key)
+                .verifyWith(key)
                 .build()
-                .parseClaimsJws(token)
-                .getBody()
+                .parseSignedClaims(token)
+                .getPayload()
                 .getSubject();
     }
 
@@ -67,9 +66,9 @@ public class JwtTokenProvider {
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
-                    .setSigningKey(key)
+                    .verifyWith(key)
                     .build()
-                    .parseClaimsJws(token);
+                    .parseSignedClaims(token);
             return true;
         } catch (Exception e) {
             return false;

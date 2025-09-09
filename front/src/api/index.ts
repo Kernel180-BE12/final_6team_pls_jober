@@ -91,16 +91,30 @@ export const templateApi = {
       },
     })
     
+    // 카테고리 이름을 백엔드 enum 값으로 변환
+    const categoryMapping: Record<string, string> = {
+      '마케팅': 'marketing',
+      '공지사항': 'transaction',
+      '이벤트': 'marketing',
+      '안내': 'transaction',
+      '고객서비스': 'transaction',
+      '기타': 'marketing'
+    }
+    
+    const backendCategory = categoryMapping[category || ''] || 'marketing'
+    
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {
       template: {
         channel: 'alimtalk',
         body: templateContent,
         variables: variables,
-        category: category || 'marketing'
+        category: backendCategory
       },
       user_input: userMessage || ''
     }
+    
+    console.log('검증 요청 데이터:', validationRequest)
     
     return aiApi.post('/alimtalk/validate', validationRequest)
   },
