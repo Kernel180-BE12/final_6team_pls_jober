@@ -45,7 +45,7 @@ jobs:
       with:
         host: 134.185.106.160
         username: ubuntu
-        key: ${{ secrets.ssh_private }}
+        key: ${{ secrets.SSH_PRIVATE }}
         port: 22
         script: |
           # 배포 디렉토리 생성
@@ -68,7 +68,7 @@ jobs:
       with:
         host: 134.185.106.160
         username: ubuntu
-        key: ${{ secrets.ssh_private }}
+        key: ${{ secrets.SSH_PRIVATE }}
         port: 22
         source: "front/dist/*"
         target: "/var/www/frontend/"
@@ -79,7 +79,7 @@ jobs:
       with:
         host: 134.185.106.160
         username: ubuntu
-        key: ${{ secrets.ssh_private }}
+        key: ${{ secrets.SSH_PRIVATE }}
         port: 22
         script: |
           # Nginx 설치 (이미 설치되어 있으면 스킵)
