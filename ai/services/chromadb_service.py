@@ -16,7 +16,7 @@ load_dotenv()
 
 class ChromaDBService:
     def __init__(self, 
-                 collection_name: str = "alimtalk_guidelines",
+                 collection_name: str = "policy_guidelines",
                  db_path: str = None):
         """
         ChromaDB 서비스 초기화
@@ -350,117 +350,143 @@ class ChromaDBService:
         except Exception as e:
             return {"error": str(e)}
     
-    async def load_initial_guidelines(self, guidelines_file: str = None):
+    async def load_initial_guidelines(self):
         """
-        초기 가이드라인 데이터 로드
+        초기 가이드라인 데이터 로드 (이제 ChromaDB에서 직접 로드)
         """
-        if guidelines_file is None:
-            guidelines_file = Path(__file__).parent.parent / "data" / "alimtalk_guidelines.json"
-        
-        if not os.path.exists(guidelines_file):
-            # 기본 가이드라인 생성
-            self._create_default_guidelines(guidelines_file)
-        
         try:
-            with open(guidelines_file, 'r', encoding='utf-8') as f:
-                guidelines_data = json.load(f)
-            
             # 기존 데이터 확인
             if self.is_mock:
                 if len(self.mock_guidelines) == 0:
-                    self.add_guidelines(guidelines_data)
-                    print(f"가이드라인 {len(guidelines_data)}개를 Mock DB에 추가했습니다.")
+                    print("Mock DB에 가이드라인이 없습니다. ChromaDB에서 로드하거나 수동으로 추가해주세요.")
                 else:
                     print(f"기존 가이드라인 {len(self.mock_guidelines)}개가 Mock DB에 있습니다.")
             else:
                 existing_count = self.collection.count()
                 if existing_count == 0:
-                    self.add_guidelines(guidelines_data)
-                    print(f"가이드라인 {len(guidelines_data)}개를 벡터DB에 추가했습니다.")
+                    print("ChromaDB에 가이드라인이 없습니다. 수동으로 추가해주세요.")
                 else:
                     print(f"기존 가이드라인 {existing_count}개가 벡터DB에 있습니다.")
                 
         except Exception as e:
             print(f"가이드라인 로드 중 오류: {e}")
     
-    def _create_default_guidelines(self, file_path: str):
-        """기본 가이드라인 데이터 생성"""
-        default_guidelines = [
-            {
-                "id": "guide_001",
-                "content": "알림톡 본문은 1000자를 초과할 수 없습니다.",
-                "category": "length",
-                "type": "rule",
-                "metadata": {"priority": "high", "source": "kakaotalk_policy"}
-            },
-            {
-                "id": "guide_002",
-                "content": "거래성 알림톡에는 광고성 표현을 포함할 수 없습니다.",
-                "category": "content", 
-                "type": "policy",
-                "metadata": {"priority": "high", "source": "kakaotalk_policy"}
-            },
-            {
-                "id": "guide_003",
-                "content": "마케팅 알림톡에는 '(광고)' 표기가 필수입니다.",
-                "category": "marketing",
-                "type": "rule", 
-                "metadata": {"priority": "critical", "source": "kakaotalk_policy"}
-            },
-            {
-                "id": "guide_004",
-                "content": "개인정보(주민번호, 카드번호 등)는 템플릿에 직접 포함할 수 없습니다.",
-                "category": "privacy",
-                "type": "policy",
-                "metadata": {"priority": "critical", "source": "privacy_law"}
-            },
-            {
-                "id": "guide_005",
-                "content": "금융 관련 과장 표현(100% 보장, 무조건 등)은 사용할 수 없습니다.",
-                "category": "financial",
-                "type": "policy",
-                "metadata": {"priority": "high", "source": "financial_law"}
-            },
-            {
-                "id": "guide_006",
-                "content": "의료 관련 단정적 표현(치료, 완치 등)은 사용할 수 없습니다.",
-                "category": "medical",
-                "type": "policy",
-                "metadata": {"priority": "high", "source": "medical_law"}
-            },
-            {
-                "id": "guide_007",
-                "content": "버튼은 최대 5개까지만 추가할 수 있습니다.",
-                "category": "button",
-                "type": "rule",
-                "metadata": {"priority": "medium", "source": "kakaotalk_policy"}
-            },
-            {
-                "id": "guide_008",
-                "content": "버튼명은 14자를 초과할 수 없습니다.",
-                "category": "button",
-                "type": "rule",
-                "metadata": {"priority": "medium", "source": "kakaotalk_policy"}
-            },
-            {
-                "id": "guide_009",
-                "content": "변수명은 본문에서 사용되어야 합니다.",
-                "category": "variable",
-                "type": "rule",
-                "metadata": {"priority": "medium", "source": "best_practice"}
-            },
-            {
-                "id": "guide_010",
-                "content": "수신거부 방법을 명시하는 것을 권장합니다.",
-                "category": "marketing",
-                "type": "recommendation",
-                "metadata": {"priority": "low", "source": "best_practice"}
-            }
-        ]
-        
-        # 디렉토리 생성
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
-        # 파일 저장
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(default_guidelines, f, ensure_ascii=False, indent=2)
+    def get_collection(self, collection_name: str):
+        """특정 컬렉션 가져오기"""
+        if not HAS_CHROMADB or self.is_mock:
+            return None
+        return self.client.get_or_create_collection(name=collection_name)
+    
+    def get_blacklist_templates(self) -> List[Dict[str, Any]]:
+        """블랙리스트 템플릿 조회"""
+        try:
+            if self.is_mock:
+                return []
+            
+            blacklist_collection = self.get_collection("blacklist")
+            results = blacklist_collection.get()
+            
+            templates = []
+            if results['documents']:
+                for i in range(len(results['documents'])):
+                    templates.append({
+                        'id': results['ids'][i],
+                        'content': results['documents'][i],
+                        'metadata': results['metadatas'][i] if results['metadatas'] else {}
+                    })
+            
+            return templates
+        except Exception as e:
+            print(f"블랙리스트 템플릿 조회 실패: {e}")
+            return []
+    
+    def get_whitelist_templates(self) -> List[Dict[str, Any]]:
+        """화이트리스트 템플릿 조회"""
+        try:
+            if self.is_mock:
+                return []
+            
+            whitelist_collection = self.get_collection("whitelist")
+            results = whitelist_collection.get()
+            
+            templates = []
+            if results['documents']:
+                for i in range(len(results['documents'])):
+                    templates.append({
+                        'id': results['ids'][i],
+                        'content': results['documents'][i],
+                        'metadata': results['metadatas'][i] if results['metadatas'] else {}
+                    })
+            
+            return templates
+        except Exception as e:
+            print(f"화이트리스트 템플릿 조회 실패: {e}")
+            return []
+    
+    def get_approved_templates(self) -> List[Dict[str, Any]]:
+        """승인된 템플릿 조회"""
+        try:
+            if self.is_mock:
+                return []
+            
+            approved_collection = self.get_collection("approved")
+            results = approved_collection.get()
+            
+            templates = []
+            if results['documents']:
+                for i in range(len(results['documents'])):
+                    templates.append({
+                        'id': results['ids'][i],
+                        'content': results['documents'][i],
+                        'metadata': results['metadatas'][i] if results['metadatas'] else {}
+                    })
+            
+            return templates
+        except Exception as e:
+            print(f"승인된 템플릿 조회 실패: {e}")
+            return []
+    
+    def add_template_to_collection(self, collection_name: str, template_data: Dict[str, Any]):
+        """특정 컬렉션에 템플릿 추가"""
+        try:
+            if self.is_mock:
+                print(f"Mock 모드: {collection_name} 컬렉션에 템플릿 추가 시뮬레이션")
+                return
+            
+            collection = self.get_collection(collection_name)
+            collection.add(
+                documents=[template_data.get('content', '')],
+                metadatas=[template_data.get('metadata', {})],
+                ids=[template_data.get('id', '')]
+            )
+            print(f"템플릿이 {collection_name} 컬렉션에 추가되었습니다.")
+        except Exception as e:
+            print(f"템플릿 추가 실패: {e}")
+    
+    def search_templates_in_collection(self, collection_name: str, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
+        """특정 컬렉션에서 템플릿 검색"""
+        try:
+            if self.is_mock:
+                return []
+            
+            collection = self.get_collection(collection_name)
+            results = collection.query(
+                query_texts=[query],
+                n_results=n_results
+            )
+            
+            formatted_results = []
+            if results['documents'] and results['documents'][0]:
+                for i in range(len(results['documents'][0])):
+                    formatted_results.append({
+                        'id': results['ids'][0][i],
+                        'content': results['documents'][0][i],
+                        'metadata': results['metadatas'][0][i],
+                        'distance': results['distances'][0][i],
+                        'similarity': 1 - results['distances'][0][i]
+                    })
+            
+            return formatted_results
+        except Exception as e:
+            print(f"{collection_name} 컬렉션 검색 실패: {e}")
+            return []
