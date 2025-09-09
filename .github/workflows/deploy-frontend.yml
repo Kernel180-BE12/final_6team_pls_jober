@@ -2,15 +2,15 @@ name: Deploy Frontend to Oracle Cloud
 
 on:
   push:
-    branches: [ deploy ]
+    branches: [ develop ]
   pull_request:
-    branches: [ deploy ]
+    branches: [ develop ]
     types: [closed]
 
 jobs:
   deploy:
     # PR이 merge되었을 때만 실행
-    if: github.event.pull_request.merged == true || github.ref == 'refs/heads/deploy'
+    if: github.event.pull_request.merged == true || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     
     steps:
