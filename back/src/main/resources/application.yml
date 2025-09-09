@@ -63,6 +63,6 @@ logging:
 
 ai:
   fastapi:
-    url: http://localhost:8000/ #예상경로
-    path: /generate-template # 예상경로
+    url: http://localhost:8000 #AI 서버 URL
+    path: /ai/template/generate #AI 서버 템플릿 생성 엔드포인트
 
