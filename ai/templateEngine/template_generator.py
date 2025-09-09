@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 import openai
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from templateEngine.prompts.message_analyzer_prompts import (
+from ai.templateEngine.prompts.message_analyzer_prompts import (
     ReferenceBasedTemplatePromptBuilder,
     PolicyGuidedTemplatePromptBuilder,
     NewTemplatePromptBuilder,
