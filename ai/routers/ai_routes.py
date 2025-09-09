@@ -43,6 +43,17 @@ class QuestionAnswerRequest(BaseModel):
     context: str
     model: Optional[str] = "deepset/roberta-base-squad2"
 
+class TemplateGenerationRequest(BaseModel):
+    category: str
+    user_message: str
+    model: Optional[str] = "gpt-3.5-turbo"
+
+class TemplateGenerationResponse(BaseModel):
+    template_content: str
+    variables: List[Dict[str, Any]]
+    category: str
+    model: str
+
 # OpenAI 라우트
 @router.post("/openai/chat", response_model=ChatResponse)
 async def openai_chat(request: ChatRequest):
@@ -153,5 +164,73 @@ async def get_available_models():
     try:
         result = await huggingface_service.get_available_models()
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 템플릿 생성 라우트
+@router.post("/template/generate", response_model=TemplateGenerationResponse)
+async def generate_template(request: TemplateGenerationRequest):
+    """알림톡 템플릿 생성"""
+    try:
+        # 가이드라인 검색을 통한 컨텍스트 생성
+        try:
+            guidelines = await chromadb_service.search_documents(
+                f"{request.category} {request.user_message}", 
+                3
+            )
+        except Exception as e:
+            print(f"가이드라인 검색 실패: {e}")
+            guidelines = {"documents": []}
+        
+        # 프롬프트 구성
+        context = ""
+        if guidelines and 'documents' in guidelines:
+            context = "\n".join(guidelines['documents'][:3])
+        
+        prompt = f"""
+카테고리: {request.category}
+사용자 요청: {request.user_message}
+
+관련 가이드라인:
+{context}
+
+위 정보를 바탕으로 알림톡 템플릿을 생성해주세요. 
+템플릿에는 변수(예: {{변수명}})를 포함하고, 
+변수 목록도 함께 제공해주세요.
+
+템플릿 형식:
+- 친근하고 정중한 톤
+- 명확한 정보 전달
+- 적절한 변수 사용
+- 카카오톡 알림톡 가이드라인 준수
+"""
+        
+        # OpenAI를 통한 템플릿 생성
+        messages = [{"role": "user", "content": prompt}]
+        response = await openai_service.chat_completion(messages, request.model)
+        
+        # 응답에서 템플릿과 변수 추출 (간단한 파싱)
+        template_content = response
+        variables = []
+        
+        # 변수 추출 ({{변수명}} 형태)
+        import re
+        variable_pattern = r'\{\{([^}]+)\}\}'
+        found_variables = re.findall(variable_pattern, response)
+        
+        for var in set(found_variables):
+            variables.append({
+                "name": var.strip(),
+                "type": "string",
+                "description": f"{var} 관련 정보"
+            })
+        
+        return TemplateGenerationResponse(
+            template_content=template_content,
+            variables=variables,
+            category=request.category,
+            model=request.model
+        )
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -72,6 +72,7 @@
               <!-- 카카오톡 미리보기 -->
               <div class="kakao-preview-wrapper">
                 <KakaoPreviewComponent
+                  :template-content="templateContent"
                   :show-variables="showVariables"
                   :variables="editedVariables"
                   :is-modifying="isModifying"
@@ -119,10 +120,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 import KakaoPreviewComponent from '@/components/KakaoPreviewComponent.vue'
 import RejectionSidebarComponent from '@/components/RejectionSidebarComponent.vue'
+import { templateApi } from '@/api'
+
+const router = useRouter()
 
 const showVariables = ref(true)
 const showRejectionSidebar = ref(false)
@@ -131,6 +136,14 @@ const currentVariable = ref('')
 const currentAlternatives = ref<any[]>([])
 const isModifying = ref(false)
 const rejectedVariables = ref<string[]>([])
+
+// 생성된 템플릿 데이터
+const generatedTemplate = ref<any>(null)
+const templateContent = ref('')
+const templateVariables = ref<any[]>([])
+const templateCategory = ref('')
+const templateCategoryId = ref<number>(11) // 기본값: 기타
+const userMessage = ref('')
 
 // 채팅 관련 변수들
 const chatInput = ref('')
@@ -154,12 +167,51 @@ const versions = ref([
 ])
 
 // 사용자가 수정할 수 있는 변수 값들
-const editedVariables = ref({
+const editedVariables = ref<Record<string, string>>({
   recipient: '홍길동',
   sender: '저희 회사',
   couponName: '신규 가입 축하 쿠폰',
   expiryDate: '2024년 12월 31일까지',
   additionalMessage: '문의 사항은 언제든 편하게 연락주세요.'
+})
+
+// 컴포넌트 마운트 시 생성된 템플릿 데이터 로드
+onMounted(() => {
+  const savedTemplate = sessionStorage.getItem('generatedTemplate')
+  if (savedTemplate) {
+    try {
+      generatedTemplate.value = JSON.parse(savedTemplate)
+      templateContent.value = generatedTemplate.value.templateContent
+      templateVariables.value = generatedTemplate.value.variables
+      templateCategory.value = generatedTemplate.value.category
+      templateCategoryId.value = generatedTemplate.value.categoryId || 11
+      userMessage.value = generatedTemplate.value.userMessage
+      
+      // 변수 값 초기화
+      const initialVariables: Record<string, string> = {}
+      templateVariables.value.forEach((variable: any) => {
+        // 변수명을 한글로 변환하여 더 친숙하게 표시
+        const koreanNames: Record<string, string> = {
+          'recipient': '수신자',
+          'sender': '발신자',
+          'couponName': '쿠폰명',
+          'expiryDate': '사용기한',
+          'additionalMessage': '추가 메시지'
+        }
+        const displayName = koreanNames[variable.name] || variable.name
+        initialVariables[variable.name] = `${displayName} 값`
+      })
+      editedVariables.value = initialVariables
+      
+      console.log('생성된 템플릿 로드됨:', generatedTemplate.value)
+    } catch (error) {
+      console.error('템플릿 데이터 파싱 실패:', error)
+      router.push('/template/create')
+    }
+  } else {
+    // 생성된 템플릿이 없으면 생성 페이지로 리다이렉트
+    router.push('/template/create')
+  }
 })
 
 
@@ -278,9 +330,37 @@ const showModifiedVersion = () => {
 }
 
 // 템플릿 제출
-const submitTemplate = () => {
-  console.log('템플릿 제출')
-  // 실제 제출 로직 구현
+const submitTemplate = async () => {
+  try {
+    console.log('템플릿 검증 요청 시작')
+    
+    // 백엔드로 템플릿 검증 요청
+    const response = await templateApi.validateTemplate(
+      templateContent.value,
+      editedVariables.value,
+      templateCategory.value,
+      userMessage.value
+    )
+    
+    console.log('템플릿 검증 응답:', response.data)
+    
+    if (response.data.success) {
+      // 검증 성공 - 성공 페이지로 이동
+      console.log('템플릿 검증 성공')
+      router.push('/success')
+    } else {
+      // 검증 실패 - 반려 사유 표시
+      console.log('템플릿 검증 실패, 반려된 변수:', response.data.rejectedVariables)
+      
+      rejectedVariables.value = response.data.rejectedVariables || []
+      currentAlternatives.value = response.data.alternatives || {}
+      isRejected.value = true
+      showRejectionSidebar.value = true
+    }
+  } catch (error) {
+    console.error('템플릿 검증 실패:', error)
+    alert('템플릿 검증 중 오류가 발생했습니다. 다시 시도해주세요.')
+  }
 }
 
 // 채팅 메시지 전송

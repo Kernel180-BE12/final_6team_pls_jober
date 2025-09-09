@@ -50,6 +50,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderComponent from '@/components/HeaderComponent.vue'
+import { aiApi } from '@/api'
 
 const router = useRouter()
 
@@ -69,6 +70,22 @@ const categories = [
   { id: 12, name: '없음' }
 ]
 
+// 카테고리 ID 매핑 (백엔드와 일치하도록)
+const categoryIdMapping: Record<string, number> = {
+  '공지사항': 1,
+  '이벤트': 2,
+  '안내': 3,
+  '마케팅': 4,
+  '고객서비스': 5,
+  '주문확인': 6,
+  '배송안내': 7,
+  '결제완료': 8,
+  '예약확정': 9,
+  '취소안내': 10,
+  '기타': 11,
+  '없음': 12
+}
+
 const selectedCategory = ref<number | null>(null)
 const messageText = ref('')
 
@@ -87,16 +104,32 @@ const handleSubmit = async () => {
   if (!canSubmit.value) return
   
   try {
-    // TODO: 템플릿 생성 로직 구현
-    console.log('템플릿 생성:', {
-      category: selectedCategory.value,
+    const selectedCategoryName = categories.find(cat => cat.id === selectedCategory.value)?.name || '기타'
+    
+    console.log('템플릿 생성 요청:', {
+      category: selectedCategoryName,
       message: messageText.value
     })
+    
+    // AI 서버로 템플릿 생성 요청
+    const response = await aiApi.generateTemplate(selectedCategoryName, messageText.value)
+    
+    console.log('템플릿 생성 응답:', response.data)
+    
+    // 생성된 템플릿 데이터를 세션 스토리지에 저장
+    sessionStorage.setItem('generatedTemplate', JSON.stringify({
+      templateContent: response.data.template_content,
+      variables: response.data.variables,
+      category: response.data.category,
+      categoryId: categoryIdMapping[selectedCategoryName] || 11, // 기본값: 기타
+      userMessage: messageText.value
+    }))
     
     // 결과 페이지로 이동
     router.push('/template/result')
   } catch (error) {
     console.error('템플릿 생성 실패:', error)
+    alert('템플릿 생성에 실패했습니다. 다시 시도해주세요.')
   }
 }
 </script>
