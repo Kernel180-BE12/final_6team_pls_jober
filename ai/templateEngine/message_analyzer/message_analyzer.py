@@ -23,15 +23,12 @@ class MessageAnalyzer:
         logger.debug(f"[INPUT] user_text={user_text}, category_main={category_main}, category_sub={category_sub_list}")
 
         try:
-            # 메세지 유형 판별
-            logger.info("Calling classify_message_type")
-            type_result = await self.classify_message_type(user_text)
-            logger.debug(f"[RESULT] classify_message_type={type_result}")
-
-            # 메세지 카테고리 판별
-            logger.info("Calling classify_message_category")
-            category_result = await self.classify_message_category(user_text, category_main, category_sub_list)
-            logger.debug(f"[RESULT] classify_message_category={category_result}")
+            # 📌 변경 부분 메시지 유형, 카테고리를 병렬 처리
+            type_result, category_result = await asyncio.gather(
+                self.classify_message_type(user_text),
+                self.classify_message_category(user_text, category_main, category_sub_list)
+            )
+            logger.debug(f"[RESULT] type={type_result}, category={category_result}")
 
             # 메세지 필드 추출
             logger.info("Calling extract_message_fields")
