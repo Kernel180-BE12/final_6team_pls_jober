@@ -222,7 +222,7 @@ class TemplateGenerator:
             
             logger.debug("🤖 OpenAI API 호출 중... (참고 기반 생성)")
             response = openai.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "당신은 카카오톡 알림톡 템플릿 생성 전문가입니다. 승인받은 템플릿을 참고하여 규정에 맞는 새로운 템플릿을 생성합니다. 절대 변수 목록이나 변수 설명을 템플릿 내용에 포함하지 마세요."},
                     {"role": "user", "content": prompt}
@@ -279,7 +279,7 @@ class TemplateGenerator:
             prompt = prompt_builder.build()
             
             response = openai.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "당신은 카카오톡 알림톡 정책 전문가입니다. 정책 가이드라인을 완벽히 준수하는 템플릿만 생성합니다. 절대 변수 목록이나 변수 설명을 템플릿 내용에 포함하지 마세요."},
                     {"role": "user", "content": prompt}
@@ -302,7 +302,7 @@ class TemplateGenerator:
             prompt = prompt_builder.build()
             
             response = openai.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "당신은 카카오톡 알림톡 템플릿 생성 전문가입니다. 알림톡 규정을 준수하는 정보성/안내성 템플릿을 생성합니다. 절대 변수 목록이나 변수 설명을 템플릿 내용에 포함하지 마세요."},
                     {"role": "user", "content": prompt}

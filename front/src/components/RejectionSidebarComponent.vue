@@ -7,8 +7,15 @@
     
     <!-- 반려 사유 -->
     <div class="rejection-reason" v-if="currentVariable">
-      <h4>• 반려 사유: 부적절한 언어</h4>
-      <p>변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
+      <h4>• 반려 사유</h4>
+      <div v-if="validationError" class="error-details">
+        <p><strong>검증기:</strong> {{ validationError.errorType }}</p>
+        <p><strong>오류 메시지:</strong> {{ validationError.errorMessage }}</p>
+        <p>변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
+      </div>
+      <div v-else>
+        <p>변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
+      </div>
     </div>
     
     <!-- 대안 목록 -->
@@ -47,8 +54,10 @@
           class="rejected-item"
           @click="$emit('variableClick', variable)"
         >
-          <span class="variable-name">{{ variable }}</span>
-          <span class="click-hint">클릭하여 대안 확인</span>
+          <div class="variable-info">
+            <span class="variable-name">{{ variable }}</span>
+            <span class="click-hint">클릭하여 대안 확인</span>
+          </div>
         </div>
       </div>
     </div>
@@ -63,11 +72,18 @@ interface Alternative {
   selected: boolean
 }
 
+interface ValidationError {
+  variableName: string
+  errorMessage: string
+  errorType: string
+}
+
 interface RejectionSidebarProps {
   show: boolean
   currentVariable: string
   alternatives: Alternative[]
   rejectedVariables: string[]
+  validationError?: ValidationError | null
 }
 
 const props = defineProps<RejectionSidebarProps>()
@@ -171,6 +187,20 @@ const applySelectedAlternative = () => {
   margin: 0;
   color: #795548;
   font-size: 0.8rem;
+}
+
+.error-details {
+  margin-top: 0.4rem;
+}
+
+.error-details p {
+  margin: 0.2rem 0;
+  font-size: 0.8rem;
+}
+
+.error-details p:last-child {
+  margin-top: 0.4rem;
+  font-weight: 500;
 }
 
 .alternatives-section {
@@ -277,9 +307,12 @@ const applySelectedAlternative = () => {
   background: #fff5f5;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.variable-info {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .rejected-item:hover {

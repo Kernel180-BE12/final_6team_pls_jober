@@ -56,7 +56,7 @@ except Exception as e:
 # Pydantic 모델
 class ChatRequest(BaseModel):
     message: str
-    model: Optional[str] = "gpt-3.5-turbo"
+    model: Optional[str] = "gpt-5"
 
 class ChatResponse(BaseModel):
     response: str

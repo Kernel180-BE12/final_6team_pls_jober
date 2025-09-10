@@ -99,6 +99,7 @@
                   :current-variable="currentVariable"
                   :alternatives="currentAlternatives"
                   :rejected-variables="rejectedVariables"
+                  :validation-error="currentValidationError"
                   @close="closeRejectionSidebar"
                   @variable-click="handleVariableClick"
                   @apply-alternative="applySelectedAlternative"
@@ -143,6 +144,8 @@ const currentVariable = ref('')
 const currentAlternatives = ref<any[]>([])
 const isModifying = ref(false)
 const rejectedVariables = ref<string[]>([])
+const validationErrors = ref<any[]>([])
+const currentValidationError = ref<any>(null)
 
 // 생성된 템플릿 데이터
 const generatedTemplate = ref<any>(null)
@@ -284,7 +287,13 @@ const handleVariableClick = (variableName: string) => {
   if (isRejected.value && rejectedVariables.value.includes(variableName)) {
     // 반려된 변수 클릭 시 - 대안 선택 사이드바 표시
     currentVariable.value = variableName
-    currentAlternatives.value = JSON.parse(JSON.stringify(variableAlternatives[variableName as keyof typeof variableAlternatives]))
+    
+    // 해당 변수에 대한 검증 오류 찾기
+    const variableErrors = validationErrors.value.filter(error => error.variableName === variableName)
+    currentValidationError.value = variableErrors.length > 0 ? variableErrors[0] : null
+    
+    // 대안 정보 설정 (기본값 또는 백엔드에서 받은 대안)
+    currentAlternatives.value = JSON.parse(JSON.stringify(variableAlternatives[variableName as keyof typeof variableAlternatives] || []))
     showRejectionSidebar.value = true
   } else if (isModifying.value) {
     // 수정 모드에서 변수 클릭 시 - 직접 편집 가능하도록 처리
@@ -331,8 +340,10 @@ const closeRejectionSidebar = () => {
   showRejectionSidebar.value = false
   isRejected.value = false
   rejectedVariables.value = []
+  validationErrors.value = []
   currentVariable.value = ''
   currentAlternatives.value = []
+  currentValidationError.value = null
 }
 
 // 수정 모드 토글
@@ -377,59 +388,30 @@ const submitTemplate = async () => {
     
     if (response.data.success) {
       // 검증 성공 - 성공 페이지로 이동
-      console.log('템플릿 검증 성공')
-      router.push('/success')
+      console.log('템플릿 검증 성공, 저장된 템플릿 ID:', response.data.templateId)
+      // 성공 페이지로 이동하면서 템플릿 ID 전달
+      router.push({
+        path: '/success',
+        query: { templateId: response.data.templateId }
+      })
     } else {
       // 검증 실패 - 반려 사유 표시
-      console.log('템플릿 검증 실패:', response.data.final_message)
+      console.log('템플릿 검증 실패:', response.data.message)
       console.log('전체 검증 응답:', response.data)
       
-      // 검증 결과에서 오류가 있는 변수들을 추출
-      const failedValidations = response.data.validation_results?.filter((result: any) => !result.is_valid) || []
-      console.log('실패한 검증들:', failedValidations)
-      
-      const rejectedVars: string[] = []
-      
-      // 오류가 있는 변수들을 반려된 변수로 설정
-      failedValidations.forEach((validation: any) => {
-        console.log('검증 상세:', validation)
-        if (validation.details && validation.details.variables) {
-          // variables가 배열인지 확인하고 처리
-          if (Array.isArray(validation.details.variables)) {
-            rejectedVars.push(...validation.details.variables)
-          } else if (typeof validation.details.variables === 'string') {
-            rejectedVars.push(validation.details.variables)
-          } else if (typeof validation.details.variables === 'object') {
-            // 객체인 경우 키들을 추출
-            rejectedVars.push(...Object.keys(validation.details.variables))
-          }
-        }
-        
-        // 에러 메시지에서 변수명 추출 시도
-        if (validation.errors && validation.errors.length > 0) {
-          validation.errors.forEach((error: string) => {
-            console.log('에러 메시지:', error)
-            // 변수명 패턴 찾기: {변수명}, {{변수명}}, #{변수명}
-            const variableMatches = error.match(/\{([^}]+)\}/g) || error.match(/#\{([^}]+)\}/g)
-            if (variableMatches) {
-              variableMatches.forEach(match => {
-                const varName = match.replace(/[{}#]/g, '')
-                if (!rejectedVars.includes(varName)) {
-                  rejectedVars.push(varName)
-                }
-              })
-            }
-          })
-        }
-      })
-      
+      // 백엔드에서 전달된 반려된 변수들 사용
+      const rejectedVars = response.data.rejectedVariables || []
+      const errors = response.data.validationErrors || []
       console.log('반려된 변수들:', rejectedVars)
+      console.log('검증 오류 상세:', errors)
+      
       rejectedVariables.value = rejectedVars
+      validationErrors.value = errors
       isRejected.value = true
       showRejectionSidebar.value = true
       
       // 사용자에게 오류 메시지 표시
-      alert(`템플릿 검증 실패: ${response.data.final_message}`)
+      alert(`템플릿 검증 실패: ${response.data.message}`)
     }
   } catch (error) {
     console.error('템플릿 검증 실패:', error)
