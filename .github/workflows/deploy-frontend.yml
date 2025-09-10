@@ -2,15 +2,15 @@ name: Deploy Frontend to Oracle Cloud
 
 on:
   push:
-    branches: [ deploy ]
+    branches: [ develop ]
   pull_request:
-    branches: [ deploy ]
+    branches: [ develop ]
     types: [closed]
 
 jobs:
   deploy:
     # PR이 merge되었을 때만 실행
-    if: github.event.pull_request.merged == true || github.ref == 'refs/heads/deploy'
+    if: github.event.pull_request.merged == true || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     
     steps:
@@ -45,7 +45,7 @@ jobs:
       with:
         host: 134.185.106.160
         username: ubuntu
-        key: ${{ secrets.ssh_private }}
+        key: ${{ secrets.SSH_PRIVATE }}
         port: 22
         script: |
           # 배포 디렉토리 생성
@@ -73,13 +73,14 @@ jobs:
         source: "front/dist/*"
         target: "/var/www/frontend/"
         strip_components: 2
+
         
     - name: Setup Nginx (if not already configured)
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: 134.185.106.160
         username: ubuntu
-        key: ${{ secrets.ssh_private }}
+        key: ${{ secrets.SSH_PRIVATE }}
         port: 22
         script: |
           # Nginx 설치 (이미 설치되어 있으면 스킵)
@@ -114,11 +115,11 @@ jobs:
           
           # 기본 사이트 비활성화
           sudo rm -f /etc/nginx/sites-enabled/default
-          
-          # Nginx 설정 테스트 및 재시작
-          sudo nginx -t && sudo systemctl reload nginx
-          sudo systemctl enable nginx
-          
+
+          # 파일 권한 설정
+          sudo chown -R www-data:www-data /var/www/frontend/
+          sudo chmod -R 755 /var/www/frontend/
+         
     - name: Deployment Status
       run: |
         echo "🚀 Deployment completed successfully!"

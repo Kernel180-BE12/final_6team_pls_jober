@@ -5,6 +5,7 @@ from services.openai_service import OpenAIService
 from services.chromadb_service import ChromaDBService
 from services.huggingface_service import HuggingFaceService
 from templateEngine.prompts.message_analyzer_prompts import TemplateGenerationPromptBuilder, TemplateModificationPromptBuilder
+from templateEngine.integrated_template_pipeline import IntegratedTemplatePipeline, IntegratedGenerationRequest, IntegratedGenerationResult
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/ai", tags=["AI Services"])
 openai_service = OpenAIService()
 chromadb_service = ChromaDBService()
 huggingface_service = HuggingFaceService()
+integrated_pipeline = IntegratedTemplatePipeline()
 
 # Pydantic 모델들
 class ChatRequest(BaseModel):
@@ -65,6 +67,21 @@ class TemplateModificationResponse(BaseModel):
     variables: List[Dict[str, Any]]
     explanation: str
     model: str
+
+class IntegratedTemplateRequest(BaseModel):
+    user_text: str
+    category_main: str
+    category_sub_list: List[str]
+    model: Optional[str] = "gpt-3.5-turbo"
+
+class IntegratedTemplateResponse(BaseModel):
+    template_text: str
+    template_title: str
+    generation_method: str
+    reference_templates: List[Dict[str, Any]]
+    metadata: Dict[str, Any]
+    success: bool
+    error_message: Optional[str] = None
 
 # OpenAI 라우트
 @router.post("/openai/chat", response_model=ChatResponse)
@@ -286,6 +303,38 @@ async def modify_template(request: TemplateModificationRequest):
             variables=variables,
             explanation=explanation,
             model="gpt-3.5-turbo"
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 통합 템플릿 생성 라우트 (요구사항에 맞는 4단계 흐름)
+@router.post("/template/integrated-generate", response_model=IntegratedTemplateResponse)
+async def integrated_generate_template(request: IntegratedTemplateRequest):
+    """통합된 4단계 템플릿 생성 API"""
+    try:
+        # 통합 파이프라인 초기화
+        await integrated_pipeline.initialize()
+        
+        # 통합 생성 요청 객체 생성
+        generation_request = IntegratedGenerationRequest(
+            user_text=request.user_text,
+            category_main=request.category_main,
+            category_sub_list=request.category_sub_list,
+            model=request.model
+        )
+        
+        # 통합 파이프라인 실행
+        result = await integrated_pipeline.generate_template(generation_request)
+        
+        return IntegratedTemplateResponse(
+            template_text=result.template_text,
+            template_title=result.template_title,
+            generation_method=result.generation_method,
+            reference_templates=result.reference_templates,
+            metadata=result.metadata,
+            success=result.success,
+            error_message=result.error_message
         )
         
     except Exception as e:
