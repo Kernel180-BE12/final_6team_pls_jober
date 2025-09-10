@@ -57,153 +57,150 @@ public class TemplateService {
             // AI 서버 검증 호출 (실제로는 AIService를 통해 호출)
             Map<String, Object> aiValidationResult = aiService.validateTemplateWithFastAPI(validationRequest);
             
-            // AI 서버 응답에서 success 필드 확인
-            boolean isValid = false;
-            if (aiValidationResult.containsKey("success")) {
-                isValid = (Boolean) aiValidationResult.get("success");
-            } else if (aiValidationResult.containsKey("is_valid")) {
-                isValid = (Boolean) aiValidationResult.get("is_valid");
-            }
-            
+            boolean isValid = isValidationSuccessful(aiValidationResult);
             log.info("AI 검증 결과 - 성공 여부: {}", isValid);
             
             if (isValid) {
-                // 검증 성공 시 템플릿 저장
-                Template template = Template.builder()
-                        .account(account)
-                        .templateContent(requestDto.getTemplateContent())
-                        .category2(findCategory2ByName(requestDto.getCategory()))
-                        .status("APPROVED")
-                        .build();
-                
-                // 변수 정보 저장
-                if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
-                    for (TemplateValidationRequestDto.VariableDto variableDto : requestDto.getVariableList()) {
-                        Var variable = Var.builder()
-                                .variableKey(variableDto.getVariableKey())
-                                .variableValue(variableDto.getVariableValue())
-                                .build();
-                        template.addVariable(variable);
-                    }
-                }
-                
-                Template savedTemplate = templateRepository.save(template);
-                log.info("검증 성공, 템플릿 및 변수 저장 완료: {}", savedTemplate.getTemplateId());
-                
-                return TemplateValidationResponseDto.success(savedTemplate.getTemplateId().toString());
-            } else {
-                // 검증 실패 시 반려 사유와 대안 제공
-                List<String> rejectedVariables = new ArrayList<>();
-                Map<String, List<String>> alternatives = new HashMap<>();
-                List<TemplateValidationResponseDto.ValidationError> validationErrors = new ArrayList<>();
-                
-                log.info("AI 검증 실패 응답 전체: {}", aiValidationResult);
-                
-                // AI 서버 응답에서 반려된 변수들 추출
-                if (aiValidationResult.containsKey("rejected_variables")) {
-                    @SuppressWarnings("unchecked")
-                    List<String> rejectedVars = (List<String>) aiValidationResult.get("rejected_variables");
-                    rejectedVariables.addAll(rejectedVars);
-                } else if (aiValidationResult.containsKey("failed_validations")) {
-                    // failed_validations에서 변수명과 오류 메시지 추출
-                    @SuppressWarnings("unchecked")
-                    List<Map<String, Object>> failedValidations = (List<Map<String, Object>>) aiValidationResult.get("failed_validations");
-                    for (Map<String, Object> validation : failedValidations) {
-                        String errorType = (String) validation.getOrDefault("validator_name", "unknown");
-                        @SuppressWarnings("unchecked")
-                        List<String> errors = (List<String>) validation.getOrDefault("errors", new ArrayList<>());
-                        
-                        if (validation.containsKey("details") && validation.get("details") instanceof Map) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> details = (Map<String, Object>) validation.get("details");
-                            if (details.containsKey("variables")) {
-                                Object variables = details.get("variables");
-                                if (variables instanceof List) {
-                                    @SuppressWarnings("unchecked")
-                                    List<String> varList = (List<String>) variables;
-                                    rejectedVariables.addAll(varList);
-                                    
-                                    // 각 변수에 대한 오류 정보 생성
-                                    for (String varName : varList) {
-                                        for (String error : errors) {
-                                            validationErrors.add(new TemplateValidationResponseDto.ValidationError(
-                                                varName, error, errorType
-                                            ));
-                                        }
-                                    }
-                                } else if (variables instanceof String) {
-                                    String varName = (String) variables;
-                                    rejectedVariables.add(varName);
-                                    
-                                    // 변수에 대한 오류 정보 생성
-                                    for (String error : errors) {
-                                        validationErrors.add(new TemplateValidationResponseDto.ValidationError(
-                                            varName, error, errorType
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (aiValidationResult.containsKey("validation_results")) {
-                    // validation_results에서 오류 정보 추출
-                    @SuppressWarnings("unchecked")
-                    List<Map<String, Object>> validationResults = (List<Map<String, Object>>) aiValidationResult.get("validation_results");
-                    for (Map<String, Object> result : validationResults) {
-                        boolean resultIsValid = (Boolean) result.getOrDefault("is_valid", true);
-                        if (!resultIsValid) {
-                            String validatorName = (String) result.getOrDefault("validator_name", "unknown");
-                            @SuppressWarnings("unchecked")
-                            List<String> errors = (List<String>) result.getOrDefault("errors", new ArrayList<>());
-                            
-                            if (result.containsKey("details") && result.get("details") instanceof Map) {
-                                @SuppressWarnings("unchecked")
-                                Map<String, Object> details = (Map<String, Object>) result.get("details");
-                                if (details.containsKey("variables")) {
-                                    Object variables = details.get("variables");
-                                    if (variables instanceof List) {
-                                        @SuppressWarnings("unchecked")
-                                        List<String> varList = (List<String>) variables;
-                                        rejectedVariables.addAll(varList);
-                                        
-                                        for (String varName : varList) {
-                                            for (String error : errors) {
-                                                validationErrors.add(new TemplateValidationResponseDto.ValidationError(
-                                                    varName, error, validatorName
-                                                ));
-                                            }
-                                        }
-                                    } else if (variables instanceof String) {
-                                        String varName = (String) variables;
-                                        rejectedVariables.add(varName);
-                                        
-                                        for (String error : errors) {
-                                            validationErrors.add(new TemplateValidationResponseDto.ValidationError(
-                                                varName, error, validatorName
-                                            ));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // 대안 정보 추출
-                if (aiValidationResult.containsKey("alternatives")) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, List<String>> altMap = (Map<String, List<String>>) aiValidationResult.get("alternatives");
-                    alternatives.putAll(altMap);
-                }
-                
-                log.info("검증 실패, 반려된 변수: {}, 오류 정보: {}", rejectedVariables, validationErrors);
-                return TemplateValidationResponseDto.rejectionWithDetails(rejectedVariables, alternatives, validationErrors);
+                return handleApproval(requestDto, account);
             }
+            
+            RejectionDetails rejectionDetails = extractRejectionDetails(aiValidationResult);
+            log.info("검증 실패, 반려된 변수: {}, 오류 정보: {}", rejectionDetails.rejectedVariables, rejectionDetails.validationErrors);
+            return TemplateValidationResponseDto.rejectionWithDetails(
+                    rejectionDetails.rejectedVariables,
+                    rejectionDetails.alternatives,
+                    rejectionDetails.validationErrors
+            );
             
         } catch (Exception e) {
             log.error("템플릿 검증 중 오류 발생", e);
             throw new RuntimeException("템플릿 검증 중 오류가 발생했습니다: " + e.getMessage());
         }
+    }
+
+    private boolean isValidationSuccessful(Map<String, Object> aiValidationResult) {
+        Object success = aiValidationResult.get("success");
+        if (success instanceof Boolean) {
+            return (Boolean) success;
+        }
+        Object isValid = aiValidationResult.get("is_valid");
+        if (isValid instanceof Boolean) {
+            return (Boolean) isValid;
+        }
+        return false;
+    }
+
+    private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, Account account) {
+        Template template = Template.builder()
+                .account(account)
+                .templateContent(requestDto.getTemplateContent())
+                .category2(findCategory2ByName(requestDto.getCategory()))
+                .status("APPROVED")
+                .build();
+        
+        if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
+            for (TemplateValidationRequestDto.VariableDto variableDto : requestDto.getVariableList()) {
+                Var variable = Var.builder()
+                        .variableKey(variableDto.getVariableKey())
+                        .variableValue(variableDto.getVariableValue())
+                        .build();
+                template.addVariable(variable);
+            }
+        }
+        
+        Template savedTemplate = templateRepository.save(template);
+        log.info("검증 성공, 템플릿 및 변수 저장 완료: {}", savedTemplate.getTemplateId());
+        return TemplateValidationResponseDto.success(savedTemplate.getTemplateId().toString());
+    }
+
+    private RejectionDetails extractRejectionDetails(Map<String, Object> aiValidationResult) {
+        log.info("AI 검증 실패 응답 전체: {}", aiValidationResult);
+        RejectionDetails details = new RejectionDetails();
+        
+        if (aiValidationResult.containsKey("rejected_variables")) {
+            @SuppressWarnings("unchecked")
+            List<String> rejectedVars = (List<String>) aiValidationResult.get("rejected_variables");
+            if (rejectedVars != null) {
+                details.rejectedVariables.addAll(rejectedVars);
+            }
+        } else if (aiValidationResult.containsKey("failed_validations")) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> failedValidations = (List<Map<String, Object>>) aiValidationResult.get("failed_validations");
+            if (failedValidations != null) {
+                for (Map<String, Object> validation : failedValidations) {
+                    String validatorName = (String) validation.getOrDefault("validator_name", "unknown");
+                    @SuppressWarnings("unchecked")
+                    List<String> errors = (List<String>) validation.getOrDefault("errors", new ArrayList<>());
+                    addErrorsFromDetailsVariable(validation.get("details"), validatorName, errors, details);
+                }
+            }
+        } else if (aiValidationResult.containsKey("validation_results")) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> validationResults = (List<Map<String, Object>>) aiValidationResult.get("validation_results");
+            if (validationResults != null) {
+                for (Map<String, Object> result : validationResults) {
+                    boolean resultIsValid = (Boolean) result.getOrDefault("is_valid", true);
+                    if (resultIsValid) {
+                        continue;
+                    }
+                    String validatorName = (String) result.getOrDefault("validator_name", "unknown");
+                    @SuppressWarnings("unchecked")
+                    List<String> errors = (List<String>) result.getOrDefault("errors", new ArrayList<>());
+                    addErrorsFromDetailsVariable(result.get("details"), validatorName, errors, details);
+                }
+            }
+        }
+        
+        if (aiValidationResult.containsKey("alternatives")) {
+            @SuppressWarnings("unchecked")
+            Map<String, List<String>> altMap = (Map<String, List<String>>) aiValidationResult.get("alternatives");
+            if (altMap != null) {
+                details.alternatives.putAll(altMap);
+            }
+        }
+        
+        return details;
+    }
+
+    private void addErrorsFromDetailsVariable(Object detailsObject,
+                                              String validatorName,
+                                              List<String> errors,
+                                              RejectionDetails aggregate) {
+        if (!(detailsObject instanceof Map)) {
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> details = (Map<String, Object>) detailsObject;
+        if (!details.containsKey("variables")) {
+            return;
+        }
+        Object variables = details.get("variables");
+        if (variables instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<String> variableNames = (List<String>) variables;
+            aggregate.rejectedVariables.addAll(variableNames);
+            for (String variableName : variableNames) {
+                for (String error : errors) {
+                    aggregate.validationErrors.add(new TemplateValidationResponseDto.ValidationError(
+                            variableName, error, validatorName
+                    ));
+                }
+            }
+        } else if (variables instanceof String) {
+            String variableName = (String) variables;
+            aggregate.rejectedVariables.add(variableName);
+            for (String error : errors) {
+                aggregate.validationErrors.add(new TemplateValidationResponseDto.ValidationError(
+                        variableName, error, validatorName
+                ));
+            }
+        }
+    }
+
+    private static class RejectionDetails {
+        private final List<String> rejectedVariables = new ArrayList<>();
+        private final Map<String, List<String>> alternatives = new HashMap<>();
+        private final List<TemplateValidationResponseDto.ValidationError> validationErrors = new ArrayList<>();
     }
 
     /**
