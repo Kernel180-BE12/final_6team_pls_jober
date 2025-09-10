@@ -4,7 +4,7 @@ chromadb
 transformers
 torch
 pydantic
-python-dotenv 
+python-dotenv
 sentence-transformers
 numpy
 pytest
