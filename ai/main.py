@@ -8,6 +8,17 @@ from pydantic import BaseModel
 from typing import List, Optional
 import os
 from routers import ai_routes
+# 로깅 안되서 넣음
+# import logging
+#
+# logging.basicConfig(
+#     level=logging.DEBUG,  # 또는 INFO
+#     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+#     datefmt="%Y-%m-%d %H:%M:%S"
+# )
+#
+# logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
 app = FastAPI(
     title="AI Service API",
