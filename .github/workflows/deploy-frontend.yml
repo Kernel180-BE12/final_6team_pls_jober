@@ -68,11 +68,12 @@ jobs:
       with:
         host: 134.185.106.160
         username: ubuntu
-        key: ${{ secrets.SSH_PRIVATE }}
+        key: ${{ secrets.ssh_private }}
         port: 22
         source: "front/dist/*"
-        target: "/var/www/frontend/dist/"
-        strip_components: 0
+        target: "/var/www/frontend/"
+        strip_components: 2
+
         
     - name: Setup Nginx (if not already configured)
       uses: appleboy/ssh-action@v1.0.3
@@ -114,15 +115,11 @@ jobs:
           
           # 기본 사이트 비활성화
           sudo rm -f /etc/nginx/sites-enabled/default
-          
+
           # 파일 권한 설정
           sudo chown -R www-data:www-data /var/www/frontend/
           sudo chmod -R 755 /var/www/frontend/
-          
-          # Nginx 설정 테스트 및 재시작
-          sudo nginx -t && sudo systemctl reload nginx
-          sudo systemctl enable nginx
-          
+         
     - name: Deployment Status
       run: |
         echo "🚀 Deployment completed successfully!"
