@@ -377,59 +377,27 @@ const submitTemplate = async () => {
     
     if (response.data.success) {
       // 검증 성공 - 성공 페이지로 이동
-      console.log('템플릿 검증 성공')
-      router.push('/success')
+      console.log('템플릿 검증 성공, 저장된 템플릿 ID:', response.data.templateId)
+      // 성공 페이지로 이동하면서 템플릿 ID 전달
+      router.push({
+        path: '/success',
+        query: { templateId: response.data.templateId }
+      })
     } else {
       // 검증 실패 - 반려 사유 표시
-      console.log('템플릿 검증 실패:', response.data.final_message)
+      console.log('템플릿 검증 실패:', response.data.message)
       console.log('전체 검증 응답:', response.data)
       
-      // 검증 결과에서 오류가 있는 변수들을 추출
-      const failedValidations = response.data.validation_results?.filter((result: any) => !result.is_valid) || []
-      console.log('실패한 검증들:', failedValidations)
-      
-      const rejectedVars: string[] = []
-      
-      // 오류가 있는 변수들을 반려된 변수로 설정
-      failedValidations.forEach((validation: any) => {
-        console.log('검증 상세:', validation)
-        if (validation.details && validation.details.variables) {
-          // variables가 배열인지 확인하고 처리
-          if (Array.isArray(validation.details.variables)) {
-            rejectedVars.push(...validation.details.variables)
-          } else if (typeof validation.details.variables === 'string') {
-            rejectedVars.push(validation.details.variables)
-          } else if (typeof validation.details.variables === 'object') {
-            // 객체인 경우 키들을 추출
-            rejectedVars.push(...Object.keys(validation.details.variables))
-          }
-        }
-        
-        // 에러 메시지에서 변수명 추출 시도
-        if (validation.errors && validation.errors.length > 0) {
-          validation.errors.forEach((error: string) => {
-            console.log('에러 메시지:', error)
-            // 변수명 패턴 찾기: {변수명}, {{변수명}}, #{변수명}
-            const variableMatches = error.match(/\{([^}]+)\}/g) || error.match(/#\{([^}]+)\}/g)
-            if (variableMatches) {
-              variableMatches.forEach(match => {
-                const varName = match.replace(/[{}#]/g, '')
-                if (!rejectedVars.includes(varName)) {
-                  rejectedVars.push(varName)
-                }
-              })
-            }
-          })
-        }
-      })
-      
+      // 백엔드에서 전달된 반려된 변수들 사용
+      const rejectedVars = response.data.rejectedVariables || []
       console.log('반려된 변수들:', rejectedVars)
+      
       rejectedVariables.value = rejectedVars
       isRejected.value = true
       showRejectionSidebar.value = true
       
       // 사용자에게 오류 메시지 표시
-      alert(`템플릿 검증 실패: ${response.data.final_message}`)
+      alert(`템플릿 검증 실패: ${response.data.message}`)
     }
   } catch (error) {
     console.error('템플릿 검증 실패:', error)

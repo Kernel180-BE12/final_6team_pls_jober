@@ -64,17 +64,32 @@ public class AIService {
      * @throws RuntimeException AI 서버 통신 실패 시
      */
     public Map<String, Object> validateTemplateWithFastAPI(Map<String, Object> validationRequest) {
-        log.info("FastAPI 템플릿 검증 요청 시작");
+        log.info("FastAPI 템플릿 검증 요청 시작: {}", validationRequest);
         
         try {
+            // AI 서버에 전송할 요청 형식으로 변환
+            Map<String, Object> aiRequest = Map.of(
+                "template", Map.of(
+                    "channel", "alimtalk",
+                    "body", validationRequest.get("user_input"),
+                    "variables", validationRequest.get("variables"),
+                    "category", "marketing" // 기본값
+                ),
+                "user_input", validationRequest.get("user_input")
+            );
+            
+            log.info("AI 서버로 전송할 요청: {}", aiRequest);
+            
             @SuppressWarnings("unchecked")
             Map<String, Object> result = webClient.post()
                     .uri("/alimtalk/validate")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(validationRequest)
+                    .bodyValue(aiRequest)
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();
+            
+            log.info("AI 서버 검증 응답: {}", result);
             return result;
         } catch (Exception e) {
             log.error("FastAPI 템플릿 검증 요청 실패", e);

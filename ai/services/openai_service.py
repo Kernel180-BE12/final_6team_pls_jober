@@ -7,7 +7,7 @@ class OpenAIService:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     
-    async def chat_completion(self, messages: List[Dict[str, str]], model: str = "gpt-4o") -> str:
+    async def chat_completion(self, messages: List[Dict[str, str]], model: str = "gpt-5") -> str:
         """
         OpenAI 채팅 완성 API 호출
         """

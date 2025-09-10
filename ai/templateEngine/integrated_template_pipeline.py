@@ -34,7 +34,7 @@ class IntegratedGenerationRequest:
     user_text: str
     category_main: str
     category_sub_list: List[str]
-    model: Optional[str] = "gpt-4o"
+    model: Optional[str] = "gpt-5"
 
 @dataclass
 class IntegratedGenerationResult:

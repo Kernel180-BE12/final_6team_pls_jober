@@ -81,42 +81,26 @@ export const templateApi = {
   generateTemplate: (categoryId: number, userMessage: string) => 
     api.post('/ai-generation', { category2Id: categoryId, userMessage }),
   
-  // 템플릿 검증
+  // 템플릿 검증 (백엔드 API를 통해)
   validateTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string) => {
-    const aiApi = axios.create({
-      baseURL: 'http://localhost:8000',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    
-    // 카테고리 이름을 백엔드 enum 값으로 변환
-    const categoryMapping: Record<string, string> = {
-      '마케팅': 'marketing',
-      '공지사항': 'transaction',
-      '이벤트': 'marketing',
-      '안내': 'transaction',
-      '고객서비스': 'transaction',
-      '기타': 'marketing'
-    }
-    
-    const backendCategory = categoryMapping[category || ''] || 'marketing'
+    // 변수 정보를 VariableDto 배열로 변환
+    const variableList = Object.entries(variables).map(([key, value]) => ({
+      variableKey: key,
+      variableValue: String(value)
+    }))
     
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {
-      template: {
-        channel: 'alimtalk',
-        body: templateContent,
-        variables: variables,
-        category: backendCategory
-      },
-      user_input: userMessage || ''
+      templateContent: templateContent,
+      variables: variables,
+      category: category,
+      userMessage: userMessage,
+      variableList: variableList
     }
     
     console.log('검증 요청 데이터:', validationRequest)
     
-    return aiApi.post('/alimtalk/validate', validationRequest)
+    return api.post('/template/validate', validationRequest)
   },
   
   // 템플릿 수정 요청 (채팅을 통한)
