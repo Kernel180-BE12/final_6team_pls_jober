@@ -56,7 +56,7 @@ jobs:
      steps:
        # 1. SSH를 사용하여 OCI VM에서 배포 스크립트 실행
        - name: Deploy to Oracle Cloud VM
-         uses: appleboy/ssh-action@master
+         uses: appleboy/ssh-action@v1.0.3
          with:
            host: 134.185.106.160       # 오라클 클라우드 VM IP 주소
            username: ubuntu              # Ubuntu OS의 기본 사용자 이름
@@ -64,13 +64,10 @@ jobs:
            script: |
              # Docker Hub에서 최신 이미지를 pull
              docker pull hy7012/pls-jober-backend:latest
-             # 기존 컨테이너가 있으면 중지하고 삭제
-             if [ $(docker ps -q -f name=pls-jober-container) ]; then
-               docker stop pls-jober-container
-               docker rm pls-jober-container
-             fi
+             # 기존 컨테이너 강제 삭제(없으면 무시)
+             docker rm -f pls-jober-container || true
              # 새 컨테이너 실행 (서버에 미리 생성해둔 .env 파일 사용)
-             docker run -d -p 8080:8080 --env-file /home/ubuntu/.env --name pls-jober-container hy7012/pls-jober-backend:latest
+             docker run -d -p 8080:8080 --env-file /home/ubuntu/.env --name pls-jober-container --restart unless-stopped hy7012/pls-jober-backend:latest
              # 사용하지 않는 Docker 이미지 정리 (디스크 공간 확보)
              docker image prune -f
              echo "Deployment complete."

@@ -3,14 +3,9 @@ name: Deploy Frontend to Oracle Cloud
 on:
   push:
     branches: [ develop ]
-  pull_request:
-    branches: [ develop ]
-    types: [closed]
 
 jobs:
   deploy:
-    # PR이 merge되었을 때만 실행
-    if: github.event.pull_request.merged == true || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     
     steps:
@@ -68,11 +63,10 @@ jobs:
       with:
         host: 134.185.106.160
         username: ubuntu
-        key: ${{ secrets.ssh_private }}
+        key: ${{ secrets.SSH_PRIVATE }}
         port: 22
-        source: "front/dist/*"
-        target: "/var/www/frontend/"
-        strip_components: 2
+        source: "front/dist/**"
+        target: "/var/www/frontend/dist/"
 
         
     - name: Setup Nginx (if not already configured)
@@ -119,6 +113,7 @@ jobs:
           # 파일 권한 설정
           sudo chown -R www-data:www-data /var/www/frontend/
           sudo chmod -R 755 /var/www/frontend/
+          sudo systemctl reload nginx
          
     - name: Deployment Status
       run: |
