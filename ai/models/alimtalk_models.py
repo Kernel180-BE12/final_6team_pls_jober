@@ -88,5 +88,9 @@ class ValidationResponse(BaseModel):
     validation_results: List[ValidationResult] = []
     final_message: str
 
-
+class SystemStats(BaseModel):
+    """시스템 통계 모델"""
+    vector_db: Dict[str, Any]
+    validation_pipeline: Dict[str, Any]
+    service_status: str
 

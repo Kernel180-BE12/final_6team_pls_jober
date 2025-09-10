@@ -20,8 +20,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.alimtalk_models import (
-    ValidationRequest, ValidationResponse, ValidationResult, 
-    AlimtalkTemplate, GuidelineSearchResult, SystemStats
+    ValidationRequest, ValidationResponse, ValidationResult, SystemStats
 )
 from validators.validator_pipeline import ValidationPipeline
 
@@ -110,34 +109,34 @@ class AlimtalkValidationService:
                 final_message=f"검증 중 오류가 발생했습니다: {str(e)}"
             )
     
-    async def validate_single_step(self, template_data: Dict[str, Any], step: int) -> ValidationResult:
-        """특정 단계만 검증"""
-        if not self.is_initialized:
-            await self.initialize()
-
-        return self.validation_pipeline.validate_single_step(template_data, step)
-
-    async def search_guidelines(self, query: str, limit: int = 10) -> List[GuidelineSearchResult]:
-        """가이드라인 검색"""
-        if not self.is_initialized:
-            await self.initialize()
-
-        try:
-            results = self.chromadb_service.search_similar(query, n_results=limit)
-
-            return [
-                GuidelineSearchResult(
-                    id=result['id'],
-                    content=result['content'],
-                    metadata=result['metadata'],
-                    similarity=result['similarity']
-                )
-                for result in results
-            ]
-
-        except Exception as e:
-            print(f"가이드라인 검색 중 오류: {e}")
-            return []
+    # async def validate_single_step(self, template_data: Dict[str, Any], step: int) -> ValidationResult:
+    #     """특정 단계만 검증"""
+    #     if not self.is_initialized:
+    #         await self.initialize()
+    #
+    #     return self.validation_pipeline.validate_single_step(template_data, step)
+    #
+    # async def search_guidelines(self, query: str, limit: int = 10) -> List[GuidelineSearchResult]:
+    #     """가이드라인 검색"""
+    #     if not self.is_initialized:
+    #         await self.initialize()
+    #
+    #     try:
+    #         results = self.chromadb_service.search_similar(query, n_results=limit)
+    #
+    #         return [
+    #             GuidelineSearchResult(
+    #                 id=result['id'],
+    #                 content=result['content'],
+    #                 metadata=result['metadata'],
+    #                 similarity=result['similarity']
+    #             )
+    #             for result in results
+    #         ]
+    #
+    #     except Exception as e:
+    #         print(f"가이드라인 검색 중 오류: {e}")
+    #         return []
 
     async def get_health_status(self) -> Dict[str, Any]:
         """헬스 상태 확인"""
