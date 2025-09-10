@@ -1,0 +1,7 @@
+# Docker 빌드 컨텍스트에서 제외할 파일 및 디렉토리
+.gradle
+build
+out
+.idea
+*.log
+.env
