@@ -54,15 +54,15 @@ class Button(BaseModel):
 
 class AlimtalkTemplate(BaseModel):
     """알림톡 템플릿 모델"""
-    template_pk: Optional[str] = Field(None, description="템플릿 Primary Key")
+    template_pk: Optional[int] = Field(None, description="템플릿 Primary Key")
+    template_text : Optional[str] = Field(None, description="생성된 카카오톡 알림톡 템플릿 전체 내용")
+    template_title: Optional[str] = Field(None, max_length=50, description="제목")
+    variables_detected: Optional[Dict[str, str]] = Field(None, description="변수 목록")
     channel: ChannelType = Field(..., description="채널 타입")
-    title: Optional[str] = Field(None, max_length=50, description="제목")
-    body: str = Field(..., min_length=1, max_length=1000, description="본문")
     buttons: Optional[List[Button]] = Field(None, max_items=5, description="버튼 목록")
-    variables: Optional[Dict[str, str]] = Field(None, description="변수 목록")
     category: Optional[CategoryType] = Field(None, description="분류")
-    
-    @field_validator('body')
+
+    @field_validator('template_text')
     def validate_body(cls, v):
         if not v or not v.strip():
             raise ValueError("본문은 빈 값일 수 없습니다")

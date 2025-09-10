@@ -42,6 +42,7 @@ app.include_router(ai_routes.router)
 try:
     from routers import alimtalk_routes
     app.include_router(alimtalk_routes.router)
+    print(">>main<<")
     print("✅ 알림톡 검증 라우터 등록 완료")
     
     # 알림톡 서비스 초기화
@@ -49,6 +50,7 @@ try:
     async def initialize_alimtalk():
         """알림톡 서비스 초기화"""
         try:
+            print(">>main<<")
             print("🔧 알림톡 검증 서비스 초기화 중...")
             await alimtalk_routes.validation_service.initialize()
             print("✅ 알림톡 검증 서비스 초기화 완료!")
@@ -56,8 +58,10 @@ try:
             print(f"❌ 알림톡 서비스 초기화 실패: {e}")
             
 except ImportError as e:
+    print(">>main<<")
     print(f"⚠️ 알림톡 검증 라우터 로드 실패: {e}")
 except Exception as e:
+    print(">>main<<")
     print(f"❌ 알림톡 검증 라우터 등록 실패: {e}")
 
 # 템플릿 라우터 추가 (존재하지 않으므로 제거)

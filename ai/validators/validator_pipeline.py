@@ -76,25 +76,7 @@ class ValidationPipeline:
         
         print("🎉 모든 검증 단계 통과!")
         return results
-    
-    def validate_single_step(self, template_data: Dict[str, Any], step: int) -> ValidationResult:
-        """
-        특정 단계만 검증
-        
-        Args:
-            template_data: 검증할 템플릿 데이터
-            step: 검증 단계 (1: 제약, 2: 의미적)
-            
-        Returns:
-            해당 단계의 검증 결과
-        """
-        if step == 1:
-            return self.constraint_validator.validate(template_data)
-        elif step == 2:
-            return self.semantic_validator.validate(template_data)
-        else:
-            raise ValueError("검증 단계는 1-2 사이여야 합니다")
-    
+
     def _create_final_result(self, 
                            constraint_result: ValidationResult, 
                            semantic_result: ValidationResult) -> ValidationResult:
