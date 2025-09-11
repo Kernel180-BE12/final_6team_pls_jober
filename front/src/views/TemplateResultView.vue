@@ -79,6 +79,7 @@
               <!-- 카카오톡 미리보기 -->
               <div class="kakao-preview-wrapper">
                 <KakaoPreviewComponent
+                  ref="kakaoPreviewRef"
                   :template-content="templateContent"
                   :show-variables="showVariables"
                   :variables="editedVariables"
@@ -89,6 +90,7 @@
                   @update-variables="updateVariables"
                   @reject-template="rejectTemplate"
                   @submit-template="submitTemplate"
+                  @finish-all-editing="handleFinishAllEditing"
                 />
               </div>
               
@@ -128,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 import KakaoPreviewComponent from '@/components/KakaoPreviewComponent.vue'
@@ -136,6 +138,9 @@ import RejectionSidebarComponent from '@/components/RejectionSidebarComponent.vu
 import { templateApi } from '@/api'
 
 const router = useRouter()
+
+// 컴포넌트 refs
+const kakaoPreviewRef = ref()
 
 const showVariables = ref(true)
 const showRejectionSidebar = ref(false)
@@ -172,13 +177,7 @@ const versions = ref([
 ])
 
 // 사용자가 수정할 수 있는 변수 값들
-const editedVariables = ref<Record<string, string>>({
-  recipient: '홍길동',
-  sender: '저희 회사',
-  couponName: '신규 가입 축하 쿠폰',
-  expiryDate: '2024년 12월 31일까지',
-  additionalMessage: '문의 사항은 언제든 편하게 연락주세요.'
-})
+const editedVariables = ref<Record<string, string>>({})
 
 // 컴포넌트 마운트 시 생성된 템플릿 데이터 로드
 onMounted(() => {
@@ -193,7 +192,7 @@ onMounted(() => {
       templateCategoryId.value = generatedTemplate.value.categoryId || 11
       userMessage.value = generatedTemplate.value.userMessage
       
-      // 변수 값 초기화
+      // 변수 값 초기화 (showVariables가 true이므로 변수값 설정)
       const initialVariables: Record<string, string> = {}
       templateVariables.value.forEach((variable: any) => {
         // 변수명을 한글로 변환하여 더 친숙하게 표시
@@ -202,7 +201,9 @@ onMounted(() => {
           'sender': '발신자',
           'couponName': '쿠폰명',
           'expiryDate': '사용기한',
-          'additionalMessage': '추가 메시지'
+          'additionalMessage': '추가 메시지',
+          '이름': '이름',
+          '회사명': '회사명'
         }
         const displayName = koreanNames[variable.name] || variable.name
         initialVariables[variable.name] = `${displayName} 값`
@@ -350,21 +351,53 @@ const closeRejectionSidebar = () => {
 
 // 수정 모드 토글
 const toggleModification = () => {
-  isModifying.value = !isModifying.value
-  
   if (isModifying.value) {
+    // 수정 완료 시 - KakaoPreviewComponent의 finishAllEditing 호출
+    if (kakaoPreviewRef.value && kakaoPreviewRef.value.finishAllEditing) {
+      kakaoPreviewRef.value.finishAllEditing()
+    }
+    console.log('수정 모드 비활성화: 변경사항이 저장되었습니다.')
+  } else {
     // 수정 모드 진입 시 사용자에게 안내
     console.log('수정 모드 활성화: 변수 부분을 클릭하여 편집할 수 있습니다.')
-  } else {
-    // 수정 모드 종료 시 변경사항 저장
-    console.log('수정 모드 비활성화: 변경사항이 저장되었습니다.')
   }
+  
+  isModifying.value = !isModifying.value
+}
+
+// 모든 편집 완료 처리
+const handleFinishAllEditing = () => {
+  console.log('모든 변수 편집이 완료되었습니다.')
+  // 필요시 추가 로직 구현 (예: 변경사항 검증, 저장 등)
 }
 
 // 변수 업데이트
 const updateVariables = (newVariables: any) => {
   editedVariables.value = { ...newVariables }
 }
+
+// 변수 토글 상태 변경 감지
+watch(showVariables, (newValue) => {
+  if (newValue && templateVariables.value.length > 0) {
+    // 변수 토글을 활성화했을 때 변수값 설정
+    const variables: Record<string, string> = {}
+    templateVariables.value.forEach((variable: any) => {
+      // 변수명을 한글로 변환하여 더 친숙하게 표시
+      const koreanNames: Record<string, string> = {
+        'recipient': '수신자',
+        'sender': '발신자',
+        'couponName': '쿠폰명',
+        'expiryDate': '사용기한',
+        'additionalMessage': '추가 메시지',
+        '이름': '이름',
+        '회사명': '회사명'
+      }
+      const displayName = koreanNames[variable.name] || variable.name
+      variables[variable.name] = `${displayName} 값`
+    })
+    editedVariables.value = variables
+  }
+})
 
 // 수정된 버전 표시
 const showModifiedVersion = () => {

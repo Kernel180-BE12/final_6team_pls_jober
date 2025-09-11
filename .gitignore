@@ -36,7 +36,7 @@ ai/chroma_db/
 ai/.env
 
 # ---------- Node (front) ----------
-front/node_modules/
+node_modules/
 front/dist/
 front/.vite/
 front/.env

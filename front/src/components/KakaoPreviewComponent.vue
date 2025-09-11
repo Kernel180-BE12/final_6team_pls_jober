@@ -16,6 +16,7 @@
           @click="handleVariableClick"
           @input="handleVariableChange"
           @blur="handleVariableBlur"
+          @keydown="handleKeyDown"
         >
         </div>
       </div>
@@ -43,11 +44,14 @@ const emit = defineEmits<{
   rejectTemplate: []
   submitTemplate: []
   updateVariables: [variables: Record<string, string>]
+  finishAllEditing: []
 }>()
 
 const editedVariables = ref({ ...props.variables })
 const editingField = ref<string | null>(null)
 const originalValues = ref<Record<string, string>>({ ...props.variables })
+const modifiedVariables = ref<Set<string>>(new Set())
+const isEditing = ref(false)
 
 // 템플릿 내용을 포맷팅하여 변수를 적절한 스타일로 렌더링
 const formattedTemplateContent = computed(() => {
@@ -80,48 +84,75 @@ const formattedTemplateContent = computed(() => {
     content = content.replace(/\n\s*\n\s*\n/g, '\n\n').trim()
   }
   
-  // props.variables에 있는 변수들을 적절한 스타일로 교체
-  Object.keys(props.variables).forEach(key => {
-    const value = props.variables[key]
-    
-    // 여러 변수 패턴 지원: #{변수명}, {{변수명}}, {변수명}
-    const patterns = [
-      new RegExp(`#\\{${key}\\}`, 'g'),
-      new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
-      new RegExp(`\\{${key}\\}`, 'g')
-    ]
-    
-    let variableClass = 'variable'
-    
-    // showVariables에 따라 하이라이트 스타일 적용
-    if (props.showVariables) {
-      variableClass += ' highlighted'
-    }
-    
-    // 수정 모드일 때 편집 가능한 스타일 추가
-    if (props.isModifying && !props.isRejected) {
-      variableClass += ' clickable editable'
-    }
-    
-    // 반려된 변수 하이라이트
-    if (props.isRejected && props.rejectedVariables.includes(key)) {
-      variableClass += ' rejected-highlight'
-      console.log(`변수 "${key}"가 반려되어 하이라이트 적용됨`)
-    }
-    
-    // 모든 패턴에 대해 교체 수행
-    patterns.forEach((pattern, index) => {
-      content = content.replace(pattern, 
-        `<span class="${variableClass}" ${props.isModifying ? 'contenteditable="true"' : ''} data-variable="${key}">${value}</span>`
-      )
-    })
-  })
-  
-  // showVariables가 true일 때만 남은 변수 패턴들을 하이라이트
+  // showVariables가 true일 때 모든 변수 패턴을 하이라이트
   if (props.showVariables) {
     const variablePattern = /\{[^}]+\}/g
     content = content.replace(variablePattern, (match) => {
-      return `<span class="variable highlighted" data-variable="${match}" style="background-color: #fff3cd; padding: 2px 4px; border-radius: 3px;">${match}</span>`
+      return `<span class="variable highlighted" data-variable="${match}">${match}</span>`
+    })
+  }
+  
+  // props.variables에 있는 변수들을 적절한 스타일로 교체 (showVariables가 false일 때만)
+  if (!props.showVariables) {
+    Object.keys(props.variables).forEach(key => {
+      const value = props.variables[key]
+      
+      // 여러 변수 패턴 지원: #{변수명}, {{변수명}}, {변수명}
+      const patterns = [
+        new RegExp(`#\\{${key}\\}`, 'g'),
+        new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
+        new RegExp(`\\{${key}\\}`, 'g')
+      ]
+      
+      let variableClass = 'variable'
+      
+      // 수정 모드일 때 편집 가능한 스타일 추가
+      if (props.isModifying && !props.isRejected) {
+        variableClass += ' clickable editable'
+      }
+      
+      // 편집 중인 변수 표시
+      if (editingField.value === key) {
+        variableClass += ' editing'
+      }
+      
+      // 수정된 변수 표시
+      if (modifiedVariables.value.has(key)) {
+        variableClass += ' modified'
+      }
+      
+      // 반려된 변수 하이라이트
+      if (props.isRejected && props.rejectedVariables.includes(key)) {
+        variableClass += ' rejected-highlight'
+        console.log(`변수 "${key}"가 반려되어 하이라이트 적용됨`)
+      }
+      
+      // 모든 패턴에 대해 교체 수행
+      patterns.forEach((pattern, index) => {
+        // HTML 태그를 이스케이프 처리
+        const escapedValue = value.replace(/[<>&"']/g, (match) => {
+          const escapeMap: { [key: string]: string } = {
+            '<': '&lt;',
+            '>': '&gt;',
+            '&': '&amp;',
+            '"': '&quot;',
+            "'": '&#39;'
+          }
+          return escapeMap[match]
+        })
+        
+        content = content.replace(pattern, 
+          `<span class="${variableClass}" ${props.isModifying ? 'contenteditable="true"' : ''} data-variable="${key}">${escapedValue}</span>`
+        )
+      })
+    })
+  }
+  
+  // 수정 모드일 때 이미 하이라이트된 변수들을 편집 가능하게 만들기
+  if (props.isModifying && !props.isRejected) {
+    // 이미 하이라이트된 변수들을 편집 가능하게 변환
+    content = content.replace(/<span class="variable highlighted" data-variable="\{([^}]+)\}">\{[^}]+\}<\/span>/g, (match, variableName) => {
+      return `<span class="variable clickable editable" data-variable="${variableName}" data-original-text="{${variableName}}"><span class="editable-variable-name" contenteditable="true">${variableName}</span></span>`
     })
   }
   
@@ -155,11 +186,12 @@ const startEditing = (fieldName: string) => {
   if (!props.isModifying) return
   
   editingField.value = fieldName
+  isEditing.value = true
   originalValues.value[fieldName] = editedVariables.value[fieldName]
   
-  // 다음 tick에서 해당 요소에 포커스
+  // 다음 tick에서 편집 가능한 변수명 부분에 포커스
   nextTick(() => {
-    const element = document.querySelector(`[contenteditable="true"]`) as HTMLElement
+    const element = document.querySelector(`[data-variable="${fieldName}"] .editable-variable-name`) as HTMLElement
     if (element) {
       element.focus()
       // 텍스트 전체 선택
@@ -181,9 +213,15 @@ const finishEditing = (fieldName: string) => {
   // 빈 값이면 원래 값으로 복원
   if (!newValue || newValue.trim() === '') {
     editedVariables.value[fieldName] = originalValues.value[fieldName]
+  } else {
+    // 값이 변경되었으면 수정된 변수 목록에 추가
+    if (newValue !== originalValues.value[fieldName]) {
+      modifiedVariables.value.add(fieldName)
+    }
   }
   
   editingField.value = null
+  isEditing.value = false
   
   // 변경된 변수들을 부모에게 전달
   emit('updateVariables', editedVariables.value)
@@ -194,7 +232,22 @@ const cancelEditing = () => {
   if (editingField.value) {
     editedVariables.value[editingField.value] = originalValues.value[editingField.value]
     editingField.value = null
+    isEditing.value = false
   }
+}
+
+// 모든 편집 완료 (수정 완료 버튼 클릭 시)
+const finishAllEditing = () => {
+  // 현재 편집 중인 필드가 있으면 완료 처리
+  if (editingField.value) {
+    finishEditing(editingField.value)
+  }
+  
+  // 수정된 변수들을 부모에게 전달
+  emit('updateVariables', editedVariables.value)
+  emit('finishAllEditing')
+  
+  console.log('모든 편집 완료, 수정된 변수들:', Array.from(modifiedVariables.value))
 }
 
 // 변수 클릭 이벤트 처리
@@ -205,8 +258,11 @@ const handleVariableClick = (event: Event) => {
   if (variableElement && props.isModifying) {
     const variableName = variableElement.getAttribute('data-variable')
     if (variableName) {
-      // 변수 편집 시작
-      startEditing(variableName)
+      // 편집 가능한 변수명 부분을 클릭했을 때만 편집 시작
+      const editableNameElement = variableElement.querySelector('.editable-variable-name')
+      if (editableNameElement && (target === editableNameElement || editableNameElement.contains(target))) {
+        startEditing(variableName)
+      }
     }
   } else if (variableElement && props.isRejected) {
     const variableName = variableElement.getAttribute('data-variable')
@@ -225,7 +281,17 @@ const handleVariableChange = (event: Event) => {
   if (variableElement) {
     const variableName = variableElement.getAttribute('data-variable')
     if (variableName) {
-      editedVariables.value[variableName] = variableElement.textContent || ''
+      // 편집 가능한 변수명 부분만 가져오기
+      const editableNameElement = variableElement.querySelector('.editable-variable-name')
+      if (editableNameElement) {
+        const newVariableName = editableNameElement.textContent || ''
+        // 중괄호를 제거하고 순수 변수명만 저장
+        editedVariables.value[variableName] = newVariableName.replace(/[{}]/g, '')
+      } else {
+        // HTML 태그를 제거하고 순수 텍스트만 가져오기
+        const textContent = variableElement.textContent || ''
+        editedVariables.value[variableName] = textContent
+      }
     }
   }
 }
@@ -243,6 +309,29 @@ const handleVariableBlur = (event: Event) => {
   }
 }
 
+// 키보드 이벤트 처리
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    const target = event.target as HTMLElement
+    const variableElement = target.closest('[data-variable]') as HTMLElement
+    
+    if (variableElement) {
+      const variableName = variableElement.getAttribute('data-variable')
+      if (variableName) {
+        finishEditing(variableName)
+      }
+    }
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    cancelEditing()
+  }
+}
+
+// 부모 컴포넌트에서 호출할 수 있도록 함수 노출
+defineExpose({
+  finishAllEditing
+})
 
 </script>
 
@@ -345,37 +434,40 @@ const handleVariableBlur = (event: Event) => {
   font-weight: 500;
 }
 
-.variable.highlighted {
+:deep(.variable.highlighted) {
   background-color: #fff3cd !important;
   padding: 2px 4px !important;
   border-radius: 3px !important;
   display: inline-block !important;
+  border: 1px solid #ffeaa7 !important;
+  color: #856404 !important;
+  font-weight: 600 !important;
 }
 
-.variable.clickable {
+:deep(.variable.clickable) {
   cursor: pointer;
 }
 
-.variable.clickable:hover {
+:deep(.variable.clickable:hover) {
   background-color: #ffeaa7;
   transform: scale(1.02);
   box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.15);
 }
 
-.variable.editable {
+:deep(.variable.editable) {
   background-color: #e8f5e8;
   border: 0.1rem dashed #4caf50;
   position: relative;
 }
 
-.variable.editable:hover {
+:deep(.variable.editable:hover) {
   background-color: #d4edda;
   border-color: #28a745;
   transform: scale(1.02);
   box-shadow: 0 0.1rem 0.4rem rgba(76, 175, 80, 0.3);
 }
 
-.variable.editable::after {
+:deep(.variable.editable::after) {
   content: '✏️';
   position: absolute;
   top: -0.2rem;
@@ -384,7 +476,7 @@ const handleVariableBlur = (event: Event) => {
   opacity: 0.7;
 }
 
-.variable.editing {
+:deep(.variable.editing) {
   background-color: #e3f2fd;
   border: 0.1rem solid #2196f3;
   outline: none;
@@ -392,12 +484,12 @@ const handleVariableBlur = (event: Event) => {
   box-shadow: 0 0 0 0.1rem rgba(33, 150, 243, 0.2);
 }
 
-.variable.editing:focus {
+:deep(.variable.editing:focus) {
   background-color: #f5f5f5;
   border-color: #1976d2;
 }
 
-.variable.rejected-highlight {
+:deep(.variable.rejected-highlight) {
   background-color: #ffebee;
   color: #c62828;
   border: 0.1rem solid #f44336;
@@ -405,7 +497,7 @@ const handleVariableBlur = (event: Event) => {
   animation: pulse 2s infinite;
 }
 
-.variable.rejected-highlight:hover {
+:deep(.variable.rejected-highlight:hover) {
   background-color: #ffcdd2;
   transform: scale(1.05);
 }
@@ -473,5 +565,103 @@ const handleVariableBlur = (event: Event) => {
 
 .variable.editing::-moz-selection {
   background-color: #bbdefb;
+}
+
+/* 수정된 변수 스타일 */
+:deep(.variable.modified) {
+  background-color: #d4edda !important;
+  border-color: #28a745 !important;
+  color: #155724 !important;
+  position: relative;
+}
+
+:deep(.variable.modified::after) {
+  content: '✓';
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  font-size: 0.7rem;
+  color: #28a745;
+  font-weight: bold;
+  background: white;
+  border-radius: 50%;
+  width: 1rem;
+  height: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* 편집 가능한 변수명 스타일 */
+:deep(.editable-variable-name) {
+  background-color: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font-weight: inherit;
+  display: inline;
+  min-width: 1rem;
+  padding: 0;
+  margin: 0;
+  cursor: text;
+  width: 100%;
+}
+
+:deep(.editable-variable-name:focus) {
+  background-color: #d4edda;
+  border-radius: 2px;
+  padding: 1px 2px;
+  outline: 1px solid #28a745;
+}
+
+:deep(.editable-variable-name[contenteditable="true"]) {
+  cursor: text;
+  user-select: text;
+}
+
+:deep(.editable-variable-name[contenteditable="true"]:focus) {
+  outline: none;
+  background-color: #d4edda;
+  border-radius: 2px;
+  padding: 1px 2px;
+}
+
+/* 수정 모드에서 편집 가능한 변수 스타일 (중괄호 없음) */
+:deep(.variable.editable) {
+  position: relative;
+  display: inline-block;
+  background-color: #e8f5e8;
+  border: 0.1rem dashed #4caf50;
+  border-radius: 0.2rem;
+  padding: 0.1rem 0.3rem;
+  margin: 0 0.1rem;
+}
+
+/* 중괄호 표시 제거 */
+:deep(.variable.editable::before),
+:deep(.variable.editable::after) {
+  display: none;
+}
+
+/* 편집 중일 때 중괄호 숨기기 */
+:deep(.variable.editing::before),
+:deep(.variable.editing::after) {
+  display: none;
+}
+
+/* 편집 가능한 변수명이 편집 중일 때 */
+:deep(.variable.editing .editable-variable-name) {
+  background-color: #d4edda;
+  border-radius: 2px;
+  padding: 1px 2px;
+  outline: 1px solid #28a745;
+}
+
+/* 편집 중인 변수 전체 스타일 */
+:deep(.variable.editing) {
+  background-color: #d4edda;
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.1rem rgba(40, 167, 69, 0.2);
 }
 </style>
