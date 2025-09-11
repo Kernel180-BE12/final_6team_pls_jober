@@ -45,7 +45,7 @@ spring:
 
 # JWT 설정
 jwt:
-  secret: ${JWT_SECRET:your-secret-key-here-make-it-long-and-secure}
+  secret: ${JWT_SECRET}  # 환경변수에서 필수로 설정해야 함
   access-expiration: 3600000     # 1시간 (ms)
   refresh-expiration: 604800000  # 7일 (ms)
 
