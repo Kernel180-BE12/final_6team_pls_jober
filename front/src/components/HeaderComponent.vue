@@ -3,8 +3,10 @@
     <div class="header-container">
       <!-- 로고 -->
       <div class="logo">
-        <div class="logo-icon">🤖</div>
-        <span class="logo-text">AI Template</span>
+        <button @click="$router.push('/')">
+          <span class="logo-text">AI Template</span>
+          <div class="logo-icon">🤖</div>
+        </button>
       </div>
       
       <!-- 액션 버튼들 -->
@@ -81,6 +83,16 @@ const goToTemplateCreate = () => {
   font-weight: 700;
   color: #fff;
   text-shadow: 0 0.05rem 0.1rem rgba(0, 0, 0, 0.3);
+}
+
+.logo button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
 }
 
 .action-buttons {
