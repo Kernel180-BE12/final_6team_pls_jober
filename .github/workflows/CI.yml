@@ -7,6 +7,7 @@ on:
 jobs:
   node-build:
     runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.changed_files, 'front/')
     defaults:
       run:
         working-directory: ./front
@@ -27,6 +28,7 @@ jobs:
 
   python-build:
     runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.changed_files, 'ai/')
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.10
@@ -50,6 +52,7 @@ jobs:
 
   java-build:
     runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.changed_files, 'back/')
     defaults:
       run:
         working-directory: back
@@ -71,6 +74,7 @@ jobs:
 
   dependency-submission:
     runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.changed_files, 'back/')
     permissions:
       contents: write
     steps:
