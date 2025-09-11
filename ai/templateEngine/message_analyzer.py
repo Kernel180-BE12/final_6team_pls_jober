@@ -4,8 +4,8 @@ import logging
 import os
 from typing import Optional
 
-from ai.services.openai_service import OpenAIService
-from ai.templateEngine.prompts.message_analyzer_prompts import TypePromptBuilder, CategoryPromptBuilder, FieldsPromptBuilder
+from services.openai_service import OpenAIService
+from templateEngine.prompts.message_analyzer_prompts import TypePromptBuilder, CategoryPromptBuilder, FieldsPromptBuilder
 from dotenv import load_dotenv
 
 load_dotenv()
