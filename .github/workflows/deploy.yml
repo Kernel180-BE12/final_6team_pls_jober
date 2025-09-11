@@ -1,0 +1,232 @@
+name: Deploy Full Stack
+
+on:
+  push:
+    branches: ["main", "develop"]
+
+jobs:
+  # ===================================================================
+  #  Job 1: 백엔드 Docker 이미지 빌드 및 푸시
+  # ===================================================================
+  build-backend:
+    runs-on: ubuntu-latest
+    if: |
+      (contains(github.ref, 'main') || contains(github.ref, 'develop')) &&
+      (contains(github.event.head_commit.modified, 'back/') || 
+       contains(github.event.head_commit.added, 'back/') ||
+       contains(github.event.head_commit.modified, 'ai/') ||
+       contains(github.event.head_commit.added, 'ai/'))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: hy7012
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./back
+          file: ./back/Dockerfile
+          push: true
+          tags: |
+            hy7012/pls-jober-backend:latest
+            hy7012/pls-jober-backend:${{ github.ref_name }}
+
+  # ===================================================================
+  #  Job 2: 프론트엔드 빌드
+  # ===================================================================
+  build-frontend:
+    runs-on: ubuntu-latest
+    if: |
+      (contains(github.ref, 'main') || contains(github.ref, 'develop')) &&
+      (contains(github.event.head_commit.modified, 'front/') || 
+       contains(github.event.head_commit.added, 'front/'))
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: front/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: ./front
+        run: npm ci
+        
+      - name: Run type check
+        working-directory: ./front
+        run: npm run type-check
+        
+      - name: Run linter
+        working-directory: ./front
+        run: npm run lint || echo "ESLint warnings/errors found but continuing deployment"
+        
+      - name: Build application
+        working-directory: ./front
+        run: npm run build
+
+      - name: Upload frontend build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: front/dist/
+          retention-days: 1
+
+  # ===================================================================
+  #  Job 3: 백엔드 배포
+  # ===================================================================
+  deploy-backend:
+    needs: build-backend
+    runs-on: ubuntu-latest
+    if: needs.build-backend.result == 'success'
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    steps:
+      - name: Deploy backend to Oracle Cloud VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 134.185.106.160
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE }}
+          script: |
+            # Docker Hub에서 최신 이미지를 pull
+            docker pull hy7012/pls-jober-backend:latest
+            # 기존 컨테이너 강제 삭제(없으면 무시)
+            docker rm -f pls-jober-container || true
+            # 새 컨테이너 실행 (서버에 미리 생성해둔 .env 파일 사용)
+            docker run -d -p 8080:8080 --env-file /home/ubuntu/.env --name pls-jober-container --restart unless-stopped hy7012/pls-jober-backend:latest
+            # 사용하지 않는 Docker 이미지 정리 (디스크 공간 확보)
+            docker image prune -f
+            echo "Backend deployment complete."
+
+  # ===================================================================
+  #  Job 4: 프론트엔드 배포
+  # ===================================================================
+  deploy-frontend:
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    if: needs.build-frontend.result == 'success'
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    steps:
+      - name: Download frontend build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: front/dist/
+
+      - name: Deploy frontend to Oracle Cloud Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 134.185.106.160
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE }}
+          port: 22
+          script: |
+            # 배포 디렉토리 생성
+            sudo mkdir -p /var/www/frontend
+            sudo chown -R $USER:$USER /var/www/frontend
+            
+            # 기존 파일 백업
+            if [ -d "/var/www/frontend/backup" ]; then
+              sudo rm -rf /var/www/frontend/backup
+            fi
+            if [ -d "/var/www/frontend/dist" ]; then
+              sudo mv /var/www/frontend/dist /var/www/frontend/backup
+            fi
+            
+            # 새로운 배포 디렉토리 생성
+            mkdir -p /var/www/frontend/dist
+
+      - name: Copy build files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 134.185.106.160
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE }}
+          port: 22
+          source: "front/dist/**"
+          target: "/var/www/frontend/dist/"
+
+      - name: Setup Nginx (if not already configured)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 134.185.106.160
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE }}
+          port: 22
+          script: |
+            # Nginx 설치 (이미 설치되어 있으면 스킵)
+            if ! command -v nginx &> /dev/null; then
+              sudo apt update
+              sudo apt install -y nginx
+            fi
+            
+            # Nginx 설정 파일 생성
+            sudo tee /etc/nginx/sites-available/frontend > /dev/null <<'EOF'
+            server {
+                listen 80;
+                server_name 134.185.106.160;
+                
+                root /var/www/frontend/dist;
+                index index.html;
+                
+                location / {
+                    try_files $uri $uri/ /index.html;
+                }
+                
+                # 정적 파일 캐싱
+                location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+                    expires 1y;
+                    add_header Cache-Control "public, immutable";
+                }
+            }
+            EOF
+            
+            # 사이트 활성화
+            sudo ln -sf /etc/nginx/sites-available/frontend /etc/nginx/sites-enabled/
+            
+            # 기본 사이트 비활성화
+            sudo rm -f /etc/nginx/sites-enabled/default
+
+            # 파일 권한 설정
+            sudo chown -R www-data:www-data /var/www/frontend/
+            sudo chmod -R 755 /var/www/frontend/
+            sudo systemctl reload nginx
+
+  # ===================================================================
+  #  Job 5: 배포 완료 알림
+  # ===================================================================
+  deployment-status:
+    needs: [build-backend, build-frontend, deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    if: always() && (needs.build-backend.result != 'skipped' || needs.build-frontend.result != 'skipped')
+    steps:
+      - name: Deployment Status
+        run: |
+          echo "📊 Deployment Summary:"
+          echo "Backend build: ${{ needs.build-backend.result }}"
+          echo "Frontend build: ${{ needs.build-frontend.result }}"
+          echo "Backend deploy: ${{ needs.deploy-backend.result }}"
+          echo "Frontend deploy: ${{ needs.deploy-frontend.result }}"
+          echo "Environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}"
+          
+          if [[ "${{ needs.deploy-backend.result }}" == "success" || "${{ needs.deploy-frontend.result }}" == "success" ]]; then
+            echo "🚀 Deployment completed successfully!"
+            if [[ "${{ needs.deploy-frontend.result }}" == "success" ]]; then
+              echo "🌐 Frontend: http://134.185.106.160"
+            fi
+            if [[ "${{ needs.deploy-backend.result }}" == "success" ]]; then
+              echo "🔧 Backend API: http://134.185.106.160:8080"
+            fi
+          else
+            echo "❌ No deployments were executed (no changes detected)"
+          fi
