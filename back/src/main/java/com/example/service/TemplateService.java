@@ -30,7 +30,10 @@ public class TemplateService {
      * AI를 활용하여 새로운 템플릿을 생성하고 연관된 변수들을 함께 저장합니다.
      */
     @Transactional
-    public TemplateResponseDto createTemplateWithAi(TemplateRequestDto requestDto, Account account) {
+    public TemplateResponseDto createTemplateWithAi(TemplateRequestDto requestDto, Long accountId) {
+        Account account = new Account();
+        account.setId(accountId);
+
         Category2 category2 = findCategory2ById(requestDto.getCategory2Id());
         FastAPIResponseDto aiResponse = aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage(), category2.getName());
         Template newTemplate = Template.createFromAi(account, category2, aiResponse);
@@ -45,7 +48,7 @@ public class TemplateService {
      * 템플릿을 검증합니다.
      */
     @Transactional
-    public TemplateValidationResponseDto validateTemplate(TemplateValidationRequestDto requestDto, Account account) {
+    public TemplateValidationResponseDto validateTemplate(TemplateValidationRequestDto requestDto, Long accountId) {
         try {
             log.info("템플릿 검증 시작: {}", requestDto.getTemplateContent().substring(0, Math.min(50, requestDto.getTemplateContent().length())));
             
@@ -61,7 +64,7 @@ public class TemplateService {
             log.info("AI 검증 결과 - 성공 여부: {}", isValid);
             
             if (isValid) {
-                return handleApproval(requestDto, account);
+                return handleApproval(requestDto, accountId);
             }
             
             RejectionDetails rejectionDetails = extractRejectionDetails(aiValidationResult);
@@ -90,7 +93,9 @@ public class TemplateService {
         return false;
     }
 
-    private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, Account account) {
+    private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, Long accountId) {
+        Account account = new Account();
+        account.setId(accountId);
         Template template = Template.builder()
                 .account(account)
                 .templateContent(requestDto.getTemplateContent())
@@ -201,6 +206,46 @@ public class TemplateService {
         private final List<String> rejectedVariables = new ArrayList<>();
         private final Map<String, List<String>> alternatives = new HashMap<>();
         private final List<TemplateValidationResponseDto.ValidationError> validationErrors = new ArrayList<>();
+    }
+
+    /**
+     * 검증 완료된 최종 템플릿을 DB에 저장
+     * 프론트엔드에서 검증 성공 후 호출
+     */
+    @Transactional
+    public Template saveFinalTemplate(TemplateValidationRequestDto requestDto, Long accountId) {
+        if (accountId == null) {
+            throw new IllegalStateException("인증되지 않은 사용자입니다.");
+        }
+
+        Category2 category2 = null;
+        if (requestDto.getCategory() != null) {
+            category2 = findCategory2ByName(requestDto.getCategory());
+        }
+
+        Account accountRef = new Account();
+        accountRef.setId(accountId);
+
+        Template template = Template.builder()
+                .account(accountRef)
+                .category2(category2)
+                .templateContent(requestDto.getTemplateContent())
+                .status("APPROVED")
+                .build();
+
+        if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
+            for (TemplateValidationRequestDto.VariableDto variableDto : requestDto.getVariableList()) {
+                Var variable = Var.builder()
+                        .variableKey(variableDto.getVariableKey())
+                        .variableValue(variableDto.getVariableValue())
+                        .build();
+                template.addVariable(variable);
+            }
+        }
+
+        Template savedTemplate = templateRepository.save(template);
+        log.info("최종 템플릿 저장 완료: {}", savedTemplate.getTemplateId());
+        return savedTemplate;
     }
 
     /**

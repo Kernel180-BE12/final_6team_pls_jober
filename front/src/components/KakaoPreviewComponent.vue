@@ -7,7 +7,7 @@
       <div class="kakao-content">
         <div class="kakao-title">
           <span>쿠폰 발급 안내</span>
-          <div class="coupon-icon">🎫</div>
+          <div class="template-icon">🎫</div>
         </div>
         
         <div 
@@ -80,13 +80,7 @@ const formattedTemplateContent = computed(() => {
     content = content.replace(/\n\s*\n\s*\n/g, '\n\n').trim()
   }
   
-  console.log('원본 템플릿 내용:', props.templateContent)
-  console.log('정리된 템플릿 내용:', content)
-  console.log('사용 가능한 변수들:', Object.keys(props.variables))
-  console.log('반려 상태:', props.isRejected)
-  console.log('반려된 변수들:', props.rejectedVariables)
-  
-  // 변수들을 적절한 스타일로 교체
+  // props.variables에 있는 변수들을 적절한 스타일로 교체
   Object.keys(props.variables).forEach(key => {
     const value = props.variables[key]
     
@@ -99,7 +93,7 @@ const formattedTemplateContent = computed(() => {
     
     let variableClass = 'variable'
     
-    // 변수값 표시 토글에 따른 스타일 적용
+    // showVariables에 따라 하이라이트 스타일 적용
     if (props.showVariables) {
       variableClass += ' highlighted'
     }
@@ -117,15 +111,19 @@ const formattedTemplateContent = computed(() => {
     
     // 모든 패턴에 대해 교체 수행
     patterns.forEach((pattern, index) => {
-      const beforeReplace = content
       content = content.replace(pattern, 
         `<span class="${variableClass}" ${props.isModifying ? 'contenteditable="true"' : ''} data-variable="${key}">${value}</span>`
       )
-      if (beforeReplace !== content) {
-        console.log(`변수 "${key}" 패턴 ${index + 1}에서 교체됨:`, pattern)
-      }
     })
   })
+  
+  // showVariables가 true일 때만 남은 변수 패턴들을 하이라이트
+  if (props.showVariables) {
+    const variablePattern = /\{[^}]+\}/g
+    content = content.replace(variablePattern, (match) => {
+      return `<span class="variable highlighted" data-variable="${match}" style="background-color: #fff3cd; padding: 2px 4px; border-radius: 3px;">${match}</span>`
+    })
+  }
   
   // 버튼 처리: (버튼) 텍스트를 실제 버튼으로 변환
   content = content.replace(/\(버튼\)\s*([^\n]+)/g, '<div class="kakao-button">$1</div>')
@@ -140,7 +138,9 @@ const formattedTemplateContent = computed(() => {
   content = content.replace(/\n/g, '</p><p>')
   content = `<p>${content}</p>`
   
-  console.log('최종 포맷된 템플릿:', content)
+  // HTML 태그를 제거한 순수 텍스트만 로그에 출력
+  const textContent = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  console.log('최종 포맷된 템플릿 (텍스트만):', textContent)
   return content
 })
 
@@ -291,8 +291,7 @@ const handleVariableBlur = (event: Event) => {
   font-size: 1.2rem;
   font-weight: 600;
 }
-
-.coupon-icon {
+.template-icon {
   font-size: 1.5rem;
   background-color: #4caf50;
   color: white;
@@ -347,12 +346,10 @@ const handleVariableBlur = (event: Event) => {
 }
 
 .variable.highlighted {
-  background-color: #fff3cd;
-  color: #856404;
-  border: 1px solid #ffc107;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-weight: 500;
+  background-color: #fff3cd !important;
+  padding: 2px 4px !important;
+  border-radius: 3px !important;
+  display: inline-block !important;
 }
 
 .variable.clickable {

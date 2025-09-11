@@ -21,7 +21,7 @@
                   
                   <!-- 해당 메시지 다음에 버전 버튼 표시 -->
                   <div 
-                    v-for="version in versions.filter(v => v.messageIndex === index)" 
+                    v-for="version in versions.filter((v: any) => v.messageIndex === index)" 
                     :key="`version-${version.number}`"
                     class="version-creation-point"
                   >
@@ -150,6 +150,7 @@ const currentValidationError = ref<any>(null)
 // 생성된 템플릿 데이터
 const generatedTemplate = ref<any>(null)
 const templateContent = ref('')
+const templateTitle = ref('')
 const templateVariables = ref<any[]>([])
 const templateCategory = ref('')
 const templateCategoryId = ref<number>(11) // 기본값: 기타
@@ -186,6 +187,7 @@ onMounted(() => {
     try {
       generatedTemplate.value = JSON.parse(savedTemplate)
       templateContent.value = generatedTemplate.value.templateContent
+      templateTitle.value = generatedTemplate.value.templateTitle || '알림톡 템플릿'
       templateVariables.value = generatedTemplate.value.variables
       templateCategory.value = generatedTemplate.value.category
       templateCategoryId.value = generatedTemplate.value.categoryId || 11
@@ -458,23 +460,27 @@ const sendMessage = async () => {
     chatHistory.value.push(botMessage)
     
     // 템플릿 업데이트
+    console.log('템플릿 수정 전:', templateContent.value)
     templateContent.value = response.data.modified_template
+    console.log('템플릿 수정 후:', templateContent.value)
+    console.log('템플릿 수정 후 길이:', templateContent.value.length)
     templateVariables.value = response.data.variables
+    console.log('템플릿 변수 업데이트:', templateVariables.value)
     
-    // 변수 값 업데이트
-    const updatedVariables: Record<string, string> = {}
-    response.data.variables.forEach((variable: any) => {
-      const koreanNames: Record<string, string> = {
-        'recipient': '수신자',
-        'sender': '발신자',
-        'couponName': '쿠폰명',
-        'expiryDate': '사용기한',
-        'additionalMessage': '추가 메시지'
-      }
-      const displayName = koreanNames[variable.name] || variable.name
-      updatedVariables[variable.name] = `${displayName} 값`
-    })
-    editedVariables.value = updatedVariables
+    // 제목 업데이트 (응답에 제목이 있다면)
+    if (response.data.template_title) {
+      console.log('제목 업데이트 전:', templateTitle.value)
+      templateTitle.value = response.data.template_title
+      console.log('제목 업데이트 후:', templateTitle.value)
+      console.log('제목 길이:', templateTitle.value.length)
+    } else {
+      console.log('응답에 제목이 없음:', response.data)
+    }
+    
+    // 변수 목록 업데이트 및 editedVariables 초기화
+    // 새로운 변수들이 추가되었을 수 있으므로 editedVariables를 빈 객체로 초기화
+    // 이렇게 하면 변수가 {변수명} 형태로 유지됨
+    editedVariables.value = {}
     
     // 새 버전 생성
     const newVersionNumber = versions.value.length + 1
@@ -1048,5 +1054,54 @@ const getChatPlaceholder = () => {
 /* 수정 버튼 호버 효과 */
 .btn-modify:hover {
   background-color: #5a6268;
+}
+
+/* 변수값 표시 토글 스타일 */
+.variables-toggle {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #666;
+  gap: 0.5rem;
+}
+
+.toggle-label input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 3rem;
+  height: 1.5rem;
+  background-color: #ccc;
+  border-radius: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-slider {
+  background-color: #4caf50;
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-slider::before {
+  transform: translateX(1.5rem);
 }
 </style>

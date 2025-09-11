@@ -77,7 +77,7 @@ export const myPageApi = {
 
 // 템플릿 관련 API
 export const templateApi = {
-  // AI를 통한 템플릿 생성
+  // AI를 통한 템플릿 생성 (백엔드 API 사용)
   generateTemplate: (categoryId: number, userMessage: string) => 
     api.post('/ai-generation', { category2Id: categoryId, userMessage }),
   
@@ -103,6 +103,27 @@ export const templateApi = {
     return api.post('/template/validate', validationRequest)
   },
   
+  // 최종 템플릿 저장 (백엔드 API 사용)
+  saveFinalTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string) => {
+    // 변수 정보를 VariableDto 배열로 변환
+    const variableList = Object.entries(variables).map(([key, value]) => ({
+      variableKey: key,
+      variableValue: String(value)
+    }))
+    
+    const saveRequest = {
+      templateContent: templateContent,
+      variables: variables,
+      category: category,
+      userMessage: userMessage,
+      variableList: variableList
+    }
+    
+    console.log('최종 저장 요청 데이터:', saveRequest)
+    
+    return api.post('/template', saveRequest)
+  },
+  
   // 템플릿 수정 요청 (채팅을 통한)
   modifyTemplate: (currentTemplate: string, userMessage: string, chatHistory: any[]) => {
     const aiApi = axios.create({
@@ -113,11 +134,15 @@ export const templateApi = {
       },
     })
     
-    return aiApi.post('/ai/template/modify', {
+    const requestData = {
       current_template: currentTemplate,
       user_message: userMessage,
       chat_history: chatHistory
-    })
+    }
+    
+    console.log('템플릿 수정 요청 데이터:', requestData)
+    
+    return aiApi.post('/ai/template/modify', requestData)
   }
 }
 
@@ -132,7 +157,11 @@ export const aiApi = {
         'Content-Type': 'application/json',
       },
     })
-    return aiApi.post('/ai/template/generate', { category, user_message: userMessage })
+    return aiApi.post('/ai/template/generate', { 
+      category, 
+      user_message: userMessage,
+      model: 'gpt-3.5-turbo'
+    })
   }
 }
 

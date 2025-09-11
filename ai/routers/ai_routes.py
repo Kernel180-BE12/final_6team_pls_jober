@@ -49,7 +49,7 @@ class QuestionAnswerRequest(BaseModel):
 class TemplateGenerationRequest(BaseModel):
     category: str
     user_message: str
-    model: Optional[str] = "gpt-4o-mini"
+    model: Optional[str] = "gpt-5"
 
 class TemplateGenerationResponse(BaseModel):
     template_content: str
@@ -66,6 +66,7 @@ class TemplateModificationResponse(BaseModel):
     modified_template: str
     variables: List[Dict[str, Any]]
     explanation: str
+    template_title: Optional[str] = None
     model: str
 
 class IntegratedTemplateRequest(BaseModel):
@@ -267,20 +268,72 @@ async def modify_template(request: TemplateModificationRequest):
                 for msg in request.chat_history[-5:]  # 최근 5개 메시지만 사용
             ])
         
-        # 프롬프트 빌더 사용
-        prompt_builder = TemplateModificationPromptBuilder(
-            current_template=request.current_template,
-            user_message=request.user_message,
-            chat_context=chat_context
-        )
-        prompt = prompt_builder.build()
+        print(f"채팅 컨텍스트 구성 완료: {len(chat_context)} 문자")
+
+        # 직접 프롬프트 구성 (변수 목록 포함 금지 강화)
+        try:
+            print("템플릿 수정 프롬프트 구성 시작...")
+            prompt = f"""
+현재 알림톡 템플릿:
+{request.current_template}
+
+채팅 히스토리:
+{chat_context}
+
+사용자 요청: {request.user_message}
+
+위 정보를 바탕으로 사용자의 요청에 따라 템플릿을 수정해주세요.
+
+중요 규칙:
+1. 기존 템플릿의 구조와 변수는 유지하면서 요청사항을 반영
+2. 변수({{변수명}}) 형태는 그대로 유지
+3. **절대 변수 목록이나 변수 설명을 템플릿 내용에 포함하지 마세요**
+4. **템플릿은 실제 발송될 메시지 내용만 포함해야 합니다**
+5. **[변수 목록], 변수 목록:, 변수: 등의 설명은 절대 포함하지 마세요**
+6. **알림톡 템플릿 예시: 같은 설명도 포함하지 마세요**
+
+수정된 템플릿만 출력해주세요:
+"""
+            print(f"템플릿 수정 프롬프트 생성 완료: {len(prompt)} 문자")
+        except Exception as e:
+            print(f"템플릿 수정 프롬프트 구성 실패: {e}")
+            raise e
         
         # OpenAI를 통한 템플릿 수정
-        messages = [{"role": "user", "content": prompt}]
-        response = await openai_service.chat_completion(messages, "gpt-4o-mini")
+        try:
+            print("OpenAI API 호출 시작 (템플릿 수정)...")
+            messages = [{"role": "user", "content": prompt}]
+            response = await openai_service.chat_completion(messages, "gpt-3.5-turbo")
+            print(f"OpenAI API 응답 받음 (템플릿 수정): {len(response)} 문자")
+        except Exception as e:
+            print(f"OpenAI API 호출 실패 (템플릿 수정): {e}")
+            raise e
         
         # 응답에서 템플릿과 변수 추출
         modified_template = response
+
+        # 변수 목록 부분 제거 (AI가 생성한 템플릿에서 변수 목록이 포함된 경우)
+        if modified_template:
+            import re
+
+            # 다양한 변수 목록 패턴 제거
+            patterns_to_remove = [
+                r'\[변수 목록\].*$',  # [변수 목록] 이후 모든 내용
+                r'변수 목록\s*:.*$',  # 변수 목록: 이후 모든 내용
+                r'변수\s*:.*$',       # 변수: 이후 모든 내용
+                r'- 변수 목록\s*:.*$', # - 변수 목록: 이후 모든 내용
+                r'- 변수\s*:.*$',     # - 변수: 이후 모든 내용
+                r'변수\s*목록.*$',    # 변수 목록 관련 모든 내용
+                r'알림톡\s*템플릿\s*예시\s*:.*$',  # 알림톡 템플릿 예시: 이후 모든 내용
+                r'알림톡\s*템플릿은.*$',  # 알림톡 템플릿은... 이후 모든 내용
+            ]
+
+            for pattern in patterns_to_remove:
+                modified_template = re.sub(pattern, '', modified_template, flags=re.DOTALL).strip()
+
+            # 빈 줄들 정리
+            modified_template = re.sub(r'\n\s*\n\s*\n', '\n\n', modified_template).strip()
+
         variables = []
         
         # 변수 추출 ({{변수명}} 형태)
@@ -302,6 +355,7 @@ async def modify_template(request: TemplateModificationRequest):
             modified_template=modified_template,
             variables=variables,
             explanation=explanation,
+            template_title=template_title,
             model="gpt-4o-mini"
         )
         
