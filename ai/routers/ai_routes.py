@@ -18,7 +18,7 @@ integrated_pipeline = IntegratedTemplatePipeline()
 # Pydantic 모델들
 class ChatRequest(BaseModel):
     message: str
-    model: Optional[str] = "gpt-5"
+    model: Optional[str] = "gpt-4o-mini"
 
 class ChatResponse(BaseModel):
     response: str
@@ -49,7 +49,7 @@ class QuestionAnswerRequest(BaseModel):
 class TemplateGenerationRequest(BaseModel):
     category: str
     user_message: str
-    model: Optional[str] = "gpt-5"
+    model: Optional[str] = "gpt-4o-mini"
 
 class TemplateGenerationResponse(BaseModel):
     template_content: str
@@ -72,7 +72,7 @@ class IntegratedTemplateRequest(BaseModel):
     user_text: str
     category_main: str
     category_sub_list: List[str]
-    model: Optional[str] = "gpt-5"
+    model: Optional[str] = "gpt-4o-mini"
 
 class IntegratedTemplateResponse(BaseModel):
     template_text: str
@@ -277,7 +277,7 @@ async def modify_template(request: TemplateModificationRequest):
         
         # OpenAI를 통한 템플릿 수정
         messages = [{"role": "user", "content": prompt}]
-        response = await openai_service.chat_completion(messages, "gpt-5")
+        response = await openai_service.chat_completion(messages, "gpt-4o-mini")
         
         # 응답에서 템플릿과 변수 추출
         modified_template = response
@@ -302,7 +302,7 @@ async def modify_template(request: TemplateModificationRequest):
             modified_template=modified_template,
             variables=variables,
             explanation=explanation,
-            model="gpt-5"
+            model="gpt-4o-mini"
         )
         
     except Exception as e:

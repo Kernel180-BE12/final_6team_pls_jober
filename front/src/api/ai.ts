@@ -88,7 +88,7 @@ export const aiService = {
   },
 
   // OpenAI 채팅
-  async chat(message: string, model: string = 'gpt-3.5-turbo'): Promise<string> {
+  async chat(message: string, model: string = 'gpt-4o-mini'): Promise<string> {
     const response = await aiApi.post('/openai/chat', {
       message,
       model
