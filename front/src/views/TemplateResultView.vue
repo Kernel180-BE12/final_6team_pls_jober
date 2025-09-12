@@ -113,7 +113,11 @@
             <div class="action-buttons-container">
               <div class="correction-count">남은 정정 횟수: {{ remainingCorrections }}/{{ maxCorrections }}</div>
               <div class="action-buttons">
-                <button class="btn-modify" @click="toggleModification">
+                <button 
+                  class="btn-modify" 
+                  :disabled="isGenerating"
+                  @click="toggleModification"
+                >
                   {{ isModifying ? '수정 완료' : '사용자 수정' }}
                 </button>
                 <button class="btn-reject" @click="rejectTemplate">반려하기</button>
@@ -130,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 import KakaoPreviewComponent from '@/components/KakaoPreviewComponent.vue'
@@ -186,7 +190,6 @@ onMounted(() => {
     try {
       generatedTemplate.value = JSON.parse(savedTemplate)
       templateContent.value = generatedTemplate.value.templateContent
-      templateTitle.value = generatedTemplate.value.templateTitle || '알림톡 템플릿'
       templateVariables.value = generatedTemplate.value.variables
       templateCategory.value = generatedTemplate.value.category
       templateCategoryId.value = generatedTemplate.value.categoryId || 11
@@ -357,8 +360,14 @@ const toggleModification = () => {
       kakaoPreviewRef.value.finishAllEditing()
     }
     console.log('수정 모드 비활성화: 변경사항이 저장되었습니다.')
+        
+    // 수정 완료 시 시각적 피드백 제공
+    setTimeout(() => {
+      console.log('미리보기가 수정된 내용으로 업데이트되었습니다.')
+    }, 100)
   } else {
-    // 수정 모드 진입 시 사용자에게 안내
+    // 수정 모드 진입 시 변수명 표시 모드로 전환
+    showVariables.value = true
     console.log('수정 모드 활성화: 변수 부분을 클릭하여 편집할 수 있습니다.')
   }
   
@@ -368,12 +377,16 @@ const toggleModification = () => {
 // 모든 편집 완료 처리
 const handleFinishAllEditing = () => {
   console.log('모든 변수 편집이 완료되었습니다.')
-  // 필요시 추가 로직 구현 (예: 변경사항 검증, 저장 등)
 }
 
 // 변수 업데이트
 const updateVariables = (newVariables: any) => {
   editedVariables.value = { ...newVariables }
+  
+  // 강제로 리렌더링을 위해 nextTick 사용
+  nextTick(() => {
+    console.log('변수 업데이트 완료:', newVariables)
+  })
 }
 
 // 변수 토글 상태 변경 감지
@@ -480,6 +493,7 @@ const sendMessage = async () => {
     // AI 서버에 템플릿 수정 요청
     const response = await templateApi.modifyTemplate(
       templateContent.value,
+      templateTitle.value,
       currentMessage,
       chatHistory.value
     )
@@ -1085,8 +1099,15 @@ const getChatPlaceholder = () => {
 }
 
 /* 수정 버튼 호버 효과 */
-.btn-modify:hover {
+.btn-modify:hover:not(:disabled) {
   background-color: #5a6268;
+}
+
+/* 수정 버튼 비활성화 상태 */
+.btn-modify:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* 변수값 표시 토글 스타일 */

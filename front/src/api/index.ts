@@ -125,7 +125,7 @@ export const templateApi = {
   },
   
   // 템플릿 수정 요청 (채팅을 통한)
-  modifyTemplate: (currentTemplate: string, userMessage: string, chatHistory: any[]) => {
+  modifyTemplate: (currentTemplate: string, currentTemplateTitle: string, userMessage: string, chatHistory: any[]) => {
     const aiApi = axios.create({
       baseURL: 'http://localhost:8000',
       timeout: 30000,
@@ -136,6 +136,7 @@ export const templateApi = {
     
     const requestData = {
       current_template: currentTemplate,
+      current_template_title: currentTemplateTitle,
       user_message: userMessage,
       chat_history: chatHistory
     }

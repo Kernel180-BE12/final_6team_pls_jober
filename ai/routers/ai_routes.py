@@ -59,6 +59,7 @@ class TemplateGenerationResponse(BaseModel):
 
 class TemplateModificationRequest(BaseModel):
     current_template: str
+    current_template_title: str
     user_message: str
     chat_history: List[Dict[str, Any]] = []
 
@@ -66,7 +67,6 @@ class TemplateModificationResponse(BaseModel):
     modified_template: str
     variables: List[Dict[str, Any]]
     explanation: str
-    template_title: Optional[str] = None
     model: str
 
 class IntegratedTemplateRequest(BaseModel):
@@ -350,6 +350,9 @@ async def modify_template(request: TemplateModificationRequest):
         
         # 수정 설명 생성
         explanation = f"사용자 요청 '{request.user_message}'에 따라 템플릿을 수정했습니다."
+        
+        # 기존 템플릿 제목 유지
+        template_title = request.current_template_title
         
         return TemplateModificationResponse(
             modified_template=modified_template,
