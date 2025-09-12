@@ -1,11 +1,11 @@
 package com.example.controller;
 
-import com.example.config.JwtTokenProvider;
 import com.example.dto.LoginRequest;
+import com.example.dto.RefreshTokenRequest;
 import com.example.dto.SignupRequest;
 import com.example.entity.Account;
-import com.example.repository.AccountRepository;
 import com.example.service.AuthService;
+import com.example.service.TokenService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
@@ -14,7 +14,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -23,9 +22,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final PasswordEncoder passwordEncoder;
-    private final AccountRepository accountRepository;
+    private final TokenService tokenService;
 
     /**
      * 현재 인증된 사용자 정보 조회
@@ -59,25 +56,33 @@ public class AuthController {
     // 로그인 → JWT 반환
     @PostMapping("/login")
     public Map<String, String> login(@RequestBody LoginRequest request) {
-        Account account = accountRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다."));
+        return authService.login(request);
+    }
 
-        System.out.println("입력 비밀번호: " + request.getPassword());
-        System.out.println("DB 비밀번호 해시: " + account.getPasswordHash());
-        System.out.println("매칭 결과: " + passwordEncoder.matches(request.getPassword(), account.getPasswordHash()));
+    // Refresh Token으로 Access Token 갱신
+    @PostMapping("/refresh")
+    public Map<String, String> refreshToken(@RequestBody RefreshTokenRequest request) {
+        return tokenService.refreshAccessToken(request.getRefreshToken());
+    }
 
-        if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
-            throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
+    // 로그아웃
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authHeader,
+                                   @RequestBody(required = false) RefreshTokenRequest request) {
+        String accessToken = null;
+        String refreshToken = null;
+
+        // Authorization 헤더에서 Access Token 추출
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            accessToken = authHeader.substring(7);
         }
 
-        // AccessToken + RefreshToken 발급
-        String accessToken = jwtTokenProvider.createAccessToken(account.getEmail(), account.getRole(), account.getId());
-        String refreshToken = jwtTokenProvider.createRefreshToken();
+        // Request Body에서 Refresh Token 추출
+        if (request != null) {
+            refreshToken = request.getRefreshToken();
+        }
 
-        Map<String, String> tokens = new HashMap<>();
-        tokens.put("accessToken", accessToken);
-        tokens.put("refreshToken", refreshToken);
-
-        return tokens;
+        tokenService.logout(accessToken, refreshToken);
+        return ResponseEntity.ok(Map.of("message", "로그아웃 성공"));
     }
 }

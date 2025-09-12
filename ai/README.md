@@ -104,7 +104,7 @@ curl http://localhost:8000/health
 # OpenAI 채팅 테스트
 curl -X POST "http://localhost:8000/ai/openai/chat" \
      -H "Content-Type: application/json" \
-     -d '{"message": "안녕하세요!", "model": "gpt-3.5-turbo"}'
+     -d '{"message": "안녕하세요!", "model": "gpt-4o-mini"}'
 
 # OpenAI 임베딩 테스트
 curl -X POST "http://localhost:8000/ai/openai/embeddings" \
@@ -159,7 +159,7 @@ print(response.json())
 # OpenAI 채팅 테스트
 chat_data = {
     "message": "안녕하세요!",
-    "model": "gpt-3.5-turbo"
+    "model": "gpt-4o-mini"
 }
 response = requests.post("http://localhost:8000/ai/openai/chat", json=chat_data)
 print(response.json())
