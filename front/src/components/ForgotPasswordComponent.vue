@@ -60,6 +60,7 @@
         variant="text"
         color="primary"
         @click="$emit('switchForm', 'login')"
+        class="w-100"
       >
         로그인으로 돌아가기
       </v-btn>

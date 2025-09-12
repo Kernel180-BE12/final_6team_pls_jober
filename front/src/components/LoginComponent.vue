@@ -53,7 +53,7 @@
         variant="text"
         color="primary"
         @click="$emit('switchForm', 'register')"
-        class="mb-2"
+        class="mb-2 w-100"
       >
         회원가입
       </v-btn>
@@ -62,6 +62,7 @@
         variant="text"
         color="secondary"
         @click="$emit('switchForm', 'forgot')"
+        class="w-100"
       >
         비밀번호 찾기
       </v-btn>

@@ -15,6 +15,15 @@
   --shadow-heavy: rgba(0, 0, 0, 0.25);
 }
 
+*{
+  box-sizing: border-box;
+}
+
+html, body{
+  overflow-x: clip;
+  width: 100%;
+}
+
 /* 기본 body 스타일 */
 body {
   font-family: 'Noto Sans KR', 'Arial', sans-serif;

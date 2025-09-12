@@ -1,0 +1,81 @@
+/*
+* 버튼 기본
+*/
+.btn.btn-basic{
+    padding: 0.6rem 1.2rem;
+    border-radius: 0.4rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    background-color: #1976d2;
+    color: white;
+}
+
+.btn.btn-basic:hover {
+    background-color: #1565c0;
+}
+
+.btn.btn-basic02{
+    padding: 0.6rem 1.2rem;
+    border-radius: 0.4rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: transparent;
+    border: 0.1rem solid #1976d2;
+    color: #1976d2;
+}
+
+.btn.btn-basic02:hover{
+    background-color: #1976d2;
+    color: white;
+}
+
+/*
+* 버튼 그라데이션
+*/
+.btn.btn-gradation {
+    padding: 0.6rem 1.2rem;
+    border-radius: 0.4rem;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn.btn-gradation{
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    border: 0.1rem solid rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(0.5rem);
+    color: #fff;
+    box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
+}
+
+/*
+* 버튼 그라데이션 - dark
+*/
+.btn.btn-gradation02{
+    background: linear-gradient(135deg, #1976d2 0%, #8E24AA 100%);
+    color: #fff;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0rem 1.2rem;
+    height: 40px;
+}
+
+.btn.btn-gradation02.basic{
+    background: none;
+    color: #666;
+    border: 0.1rem solid #ddd;
+}
+
+.btn.btn-gradation02.basic:hover {
+    background: #1976d2;
+    color: #fff;
+}
