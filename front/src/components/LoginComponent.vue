@@ -88,13 +88,15 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 
 const emailRules = [
-  (v: string) => !!v || '이메일을 입력해주세요',
-  (v: string) => /.+@.+\..+/.test(v) || '올바른 이메일 형식을 입력해주세요'
+  // (v: string) => !!v || '이메일을 입력해주세요',
+  // (v: string) => /.+@.+\..+/.test(v) || '올바른 이메일 형식을 입력해주세요'
+  true
 ]
 
 const passwordRules = [
-  (v: string) => !!v || '비밀번호를 입력해주세요',
-  (v: string) => v.length >= 6 || '비밀번호는 최소 6자 이상이어야 합니다'
+  // (v: string) => !!v || '비밀번호를 입력해주세요',
+  // (v: string) => v.length >= 6 || '비밀번호는 최소 6자 이상이어야 합니다'
+  true
 ]
 
 const handleLogin = async () => {

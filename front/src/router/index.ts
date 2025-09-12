@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LandingView from '../views/LandingView.vue'
+import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -41,10 +42,13 @@ const router = createRouter({
 // 라우트 가드
 // 토큰이 필요한 페이지 접근 시 로그인 여부 확인
 router.beforeEach(async (to, from, next) => {
+  const userStore = useUserStore()
+
   // 인증이 필요 없으면 통과
-  if (!to.meta.requiresAuth) {
-    return next()
-  }
+  if (!to.meta.requiresAuth) return next()
+
+  // 이미 로그인 정보가 있으면 통과
+  if(userStore.isLoggedIn) return next()
 
   // 토큰 정보 조회
   const token = localStorage.getItem('accessToken')
