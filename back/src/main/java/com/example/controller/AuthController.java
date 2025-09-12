@@ -7,7 +7,11 @@ import com.example.entity.Account;
 import com.example.service.AuthService;
 import com.example.service.TokenService;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -19,6 +23,25 @@ public class AuthController {
 
     private final AuthService authService;
     private final TokenService tokenService;
+
+    /**
+     * 현재 인증된 사용자 정보 조회
+     * @param authentication
+     * @return
+     */
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+        // 인증되지 않은 경우 처리 
+        if(authentication == null || !authentication.isAuthenticated()) {
+            // 401 Unauthorized 응답 반환
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+        
+        // 인증된 사용자는 사용자 정보 반환
+        // TODO: 권한 반환 추가?
+        Long accountId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(Map.of("userId", accountId));
+    }
 
     // 회원가입
     @PostMapping("/signup")
