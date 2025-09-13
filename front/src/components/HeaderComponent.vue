@@ -15,12 +15,24 @@
 
   // 로그인, 마이페이지 진입 시 헤더 버튼 핸들링
   const visibleMenu = computed(() => {
-    // 로그인 + 마이페이지 x = 1,2번 버튼 둘 다 출력
-    if(userStore.isLoggedIn && !route.path.startsWith("/mypage"))
-      return headerMenu
+    // 1번 버튼 = 마이페이지
+    // 2번 버튼 = 템플릿 작성하기
 
-    // 그 외 버튼 2번만 출력
-    return headerMenu.filter(item => item.id == 2)
+    // 비 로그인 유저 = null
+    if(!userStore.isLoggedIn)
+    return null
+
+    // 마이페이지 진입 = 2
+    else if(route.path.startsWith("/mypage"))
+      return headerMenu.filter(item => item.id === 2)
+
+    // 템플릿페이지 진입 = 1
+    else if(route.path.startsWith("/template"))
+      return headerMenu.filter(item => item.id === 1)
+
+    // 랜딩 페이지
+    else
+      return headerMenu
   })
 </script>
 
