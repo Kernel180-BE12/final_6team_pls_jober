@@ -20,7 +20,7 @@
             </p>
             
             <!-- 초기 상태: 로그인/회원가입 버튼 -->
-            <div v-if="!showForm" class="action-buttons mt-4">
+            <div v-if="!showForm && !userStore.isLoggedIn" class="action-buttons mt-4">
               <button
                 class="btn btn-basic"
                 @click="showLoginForm"
@@ -38,10 +38,11 @@
         </div>
         
         <!-- 오른쪽: 폼 영역 -->
-        <div v-if="showForm" class="form-section">
+        <div v-if="showForm && !userStore.isLoggedIn" class="form-section">
           <component 
             :is="currentForm" 
             @switchForm="switchForm"
+            @loginSuccess="showForm = false"
           />
         </div>
       </div>
@@ -56,9 +57,13 @@ import LoginComponent from '@/components/LoginComponent.vue'
 import RegisterComponent from '@/components/RegisterComponent.vue'
 import ForgotPasswordComponent from '@/components/ForgotPasswordComponent.vue'
 import "../assets/styles/btn.css"
+import { useUserStore } from '@/stores/user'
+
+
 
 const showForm = ref(false)
 const currentFormType = ref('login')
+const userStore = useUserStore()
 
 const currentForm = computed(() => {
   switch (currentFormType.value) {

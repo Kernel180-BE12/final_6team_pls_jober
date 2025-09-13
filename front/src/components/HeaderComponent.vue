@@ -1,10 +1,39 @@
 <script setup lang="ts">
   import "../assets/styles/btn.css"
 
+  import { useUserStore } from '@/stores/user' // Pinia/Vuex 스토어 import
+  import { useRoute } from "vue-router"
+  import { computed } from "vue"
+
   const headerMenu = [
     { id: 1, text: "마이페이지", path: "/mypage" },
     { id: 2, text: "템플릿 작성하기", path: "/template/create" }
   ]
+
+  const userStore = useUserStore()
+  const route = useRoute()
+
+  // 로그인, 마이페이지 진입 시 헤더 버튼 핸들링
+  const visibleMenu = computed(() => {
+    // 1번 버튼 = 마이페이지
+    // 2번 버튼 = 템플릿 작성하기
+
+    // 비 로그인 유저 = null
+    if(!userStore.isLoggedIn)
+    return null
+
+    // 마이페이지 진입 = 2
+    else if(route.path.startsWith("/mypage"))
+      return headerMenu.filter(item => item.id === 2)
+
+    // 템플릿페이지 진입 = 1
+    else if(route.path.startsWith("/template"))
+      return headerMenu.filter(item => item.id === 1)
+
+    // 랜딩 페이지
+    else
+      return headerMenu
+  })
 </script>
 
 <template>
@@ -17,17 +46,17 @@
       </router-link>
 
       <div class="header_menu">
-      <!-- 액션 버튼들 -->
         <router-link
-            v-for="item in headerMenu"
-            :key="item.id"
-            :to="item.path"
-            class="btn btn-gradation"
+          v-for="item in visibleMenu"
+          :key="item.id"
+          :to="item.path"
+          class="btn btn-gradation"
+          tabindex="0"
         >
           {{ item.text }}
         </router-link>
       </div>
-      </div>
+    </div>
   </header>
 </template>
 

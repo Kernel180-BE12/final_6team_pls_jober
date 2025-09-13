@@ -74,13 +74,16 @@
 import { ref } from 'vue'
 import { authApi } from '@/api'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 interface Emits {
   (e: 'switchForm', form: string): void
+  (e: 'loginSuccess'): void
 }
 
 const emit = defineEmits<Emits>()
 const router = useRouter()
+const userStore = useUserStore()
 
 const email = ref('')
 const password = ref('')
@@ -111,8 +114,17 @@ const handleLogin = async () => {
     localStorage.setItem('accessToken', response.data.accessToken)
     localStorage.setItem('refreshToken', response.data.refreshToken)
     
-    // 로그인 성공 시 마이페이지로 이동
-    router.push('/mypage')
+    // 랜딩 페이지 showForm 비활성화
+    emit('loginSuccess')
+
+    // 전역 유저 상태 업데이트
+    userStore.setUser({
+      accountId: response.data.userId,
+      role: response.data.role
+    })
+    
+    // 로그인 성공 시 랜딩 페이지로 이동
+    router.push('/')
   } catch (error: any) {
     console.error('로그인 실패:', error)
     errorMessage.value = error.response?.data?.message || '로그인에 실패했습니다.'

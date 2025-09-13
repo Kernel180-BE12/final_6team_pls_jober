@@ -39,6 +39,7 @@ public class TokenService {
         tokens.put("accessToken", accessToken);
         tokens.put("refreshToken", refreshToken);
         tokens.put("userId", account.getId().toString());
+        tokens.put("role", account.getRole());
         return tokens;
     }
 
@@ -81,6 +82,7 @@ public class TokenService {
         Map<String, String> result = new HashMap<>();
         result.put("accessToken", newAccessToken);
         result.put("userId", account.getId().toString());
+        result.put("role", account.getRole());
         return result;
     }
 
