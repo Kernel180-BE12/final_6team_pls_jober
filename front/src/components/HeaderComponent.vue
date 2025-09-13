@@ -15,7 +15,6 @@
 
   // 로그인, 마이페이지 진입 시 헤더 버튼 핸들링
   const visibleMenu = computed(() => {
-    console.log(userStore)
     // 로그인 + 마이페이지 x = 1,2번 버튼 둘 다 출력
     if(userStore.isLoggedIn && !route.path.startsWith("/mypage"))
       return headerMenu
