@@ -1,10 +1,28 @@
 <script setup lang="ts">
   import "../assets/styles/btn.css"
 
+  import { useUserStore } from '@/stores/user' // Pinia/Vuex 스토어 import
+  import { useRoute } from "vue-router"
+  import { computed } from "vue"
+
   const headerMenu = [
     { id: 1, text: "마이페이지", path: "/mypage" },
     { id: 2, text: "템플릿 작성하기", path: "/template/create" }
   ]
+
+  const userStore = useUserStore()
+  const route = useRoute()
+
+  // 로그인, 마이페이지 진입 시 헤더 버튼 핸들링
+  const visibleMenu = computed(() => {
+    console.log(userStore)
+    // 로그인 + 마이페이지 x = 1,2번 버튼 둘 다 출력
+    if(userStore.isLoggedIn && !route.path.startsWith("/mypage"))
+      return headerMenu
+
+    // 그 외 버튼 2번만 출력
+    return headerMenu.filter(item => item.id == 2)
+  })
 </script>
 
 <template>
@@ -17,17 +35,17 @@
       </router-link>
 
       <div class="header_menu">
-      <!-- 액션 버튼들 -->
         <router-link
-            v-for="item in headerMenu"
-            :key="item.id"
-            :to="item.path"
-            class="btn btn-gradation"
+          v-for="item in visibleMenu"
+          :key="item.id"
+          :to="item.path"
+          class="btn btn-gradation"
+          tabindex="0"
         >
           {{ item.text }}
         </router-link>
       </div>
-      </div>
+    </div>
   </header>
 </template>
 
