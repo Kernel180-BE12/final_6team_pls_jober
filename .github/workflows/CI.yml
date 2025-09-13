@@ -5,28 +5,50 @@ on:
     branches: ["main", "develop"]
 
 jobs:
-  node-build:
+  changes:
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.changed_files, 'front/')
+    outputs:
+      front: ${{ steps.filter.outputs.front }}
+      ai: ${{ steps.filter.outputs.ai }}
+      back: ${{ steps.filter.outputs.back }}
+      root: ${{ steps.filter.outputs.root }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            front:
+              - 'front/**'
+            ai:
+              - 'ai/**'
+            back:
+              - 'back/**'
+            root:
+              - '*'
+              - '.github/**'
+
+  node-build:
+    needs: changes
+    if: ${{ needs.changes.outputs.front == 'true' || needs.changes.outputs.root == 'true' }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./front
-    strategy:
-      matrix:
-        node-version: [22.x]
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
           cache: 'npm'
           cache-dependency-path: ./front/package-lock.json
       - run: npm ci
       - run: npm run build --if-present
       - run: npm test --if-present
-
+      
   python-build:
+    needs: changes
+    if: ${{ needs.changes.outputs.ai == 'true' || needs.changes.outputs.root == 'true' }}
     runs-on: ubuntu-latest
     if: contains(github.event.pull_request.changed_files, 'ai/')
     steps:
@@ -51,6 +73,8 @@ jobs:
           pytest ai/tests || echo "⚠️ 테스트가 없습니다. (pytest exit code 5)"
 
   java-build:
+    needs: changes
+    if: ${{ needs.changes.outputs.back == 'true' || needs.changes.outputs.root == 'true' }}
     runs-on: ubuntu-latest
     if: contains(github.event.pull_request.changed_files, 'back/')
     defaults:
@@ -73,6 +97,8 @@ jobs:
         run: ./gradlew build
 
   dependency-submission:
+    needs: changes
+    if: ${{ needs.changes.outputs.back == 'true' || needs.changes.outputs.root == 'true' }}
     runs-on: ubuntu-latest
     if: contains(github.event.pull_request.changed_files, 'back/')
     permissions:
