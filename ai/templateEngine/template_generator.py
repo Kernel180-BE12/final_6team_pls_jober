@@ -100,15 +100,16 @@ class TemplateGenerator:
             except Exception as e2:
                 logger.error(f"❌ ChromaDB 연결 완전 실패: {e2}")
                 raise Exception("ChromaDB 연결에 실패했습니다.")
-    
-    def search_similar_templates(self, query_text: str, category_main: str, category_sub: str, top_k: int = 3, select_count: int = 2) -> Tuple[List[Dict], float]:
+
+    def search_similar_templates(self, query_text: str, category_sub: str, top_k: int = 3, select_count: int = 2) -> Tuple[List[Dict], float]:
         """
         승인된 템플릿에서 유사도 검색 (요구사항에 맞게 수정)
         - 1차·2차 카테고리 메타데이터로 필터링
         - Top 3 검색 후 2개 선택
         """
         logger.info("🔍 유사 템플릿 검색 시작")
-        logger.debug(f"[INPUT] query_text 길이: {len(query_text)}, category: {category_main} > {category_sub}")
+        # category_main은 더 이상 사용하지 않음
+        logger.debug(f"[INPUT] query_text 길이: {len(query_text)}, category_sub: {category_sub}")
         logger.debug(f"[PARAMS] top_k: {top_k}, select_count: {select_count}")
         
         try:
@@ -116,15 +117,15 @@ class TemplateGenerator:
             logger.debug("📚 'approved' 컬렉션 가져오는 중...")
             collection = self.client.get_collection('approved')
             
-            # 카테고리 필터링을 위한 where 조건 구성
+            # where 조건을 서브 카테고리만 사용하도록 변경
             where_filter = {}
-            if category_main:
-                where_filter['category_main'] = category_main
             if category_sub:
                 where_filter['category_sub'] = category_sub
-            
+            else: # 서브 카테고리가 없으면 필터링 없이 전체에서 검색
+                logger.warning("⚠️ 서브 카테고리가 지정되지 않아 전체 컬렉션에서 검색합니다.")
+
             logger.debug(f"🔍 필터 조건: {where_filter}")
-            
+
             # 유사도 검색 수행 (상위 3개)
             logger.debug(f"🔍 ChromaDB에서 {top_k}개 검색 중...")
             results = collection.query(
