@@ -80,6 +80,26 @@ class ValidationRequest(BaseModel):
     template: AlimtalkTemplate
     user_input: str = Field(..., description="사용자 입력 내용")
     
+    @classmethod
+    def from_backend_request(cls, backend_data: Dict[str, Any]) -> "ValidationRequest":
+        """백엔드 요청 데이터로부터 ValidationRequest 생성"""
+        template_data = backend_data.get("template", {})
+        
+        # 백엔드에서 전송하는 구조에 맞게 템플릿 데이터 변환
+        alimtalk_template = AlimtalkTemplate(
+            template_text=template_data.get("body", ""),
+            template_title="알림톡 템플릿",
+            variables_detected=template_data.get("variables", {}),
+            channel="alimtalk",
+            category=template_data.get("category", "marketing"),
+            buttons=[]
+        )
+        
+        return cls(
+            template=alimtalk_template,
+            user_input=backend_data.get("user_input", "")
+        )
+    
 
 class ValidationResponse(BaseModel):
     """검증 응답 모델"""
