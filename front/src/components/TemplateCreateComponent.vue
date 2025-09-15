@@ -8,7 +8,7 @@
       <div class="text-input-section">
         <div class="textarea-container">
           <textarea
-            v-model="messageText"
+            v-model="templateStore.userText"
             placeholder="원하는 템플릿 내용을 입력하세요..."
             class="message-textarea"
             :disabled="isGenerating"
@@ -38,17 +38,10 @@ const router = useRouter()
 const userStore = useUserStore()
 const templateStore = useTemplateStore()
 
-const messageText = ref('')
 const isGenerating = ref(false)
 
-onMounted(() => {
-  if (templateStore.userText) {
-    messageText.value = templateStore.userText
-  }
-})
-
 const canSubmit = computed(() =>
-  messageText.value.trim().length > 0 && !isGenerating.value
+  templateStore.userText.trim().length > 0 && !isGenerating.value
 )
 
 const emit = defineEmits<{
@@ -60,7 +53,7 @@ const handleSubmit = async () => {
 
   // 로그인 여부 확인
   if (!userStore.isLoggedIn) {
-    templateStore.setUserText(messageText.value)
+    templateStore.setUserText(templateStore.userText)
     alert('로그인이 필요합니다.')
     emit('requireLogin')
     return
@@ -68,8 +61,8 @@ const handleSubmit = async () => {
 
   isGenerating.value = true
   try {
-    const response = await aiApi.generateTemplate(messageText.value)
-    templateStore.setUserText(messageText.value)
+    const response = await aiApi.generateTemplate(templateStore.userText)
+    templateStore.setUserText(templateStore.userText)
     router.push('/template/generate')
   } catch (e) {
     alert('템플릿 생성 실패. 다시 시도해주세요.')

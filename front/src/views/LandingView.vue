@@ -42,8 +42,6 @@
           <!-- 로그인 폼이 아닐 땐 템플릿 생성 -->
           <TemplateCreateComponent
             v-if="!showLoginForm"
-            :draftMessage="draftMessage"
-            @update:draftMessage="draftMessage = $event"
             @requireLogin="showLoginForm = true"
           />
           
@@ -74,7 +72,6 @@ const userStore = useUserStore()
 
 // 상태
 const showLoginForm = ref(false)
-const draftMessage = ref('')
 const currentFormType = ref('login')
 const showForm = ref(false) // welcome-section 애니메이션용
 
