@@ -558,7 +558,7 @@ const sendMessage = async () => {
     sourceVars.forEach((variable: any) => {
       const name = variable?.name
       if (name) {
-        rebuilt[name] = `${name} 값`
+        rebuilt[name] = name
       }
     })
     editedVariables.value = rebuilt

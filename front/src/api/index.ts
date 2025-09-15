@@ -116,6 +116,7 @@ export const templateApi = {
     
     return aiApi.post('/template/modify', {
       current_template: currentTemplate,
+      current_template_title: currentTemplateTitle,
       user_message: userMessage,
       chat_history: chatHistory
     })

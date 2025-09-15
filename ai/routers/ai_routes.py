@@ -274,8 +274,27 @@ async def modify_template(request: TemplateModificationRequest):
         messages = [{"role": "user", "content": prompt}]
         response = await openai_service.chat_completion(messages, "gpt-4o-mini")
 
-        # 응답에서 템플릿과 변수 추출
-        modified_template = response
+        # 응답에서 순수한 템플릿만 추출
+        import re
+        
+        # "수정된 템플릿:" 이후의 템플릿 부분만 추출
+        template_match = re.search(r'수정된 템플릿:\s*\n?(.*?)(?:\n\n수정된 부분 설명:|수정 설명:|설명:|$)', response, re.DOTALL)
+        if template_match:
+            modified_template = template_match.group(1).strip()
+        else:
+            # 패턴이 맞지 않으면 전체 응답에서 첫 번째 줄만 사용
+            lines = response.split('\n')
+            modified_template = lines[0] if lines else response
+        
+        # 추가 필터링: 설명 텍스트 제거
+        modified_template = re.split(r'(?:수정된 부분 설명:|수정 설명:|설명:)', modified_template)[0].strip()
+        
+        # "수정된 템플릿:" 제거
+        modified_template = re.sub(r'^수정된 템플릿:\s*', '', modified_template)
+        
+        # 마지막으로 줄바꿈 정리
+        modified_template = re.sub(r'\n+', '\n', modified_template).strip()
+        
         variables = []
 
         # 변수 추출 ({{변수명}} 형태)
@@ -295,6 +314,7 @@ async def modify_template(request: TemplateModificationRequest):
 
         return TemplateModificationResponse(
             modified_template=modified_template,
+            template_title=request.current_template_title,
             variables=variables,
             explanation=explanation,
             model="gpt-4o-mini"
