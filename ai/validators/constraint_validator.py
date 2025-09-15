@@ -26,7 +26,7 @@ class ConstraintValidator:
             rules_path: 기본 규칙 파일 경로 (백업용, 현재 미사용)
         """
         # ChromaDB 연결 (1차 검증용 policy_guidelines 컬렉션)
-        self.vector_db = vector_db_manager or ChromaDBService(collection_name="policy_guidelines")
+        self.vector_db = vector_db_manager or ChromaDBService(collection_name="review_guidelines")
 
     def validate(self, template_data: Dict[str, Any]) -> ValidationResult:
         """
