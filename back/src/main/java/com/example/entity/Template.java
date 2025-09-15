@@ -113,20 +113,18 @@ public class  Template {
         Template template = Template.builder()
                 .account(account)
                 .category(category)
-                .userMessage(userMessage) // 사용자 원문 메시지 저장
-                .templateContent(aiResponse.getBody())
+                .userMessage(userMessage)
+                .templateContent(aiResponse.getTemplateText())
                 .autoTitle(aiResponse.getTemplateTitle())
-                .buttonUrl(aiResponse.getLinks())
                 .status("CREATED")
                 .build();
 
-        aiResponse.getVariables().forEach((key, value) ->
-                template.addVariable(Var.builder().variableKey(key).variableValue(value).build())
-        );
-
-        aiResponse.getPolicyRefs().forEach(docId ->
-                template.addPolicyRef(PolicyRef.builder().docId(docId).build())
-        );
+        // AI가 감지한 변수 목록을 Var 엔티티로 변환하여 추가
+        if (aiResponse.getMetadata() != null && aiResponse.getMetadata().getVariablesDetected() != null) {
+            aiResponse.getMetadata().getVariablesDetected().forEach(varName ->
+                    template.addVariable(Var.builder().variableKey(varName).build())
+            );
+        }
 
         return template;
     }
