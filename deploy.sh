@@ -63,7 +63,7 @@ docker-compose build ai-service
 
 # 백엔드 이미지 pull (Docker Hub에서)
 log_info "백엔드 이미지 다운로드 중..."
-docker pull hy7012/pls-jober-backend:latest
+docker pull jonathanchoii/pls-jober-backend:latest
 
 # 프론트엔드 빌드 (로컬에서)
 log_info "프론트엔드 빌드 중..."
