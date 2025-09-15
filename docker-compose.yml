@@ -3,7 +3,7 @@ services:
   #  백엔드 서비스 (Spring Boot)
   # ===================================================================
   backend:
-    image: hy7012/pls-jober-backend:latest
+    image: jonathanchoii/pls-jober-backend:latest
     container_name: pls-jober-backend
     ports:
       - "8080:8080"
