@@ -20,7 +20,7 @@
             </p>
             
             <!-- 초기 상태: 로그인/회원가입 버튼 -->
-            <div v-if="!showForm && !userStore.isLoggedIn" class="action-buttons mt-4">
+            <div v-if="!userStore.isLoggedIn" class="action-buttons mt-4">
               <button
                 class="btn-login"
                 @click="openLoginForm"
