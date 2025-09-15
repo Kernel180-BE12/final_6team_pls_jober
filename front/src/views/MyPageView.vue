@@ -2,7 +2,7 @@
   <div class="mypage-container">
     <!-- 헤더 컴포넌트 -->
     <HeaderComponent />
-    
+
     <!-- 메인 콘텐츠 -->
     <div class="main-content">
       <div class="content-wrapper">
@@ -26,27 +26,27 @@
             </div>
           </div>
           <div class="profile-actions">
-            <button class="btn-edit-profile" @click="openEditModal('name')">이름 수정</button>
-            <button class="btn-edit-profile" @click="openEditModal('email')">이메일 수정</button>
-            <button class="btn-edit-profile" @click="openEditModal('password')">비밀번호 수정</button>
+            <button
+                v-for="item in myBtn"
+                :key="item.id"
+                @click="item.click"
+                class="btn btn-gradation02"
+            >
+              {{ item.text }}
+            </button>
           </div>
         </div>
 
         <!-- 통계 섹션 -->
         <div class="stats-section">
           <h3 class="section-title">활동 통계</h3>
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-number">12</div>
-              <div class="stat-label">생성된 템플릿</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number">8</div>
-              <div class="stat-label">완료된 프로젝트</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number">24</div>
-              <div class="stat-label">총 작업 시간</div>
+          <div class="template-grid">
+            <div
+              v-for="item in recAtivity"
+              key="item.id"
+              class="stat-card">
+              <div class="stat-number">{{ item.num }}</div>
+              <div class="stat-label">{{ item.text }}</div>
             </div>
           </div>
         </div>
@@ -55,25 +55,14 @@
         <div class="recent-activity-section">
           <h3 class="section-title">최근 활동</h3>
           <div class="activity-list">
-            <div class="activity-item">
-              <div class="activity-icon">📝</div>
+            <div
+              v-for="item in ativity"
+              key="item.id"
+              class="activity-item">
+              <div class="activity-icon">{{ item.icon }}</div>
               <div class="activity-content">
-                <div class="activity-title">마케팅 템플릿 생성</div>
-                <div class="activity-time">2시간 전</div>
-              </div>
-            </div>
-            <div class="activity-item">
-              <div class="activity-icon">✅</div>
-              <div class="activity-content">
-                <div class="activity-title">프레젠테이션 템플릿 완료</div>
-                <div class="activity-time">1일 전</div>
-              </div>
-            </div>
-            <div class="activity-item">
-              <div class="activity-icon">📊</div>
-              <div class="activity-content">
-                <div class="activity-title">데이터 분석 템플릿 생성</div>
-                <div class="activity-time">3일 전</div>
+                <div class="activity-title">{{ item.text }}</div>
+                <div class="activity-time">{{ item.time }}</div>
               </div>
             </div>
           </div>
@@ -83,26 +72,19 @@
         <div class="template-management-section">
           <h3 class="section-title">내 템플릿</h3>
           <div class="template-actions">
-            <button class="btn-create-template" @click="goToTemplateCreate">
+            <button class="btn btn-gradation02" @click="goToTemplateCreate">
               새 템플릿 만들기
             </button>
-            <button class="btn-view-all">전체 보기</button>
+            <button class="btn btn-gradation02 basic">전체 보기</button>
           </div>
           <div class="template-grid">
-            <div class="template-card">
-              <div class="template-icon">📋</div>
-              <div class="template-title">마케팅 템플릿</div>
-              <div class="template-date">2024.01.15</div>
-            </div>
-            <div class="template-card">
-              <div class="template-icon">📊</div>
-              <div class="template-title">데이터 분석 템플릿</div>
-              <div class="template-date">2024.01.12</div>
-            </div>
-            <div class="template-card">
-              <div class="template-icon">📝</div>
-              <div class="template-title">프레젠테이션 템플릿</div>
-              <div class="template-date">2024.01.10</div>
+            <div
+                v-for="item in template"
+                key="item.id"
+                class="template-card">
+                <div class="template-icon">{{ item.icon }}</div>
+                <div class="template-title">{{ item.text }}</div>
+                <div class="template-date">{{ item.time }}</div>
             </div>
           </div>
         </div>
@@ -118,95 +100,95 @@
           </h3>
           <button class="modal-close" @click="closeEditModal">×</button>
         </div>
-        
+
         <div class="modal-body">
           <div v-if="updateError" class="error-message">{{ updateError }}</div>
-          
+
           <!-- 이름 수정 폼 -->
           <div v-if="editMode === 'name'" class="edit-form">
             <div class="form-group">
               <label for="name">이름</label>
               <input
-                id="name"
-                v-model="editForm.name"
-                type="text"
-                class="form-input"
-                placeholder="새로운 이름을 입력하세요"
-                :disabled="updating"
+                  id="name"
+                  v-model="editForm.name"
+                  type="text"
+                  class="form-input"
+                  placeholder="새로운 이름을 입력하세요"
+                  :disabled="updating"
               />
             </div>
           </div>
-          
+
           <!-- 이메일 수정 폼 -->
           <div v-if="editMode === 'email'" class="edit-form">
             <div class="form-group">
               <label for="email">새 이메일</label>
               <input
-                id="email"
-                v-model="editForm.email"
-                type="email"
-                class="form-input"
-                placeholder="새로운 이메일을 입력하세요"
-                :disabled="updating"
+                  id="email"
+                  v-model="editForm.email"
+                  type="email"
+                  class="form-input"
+                  placeholder="새로운 이메일을 입력하세요"
+                  :disabled="updating"
               />
             </div>
             <div class="form-group">
               <label for="currentPassword">현재 비밀번호</label>
               <input
-                id="currentPassword"
-                v-model="editForm.currentPassword"
-                type="password"
-                class="form-input"
-                placeholder="현재 비밀번호를 입력하세요"
-                :disabled="updating"
+                  id="currentPassword"
+                  v-model="editForm.currentPassword"
+                  type="password"
+                  class="form-input"
+                  placeholder="현재 비밀번호를 입력하세요"
+                  :disabled="updating"
               />
             </div>
           </div>
-          
+
           <!-- 비밀번호 수정 폼 -->
           <div v-if="editMode === 'password'" class="edit-form">
             <div class="form-group">
               <label for="currentPassword">현재 비밀번호</label>
               <input
-                id="currentPassword"
-                v-model="editForm.currentPassword"
-                type="password"
-                class="form-input"
-                placeholder="현재 비밀번호를 입력하세요"
-                :disabled="updating"
+                  id="currentPassword"
+                  v-model="editForm.currentPassword"
+                  type="password"
+                  class="form-input"
+                  placeholder="현재 비밀번호를 입력하세요"
+                  :disabled="updating"
               />
             </div>
             <div class="form-group">
               <label for="newPassword">새 비밀번호</label>
               <input
-                id="newPassword"
-                v-model="editForm.newPassword"
-                type="password"
-                class="form-input"
-                placeholder="새 비밀번호를 입력하세요"
-                :disabled="updating"
+                  id="newPassword"
+                  v-model="editForm.newPassword"
+                  type="password"
+                  class="form-input"
+                  placeholder="새 비밀번호를 입력하세요"
+                  :disabled="updating"
               />
             </div>
             <div class="form-group">
               <label for="confirmPassword">새 비밀번호 확인</label>
               <input
-                id="confirmPassword"
-                v-model="editForm.confirmPassword"
-                type="password"
-                class="form-input"
-                placeholder="새 비밀번호를 다시 입력하세요"
-                :disabled="updating"
+                  id="confirmPassword"
+                  v-model="editForm.confirmPassword"
+                  type="password"
+                  class="form-input"
+                  placeholder="새 비밀번호를 다시 입력하세요"
+                  :disabled="updating"
               />
             </div>
           </div>
         </div>
-        
+
         <div class="modal-footer">
-          <button class="btn-cancel" @click="closeEditModal" :disabled="updating">취소</button>
-          <button 
-            class="btn-save" 
-            @click="editMode === 'name' ? updateName() : editMode === 'email' ? updateEmail() : updatePassword()"
-            :disabled="updating"
+          <button class="btn btn-gradation02 basic" @click="closeEditModal" :disabled="updating">취소</button>
+          <button
+              class="btn btn-gradation02"
+              @click="editMode === 'name' ? updateName() : editMode === 'email' ? updateEmail() : updatePassword()"
+              :disabled="updating"
           >
             {{ updating ? '수정 중...' : '저장' }}
           </button>
@@ -231,13 +213,14 @@ const userInfo = ref({
   email: ''
 })
 
-// 로딩 상태
 const loading = ref(true)
 const error = ref('')
 
-// 프로필 수정 모달 상태
+// 모달 상태
 const showEditModal = ref(false)
-const editMode = ref<'name' | 'email' | 'password'>('name')
+const editMode = ref<'name' | 'email' | 'password' | null>(null)
+const updating = ref(false)
+const updateError = ref('')
 
 // 수정 폼 데이터
 const editForm = ref({
@@ -248,9 +231,43 @@ const editForm = ref({
   confirmPassword: ''
 })
 
-// 수정 중 상태
-const updating = ref(false)
-const updateError = ref('')
+// 모달 열기/닫기
+function openEditModal(mode: 'name' | 'email' | 'password') {
+  editMode.value = mode
+  showEditModal.value = true
+  updateError.value = ''
+}
+function closeEditModal() {
+  showEditModal.value = false
+  editMode.value = null
+  editForm.value = { name: '', email: '', currentPassword: '', newPassword: '', confirmPassword: '' }
+  updateError.value = ''
+}
+
+// 수정 버튼 목록
+const myBtn = [
+  { id: 1, text: "이름 수정", click: () => openEditModal('name') },
+  { id: 2, text: "이메일 수정", click: () => openEditModal('email') },
+  { id: 3, text: "비밀번호 수정", click: () => openEditModal('password') }
+]
+
+const recAtivity = [
+  { id: 1, num: 12, text: "생성된 템플릿" },
+  { id: 2, num: 8, text: "완료된 프로젝트" },
+  { id: 3, num: 24, text: "총 작업 시간" },
+]
+
+const ativity = [
+  { id: 1, icon: "📝", text: "마케팅 템플릿 생성", time: "2시간 전" },
+  { id: 2, icon: "✅", text: "프레젠테이션 템플릿 완료", time: "1일 전" },
+  { id: 3, icon: "📊", text: "데이터 분석 템플릿 생성", time: "3일 전" },
+]
+
+const template = [
+  {id: 1, icon: "📋", text: "마케팅 템플릿", time: "2024.01.15"},
+  {id: 2, icon: "📊", text: "데이터 분석 템플릿", time: "2024.01.12"},
+  {id: 3, icon: "📝", text: "프레젠테이션 템플릿", time: "2024.01.10"},
+]
 
 // 사용자 정보 가져오기
 const fetchUserInfo = async () => {
@@ -266,46 +283,17 @@ const fetchUserInfo = async () => {
     loading.value = false
   }
 }
-
-// 컴포넌트 마운트 시 사용자 정보 가져오기
 onMounted(() => {
   fetchUserInfo()
 })
 
-// 프로필 수정 모달 열기
-const openEditModal = (mode: 'name' | 'email' | 'password') => {
-  editMode.value = mode
-  editForm.value = {
-    name: userInfo.value.name || '',
-    email: userInfo.value.email || '',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  }
-  updateError.value = ''
-  showEditModal.value = true
-}
-
-// 프로필 수정 모달 닫기
-const closeEditModal = () => {
-  showEditModal.value = false
-  editForm.value = {
-    name: '',
-    email: '',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  }
-  updateError.value = ''
-}
-
-// 이름 수정
+// 업데이트 함수들
 const updateName = async () => {
   try {
     updating.value = true
     updateError.value = ''
     await myPageApi.updateName(editForm.value.name)
-    await fetchUserInfo() // 사용자 정보 다시 가져오기
+    await fetchUserInfo()
     closeEditModal()
   } catch (err: any) {
     updateError.value = err.response?.data?.message || '이름 수정에 실패했습니다.'
@@ -313,14 +301,12 @@ const updateName = async () => {
     updating.value = false
   }
 }
-
-// 이메일 수정
 const updateEmail = async () => {
   try {
     updating.value = true
     updateError.value = ''
     await myPageApi.updateEmail(editForm.value.email, editForm.value.currentPassword)
-    await fetchUserInfo() // 사용자 정보 다시 가져오기
+    await fetchUserInfo()
     closeEditModal()
   } catch (err: any) {
     updateError.value = err.response?.data?.message || '이메일 수정에 실패했습니다.'
@@ -328,16 +314,14 @@ const updateEmail = async () => {
     updating.value = false
   }
 }
-
-// 비밀번호 수정
 const updatePassword = async () => {
   try {
     updating.value = true
     updateError.value = ''
     await myPageApi.updatePassword(
-      editForm.value.currentPassword,
-      editForm.value.newPassword,
-      editForm.value.confirmPassword
+        editForm.value.currentPassword,
+        editForm.value.newPassword,
+        editForm.value.confirmPassword
     )
     closeEditModal()
   } catch (err: any) {
@@ -347,12 +331,14 @@ const updatePassword = async () => {
   }
 }
 
+// 템플릿 작성 페이지 이동
 const goToTemplateCreate = () => {
   router.push('/template/create')
 }
 </script>
 
 <style scoped>
+
 .mypage-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -420,22 +406,6 @@ const goToTemplateCreate = () => {
   font-size: 1rem;
   color: #666;
   margin: 0;
-}
-
-.btn-edit-profile {
-  background: linear-gradient(135deg, #1976d2 0%, #8E24AA 100%);
-  color: #fff;
-  border: none;
-  padding: 0.8rem 1.6rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-edit-profile:hover {
-  transform: translateY(-0.1rem);
-  box-shadow: 0 0.2rem 0.8rem rgba(25, 118, 210, 0.3);
 }
 
 /* 섹션 공통 스타일 */
@@ -543,24 +513,8 @@ const goToTemplateCreate = () => {
 
 .template-actions {
   display: flex;
-  gap: 1rem;
+  gap: .5rem;
   margin-bottom: 1.5rem;
-}
-
-.btn-create-template {
-  background: linear-gradient(135deg, #1976d2 0%, #8E24AA 100%);
-  color: #fff;
-  border: none;
-  padding: 0.8rem 1.6rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-create-template:hover {
-  transform: translateY(-0.1rem);
-  box-shadow: 0 0.2rem 0.8rem rgba(25, 118, 210, 0.3);
 }
 
 .btn-view-all {
@@ -804,24 +758,7 @@ const goToTemplateCreate = () => {
   border-color: #999;
 }
 
-.btn-save {
-  background: linear-gradient(135deg, #1976d2 0%, #8E24AA 100%);
-  color: #fff;
-  border: none;
-  padding: 0.8rem 1.6rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-save:hover:not(:disabled) {
-  transform: translateY(-0.1rem);
-  box-shadow: 0 0.2rem 0.8rem rgba(25, 118, 210, 0.3);
-}
-
-.btn-cancel:disabled,
-.btn-save:disabled {
+.btn-cancel:disabled{
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;

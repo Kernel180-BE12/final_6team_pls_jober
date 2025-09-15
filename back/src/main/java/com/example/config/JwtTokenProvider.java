@@ -34,6 +34,7 @@ public class JwtTokenProvider {
                 .subject(email)               // sub: 사용자 식별자
                 .claim("role", role)             // 사용자 권한
                 .claim("account_id", accountId)  // 계정 ID (인증에 필요)
+                .claim("type", "access")      // 토큰 타입 구분
                 .issuedAt(now)                // iat
                 .expiration(expiry)           // exp
                 .signWith(key)
@@ -41,11 +42,14 @@ public class JwtTokenProvider {
     }
 
     // Refresh Token 생성
-    public String createRefreshToken() {
+    public String createRefreshToken(String email, Long accountId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + refreshTokenValidity);
 
         return Jwts.builder()
+                .subject(email)               // sub: 사용자 식별자
+                .claim("account_id", accountId)  // 계정 ID
+                .claim("type", "refresh")     // 토큰 타입 구분
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -72,6 +76,34 @@ public class JwtTokenProvider {
             return true;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    // 토큰에서 계정 ID 추출
+    public Long getAccountId(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get("account_id", Long.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // 토큰 타입 확인
+    public String getTokenType(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get("type", String.class);
+        } catch (Exception e) {
+            return null;
         }
     }
 }

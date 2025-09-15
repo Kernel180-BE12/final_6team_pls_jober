@@ -82,6 +82,7 @@
         variant="text"
         color="primary"
         @click="$emit('switchForm', 'login')"
+        class="w-100"
       >
         이미 계정이 있으신가요? 로그인
       </v-btn>

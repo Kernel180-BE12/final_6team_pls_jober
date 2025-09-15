@@ -7,13 +7,12 @@ import com.example.dto.LoginRequest;
 import com.example.dto.SignupRequest;
 import com.example.entity.Account;
 import com.example.repository.AccountRepository;
-import com.example.config.JwtTokenProvider;
+import com.example.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -22,7 +21,7 @@ public class AuthService {
 
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final TokenService tokenService;
 
     /**
      * 회원가입
@@ -60,14 +59,7 @@ public class AuthService {
             throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        // JWT 발급
-        String accessToken = jwtTokenProvider.createAccessToken(account.getEmail(), account.getRole(), account.getId());
-        String refreshToken = jwtTokenProvider.createRefreshToken();
-
-        Map<String, String> tokens = new HashMap<>();
-        tokens.put("accessToken", accessToken);
-        tokens.put("refreshToken", refreshToken);
-        tokens.put("userId", account.getId().toString());
-        return tokens;
+        // TokenService를 통해 토큰 쌍 생성
+        return tokenService.generateTokenPair(account);
     }
 }

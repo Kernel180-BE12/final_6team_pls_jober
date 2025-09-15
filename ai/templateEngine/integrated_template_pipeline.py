@@ -282,3 +282,53 @@ class IntegratedTemplatePipeline:
         except Exception as e:
             logger.error(f"❌ 최종 템플릿 생성 실패: {e}")
             raise
+
+
+def clean_template_content(response: str) -> str:
+    """
+    AI 응답에서 템플릿 내용을 정리하여 추출합니다.
+    """
+    if not response:
+        return ""
+    
+    # 응답에서 템플릿 부분만 추출 (```로 감싸진 부분 또는 직접적인 템플릿)
+    lines = response.strip().split('\n')
+    template_lines = []
+    in_template = False
+    
+    for line in lines:
+        line = line.strip()
+        if line.startswith('```') and not in_template:
+            in_template = True
+            continue
+        elif line.startswith('```') and in_template:
+            break
+        elif in_template:
+            template_lines.append(line)
+        elif line and not line.startswith('#') and not line.startswith('*'):
+            # 코드 블록이 아닌 경우에도 템플릿으로 간주
+            template_lines.append(line)
+    
+    if template_lines:
+        return '\n'.join(template_lines)
+    else:
+        # 코드 블록이 없는 경우 전체 응답을 템플릿으로 사용
+        return response.strip()
+
+
+def extract_variables_from_template(template_content: str) -> List[str]:
+    """
+    템플릿에서 변수들을 추출합니다.
+    변수는 #{변수명} 형태로 정의되어 있습니다.
+    """
+    import re
+    
+    if not template_content:
+        return []
+    
+    # #{변수명} 패턴으로 변수 추출
+    pattern = r'#\{([^}]+)\}'
+    variables = re.findall(pattern, template_content)
+    
+    # 중복 제거하고 정렬
+    return sorted(list(set(variables)))

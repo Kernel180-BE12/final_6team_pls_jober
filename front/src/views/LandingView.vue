@@ -20,15 +20,15 @@
             </p>
             
             <!-- 초기 상태: 로그인/회원가입 버튼 -->
-            <div v-if="!showForm" class="action-buttons">
+            <div v-if="!showForm && !userStore.isLoggedIn" class="action-buttons mt-4">
               <button
-                class="btn-login"
+                class="btn btn-basic"
                 @click="showLoginForm"
               >
                 로그인
               </button>
               <button
-                class="btn-register"
+                class="btn btn-basic02"
                 @click="showRegisterForm"
               >
                 회원가입
@@ -38,10 +38,11 @@
         </div>
         
         <!-- 오른쪽: 폼 영역 -->
-        <div v-if="showForm" class="form-section">
+        <div v-if="showForm && !userStore.isLoggedIn" class="form-section">
           <component 
             :is="currentForm" 
             @switchForm="switchForm"
+            @loginSuccess="showForm = false"
           />
         </div>
       </div>
@@ -55,9 +56,14 @@ import HeaderComponent from '@/components/HeaderComponent.vue'
 import LoginComponent from '@/components/LoginComponent.vue'
 import RegisterComponent from '@/components/RegisterComponent.vue'
 import ForgotPasswordComponent from '@/components/ForgotPasswordComponent.vue'
+import "../assets/styles/btn.css"
+import { useUserStore } from '@/stores/user'
+
+
 
 const showForm = ref(false)
 const currentFormType = ref('login')
+const userStore = useUserStore()
 
 const currentForm = computed(() => {
   switch (currentFormType.value) {
@@ -100,12 +106,10 @@ const switchForm = (formType: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4rem 0;
 }
 
 .content-wrapper {
   max-width: 1200px;
-  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -145,7 +149,6 @@ const switchForm = (formType: string) => {
   font-size: 1.25rem;
   line-height: 1.6;
   color: #666;
-  margin-bottom: 2.4rem;
 }
 
 .action-buttons {

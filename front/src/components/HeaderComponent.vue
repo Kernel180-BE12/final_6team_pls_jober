@@ -1,38 +1,64 @@
+<script setup lang="ts">
+  import "../assets/styles/btn.css"
+
+  import { useUserStore } from '@/stores/user' // Pinia/Vuex 스토어 import
+  import { useRoute } from "vue-router"
+  import { computed } from "vue"
+
+  const headerMenu = [
+    { id: 1, text: "마이페이지", path: "/mypage" },
+    { id: 2, text: "템플릿 작성하기", path: "/template/create" }
+  ]
+
+  const userStore = useUserStore()
+  const route = useRoute()
+
+  // 로그인, 마이페이지 진입 시 헤더 버튼 핸들링
+  const visibleMenu = computed(() => {
+    // 1번 버튼 = 마이페이지
+    // 2번 버튼 = 템플릿 작성하기
+
+    // 비 로그인 유저 = null
+    if(!userStore.isLoggedIn)
+    return null
+
+    // 마이페이지 진입 = 2
+    else if(route.path.startsWith("/mypage"))
+      return headerMenu.filter(item => item.id === 2)
+
+    // 템플릿페이지 진입 = 1
+    else if(route.path.startsWith("/template"))
+      return headerMenu.filter(item => item.id === 1)
+
+    // 랜딩 페이지
+    else
+      return headerMenu
+  })
+</script>
+
 <template>
   <header class="header">
     <div class="header-container">
       <!-- 로고 -->
-      <div class="logo">
+      <router-link to="/" class="logo">
         <div class="logo-icon">🤖</div>
         <span class="logo-text">AI Template</span>
-      </div>
-      
-      <!-- 액션 버튼들 -->
-      <div class="action-buttons">
-        <button class="btn-mypage" @click="goToMyPage">
-          마이페이지
-        </button>
-        <button class="btn-template" @click="goToTemplateCreate">
-          템플릿 작성하기
-        </button>
+      </router-link>
+
+      <div class="header_menu">
+        <router-link
+          v-for="item in visibleMenu"
+          :key="item.id"
+          :to="item.path"
+          class="btn btn-gradation"
+          tabindex="0"
+        >
+          {{ item.text }}
+        </router-link>
       </div>
     </div>
   </header>
 </template>
-
-<script setup lang="ts">
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
-
-const goToMyPage = () => {
-  router.push('/mypage')
-}
-
-const goToTemplateCreate = () => {
-  router.push('/template/create')
-}
-</script>
 
 <style scoped>
 .header {
@@ -41,6 +67,7 @@ const goToTemplateCreate = () => {
   box-shadow: 0 0.2rem 0.6rem rgba(25, 118, 210, 0.3);
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
 
 .header::before {
@@ -52,6 +79,10 @@ const goToTemplateCreate = () => {
   bottom: 0;
   background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(255, 255, 255, 0.1) 100%);
   pointer-events: none;
+}
+
+.header a{
+  text-decoration: none;
 }
 
 .header-container {
@@ -83,33 +114,8 @@ const goToTemplateCreate = () => {
   text-shadow: 0 0.05rem 0.1rem rgba(0, 0, 0, 0.3);
 }
 
-.action-buttons {
+.header_menu{
   display: flex;
-  gap: 0.8rem;
-  align-items: center;
-}
-
-.btn-mypage,
-.btn-template {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
-  border: 0.1rem solid rgba(255, 255, 255, 0.8);
-  color: #fff;
-  padding: 0.6rem 1.2rem;
-  border-radius: 0.4rem;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(0.5rem);
-  box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
-}
-
-.btn-mypage:hover,
-.btn-template:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.2) 100%);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 1);
-  transform: translateY(-0.1rem);
-  box-shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.2);
+  gap: 10px;
 }
 </style>

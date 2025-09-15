@@ -39,13 +39,12 @@ public class AIService {
      * FastAPI 서버에 텍스트 생성을 요청하고 결과를 받아옵니다.
      *
      * @param userMessage 사용자가 입력한 원본 텍스트
-     * @param categoryName 템플릿이 속할 카테고리 이름
      * @return AI가 생성한 구조화된 템플릿 데이터 DTO
      * @throws RuntimeException AI 서버 통신 실패 시
      */
-    public FastAPIResponseDto generateTemplateDataFromFastAPI(String userMessage, String categoryName) {
-        log.info("FastAPI 서버 호출 시작. 내용: '{}', 카테고리: '{}'", userMessage, categoryName);
-        FastAPIRequestDto request = new FastAPIRequestDto(userMessage, categoryName);
+    public FastAPIResponseDto generateTemplateDataFromFastAPI(String userMessage) {
+        log.info("FastAPI 서버 호출 시작. 내용: '{}'", userMessage);
+        FastAPIRequestDto request = new FastAPIRequestDto(userMessage);
 
         return webClient.post()
                 .uri(apiPath)

@@ -1,19 +1,14 @@
 package com.example.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 
 @Getter
-public final class FastAPIRequestDto {
-    @JsonProperty("text")
-    private final String text;
+@AllArgsConstructor
+public class FastAPIRequestDto {
+    @JsonProperty("user_text")
+    private String user_text;
 
-    @JsonProperty("category")
-    private final String category;
-
-    public FastAPIRequestDto(String text, String category) {
-        this.text = text;
-        this.category = category;
-    }
 }

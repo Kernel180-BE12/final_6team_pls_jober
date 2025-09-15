@@ -77,9 +77,9 @@ export const myPageApi = {
 
 // 템플릿 관련 API
 export const templateApi = {
-  // AI를 통한 템플릿 생성 (백엔드 API 사용)
-  generateTemplate: (categoryId: number, userMessage: string) => 
-    api.post('/ai-generation', { category2Id: categoryId, userMessage }),
+  // AI를 통한 템플릿 생성
+  generateTemplate: (userMessage: string) =>
+    api.post('/ai-generation', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
   validateTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
@@ -104,47 +104,21 @@ export const templateApi = {
     return api.post('/template/validate', validationRequest)
   },
   
-  // 최종 템플릿 저장 (백엔드 API 사용)
-  saveFinalTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string) => {
-    // 변수 정보를 VariableDto 배열로 변환
-    const variableList = Object.entries(variables).map(([key, value]) => ({
-      variableKey: key,
-      variableValue: String(value)
-    }))
-    
-    const saveRequest = {
-      templateContent: templateContent,
-      variables: variables,
-      category: category,
-      userMessage: userMessage,
-      variableList: variableList
-    }
-    
-    console.log('최종 저장 요청 데이터:', saveRequest)
-    
-    return api.post('/template', saveRequest)
-  },
-  
   // 템플릿 수정 요청 (채팅을 통한)
   modifyTemplate: (currentTemplate: string, currentTemplateTitle: string, userMessage: string, chatHistory: any[]) => {
     const aiApi = axios.create({
-      baseURL: 'http://localhost:8000',
+      baseURL: '/ai',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
     })
     
-    const requestData = {
+    return aiApi.post('/template/modify', {
       current_template: currentTemplate,
-      current_template_title: currentTemplateTitle,
       user_message: userMessage,
       chat_history: chatHistory
-    }
-    
-    console.log('템플릿 수정 요청 데이터:', requestData)
-    
-    return aiApi.post('/ai/template/modify', requestData)
+    })
   }
 }
 
@@ -153,17 +127,13 @@ export const aiApi = {
   // AI 서버에 직접 템플릿 생성 요청
   generateTemplate: (category: string, userMessage: string) => {
     const aiApi = axios.create({
-      baseURL: 'http://localhost:8000',
+      baseURL: '/ai',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
     })
-    return aiApi.post('/ai/template/generate', { 
-      category, 
-      user_message: userMessage,
-      model: 'gpt-3.5-turbo'
-    })
+    return aiApi.post('/template/generate', { category, user_message: userMessage })
   }
 }
 

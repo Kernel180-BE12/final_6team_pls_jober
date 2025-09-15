@@ -11,21 +11,9 @@
           <h1 class="page-title">
             만들고 싶은 알림톡 템플릿 주제를 알려주세요
           </h1>
-        </div>
-        
-        <!-- 카테고리 버튼들 -->
-        <div class="category-section">
-          <div class="category-grid">
-            <button
-              v-for="category in categories"
-              :key="category.id"
-              :class="['category-btn', { 'selected': selectedCategory === category.id }]"
-              :disabled="isGenerating"
-              @click="selectCategory(category.id)"
-            >
-              {{ category.name }}
-            </button>
-          </div>
+          <p class="page-subtitle">
+            원하는 템플릿에 대한 설명을 입력하시면, AI가 카테고리 분석부터 내용 생성까지 모두 처리해 드립니다.
+          </p>
         </div>
         
         <!-- 텍스트 입력 영역 -->
@@ -65,55 +53,17 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderComponent from '@/components/HeaderComponent.vue'
-import { aiApi } from '@/api'
+import { templateApi } from '@/api' // aiApi 대신 templateApi를 사용합니다.
 
 const router = useRouter()
 
-// 카테고리 데이터
-const categories = [
-  { id: 1, name: '공지사항' },
-  { id: 2, name: '이벤트' },
-  { id: 3, name: '안내' },
-  { id: 4, name: '마케팅' },
-  { id: 5, name: '고객서비스' },
-  { id: 6, name: '주문확인' },
-  { id: 7, name: '배송안내' },
-  { id: 8, name: '결제완료' },
-  { id: 9, name: '예약확정' },
-  { id: 10, name: '취소안내' },
-  { id: 11, name: '기타' },
-  { id: 12, name: '없음' }
-]
-
-// 카테고리 ID 매핑 (백엔드와 일치하도록)
-const categoryIdMapping: Record<string, number> = {
-  '공지사항': 1,
-  '이벤트': 2,
-  '안내': 3,
-  '마케팅': 4,
-  '고객서비스': 5,
-  '주문확인': 6,
-  '배송안내': 7,
-  '결제완료': 8,
-  '예약확정': 9,
-  '취소안내': 10,
-  '기타': 11,
-  '없음': 12
-}
-
-const selectedCategory = ref<number | null>(null)
 const messageText = ref('')
 const isGenerating = ref(false)
 
 // 제출 가능 여부
 const canSubmit = computed(() => {
-  return selectedCategory.value !== null && messageText.value.trim().length > 0 && !isGenerating.value
+  return messageText.value.trim().length > 0 && !isGenerating.value
 })
-
-// 카테고리 선택
-const selectCategory = (categoryId: number) => {
-  selectedCategory.value = selectedCategory.value === categoryId ? null : categoryId
-}
 
 // 제출 처리
 const handleSubmit = async () => {
@@ -122,25 +72,23 @@ const handleSubmit = async () => {
   isGenerating.value = true
   
   try {
-    const selectedCategoryName = categories.find(cat => cat.id === selectedCategory.value)?.name || '기타'
+    console.log('템플릿 생성 요청 (사용자 메시지):', messageText.value)
     
-    console.log('템플릿 생성 요청:', {
-      category: selectedCategoryName,
-      message: messageText.value
-    })
-    
-    // AI 서버로 템플릿 생성 요청
-    const response = await aiApi.generateTemplate(selectedCategoryName, messageText.value)
+    // 백엔드를 통해 AI 템플릿 생성 요청 (사용자 메시지만 전달)
+    const response = await templateApi.generateTemplate(messageText.value)
     
     console.log('템플릿 생성 응답:', response.data)
     
+    const responseData = response.data;
+    const metadata = responseData.metadata || {};
+    const requestInfo = metadata.request_info || {};
+
     // 생성된 템플릿 데이터를 세션 스토리지에 저장
     sessionStorage.setItem('generatedTemplate', JSON.stringify({
-      templateContent: response.data.template_content,
+      templateContent: responseData.template_text,
       templateTitle: response.data.template_title,
-      variables: response.data.variables,
-      category: response.data.category,
-      categoryId: categoryIdMapping[selectedCategoryName] || 11, // 기본값: 기타
+      variables: metadata.variables_detected || [],
+      category: requestInfo.category_sub,
       userMessage: messageText.value
     }))
     
@@ -179,41 +127,19 @@ const handleSubmit = async () => {
 
 .header-section {
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
 }
 
 .page-title {
   font-size: 2.5rem;
   font-weight: 700;
   color: #1a1a1a;
-  margin-bottom: 0.8rem;
   line-height: 1.3;
 }
-
-.category-section {
-  width: 100%;
-  margin-bottom: 3rem;
-}
-
-.category-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 1rem;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.category-btn {
-  height: 3rem;
-  font-size: 1rem;
-  font-weight: 500;
-  border: none;
-  background: #8E24AA;
-  color: white;
-  border-radius: 0.5rem;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(142, 36, 170, 0.2);
+.page-subtitle {
+  font-size: 1.1rem;
+  color: #555;
+  margin-top: 0.5rem;
 }
 
 .category-btn:hover {

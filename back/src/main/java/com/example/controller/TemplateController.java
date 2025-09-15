@@ -27,7 +27,8 @@ public class TemplateController {
     public ResponseEntity<TemplateResponseDto> createTemplateWithAi(
             @Valid @RequestBody TemplateRequestDto requestDto
     ) {
-        Long accountId = AuthSupport.currentUserId();
+        // 로그인 없이도 사용 가능하도록 기본값 사용 (accountId = 1L)
+        Long accountId = getCurrentUserIdOrDefault();
         TemplateResponseDto response = templateService.createTemplateWithAi(requestDto, accountId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -40,7 +41,7 @@ public class TemplateController {
             @Valid @RequestBody TemplateValidationRequestDto requestDto
     ) {
         try {
-            Long accountId = AuthSupport.currentUserId(); //AuthSupport.currentUserId()로 ID 추출
+            Long accountId = getCurrentUserIdOrDefault(); // 로그인 없이도 사용 가능하도록 기본값 사용
             TemplateValidationResponseDto response = templateService.validateTemplate(requestDto, accountId);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -58,7 +59,7 @@ public class TemplateController {
             @Valid @RequestBody TemplateValidationRequestDto requestDto
     ) {
         try {
-            Long accountId = AuthSupport.currentUserId();
+            Long accountId = getCurrentUserIdOrDefault(); // 로그인 없이도 사용 가능하도록 기본값 사용
             var saved = templateService.saveFinalTemplate(requestDto, accountId);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(Map.of(
@@ -68,6 +69,19 @@ public class TemplateController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "최종 저장 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 현재 사용자 ID를 가져오거나 기본값을 반환합니다.
+     * 로그인하지 않은 사용자도 템플릿 생성이 가능하도록 합니다.
+     */
+    private Long getCurrentUserIdOrDefault() {
+        try {
+            return AuthSupport.currentUserId();
+        } catch (Exception e) {
+            // 로그인하지 않은 경우 기본 사용자 ID 사용 (1L)
+            return 1L;
         }
     }
 }

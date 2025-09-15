@@ -187,7 +187,8 @@ onMounted(() => {
       templateTitle.value = generatedTemplate.value.templateTitle || ''
       templateVariables.value = generatedTemplate.value.variables
       templateCategory.value = generatedTemplate.value.category
-      templateCategoryId.value = generatedTemplate.value.categoryId || 11
+      // templateCategoryId는 더 이상 사용되지 않지만, 혹시 모를 오류 방지를 위해 기본값 설정
+      templateCategoryId.value = 11 
       userMessage.value = generatedTemplate.value.userMessage
       
       // 변수 값 초기화 (showVariables가 true이므로 변수값 설정)
@@ -203,8 +204,8 @@ onMounted(() => {
           '이름': '이름',
           '회사명': '회사명'
         }
-        const displayName = koreanNames[variable.name] || variable.name
-        initialVariables[variable.name] = `${displayName} 값`
+        const displayName = koreanNames[variable] || variable
+        initialVariables[variable] = `${displayName} 값`
       })
       editedVariables.value = initialVariables
       
