@@ -35,6 +35,7 @@ public class TemplateService {
         // AI 서버에 템플릿 생성을 요청하고, 받은 응답을 그대로 반환합니다.
         // DB 저장 로직은 여기에서 제외됩니다.
         return aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage());
+
     }
 
 

@@ -110,18 +110,20 @@ const handleLogin = async () => {
   try {
     const response = await authApi.login(email.value, password.value)
     
-    // 토큰 저장
-    localStorage.setItem('accessToken', response.data.accessToken)
-    localStorage.setItem('refreshToken', response.data.refreshToken)
-    
     // 랜딩 페이지 showForm 비활성화
     emit('loginSuccess')
 
-    // 전역 유저 상태 업데이트
-    userStore.setUser({
-      accountId: response.data.userId,
-      role: response.data.role
-    })
+    // 전역 유저 상태와 토큰 저장
+    userStore.setUser(
+      {
+        accountId: response.data.userId,
+        role: response.data.role
+      },
+      {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken
+      }
+    )
     
     // 로그인 성공 시 랜딩 페이지로 이동
     router.push('/')

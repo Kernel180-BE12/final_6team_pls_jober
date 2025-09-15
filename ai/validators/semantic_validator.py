@@ -311,13 +311,32 @@ class SemanticValidator:
         warnings = []
         
         try:
+            # 템플릿 텍스트와 변수 정보 추출
+            template_text = template_data.get('template_text', '')
+            variables_detected = template_data.get('variables_detected', {})
+            
             # 변수 치환 수행
             rendered_template = self._render_template(template_data)
             
             # 치환 후 길이 검사
-            if 'body' in rendered_template:
-                if len(rendered_template['body']) > 1000:
-                    errors.append(f"변수 치환 후 본문이 1000자를 초과합니다 (현재: {len(rendered_template['body'])}자)")
+            if 'template_text' in rendered_template:
+                rendered_text = rendered_template['template_text']
+                if len(rendered_text) > 1000:
+                    errors.append(f"변수 치환 후 본문이 1000자를 초과합니다 (현재: {len(rendered_text)}자)")
+                
+                # 치환되지 않은 변수 확인
+                unresolved_vars = self._find_unresolved_variables(rendered_text)
+                for var in unresolved_vars:
+                    errors.append(f"변수 '{var}'가 치환되지 않았습니다.")
+            
+            # 변수 값 검증
+            for var_name, var_value in variables_detected.items():
+                if not var_value or str(var_value).strip() == '':
+                    errors.append(f"변수 '{var_name}'의 값이 비어있습니다.")
+                elif len(str(var_value)) > 200:
+                    warnings.append(f"변수 '{var_name}'의 값이 너무 깁니다 (200자 초과).")
+                elif self._contains_sensitive_info(str(var_value)):
+                    errors.append(f"변수 '{var_name}'에 민감한 정보가 포함되어 있습니다.")
             
             # 치환 후 URL 유효성 검사
             if 'buttons' in rendered_template and rendered_template['buttons']:
@@ -342,24 +361,28 @@ class SemanticValidator:
     
     def _render_template(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
         """변수 치환을 통한 템플릿 렌더링"""
-        variables = template_data.get('variables', {})
+        variables = template_data.get('variables_detected', {})
         rendered = template_data.copy()
         
         # Jinja2 템플릿 방식으로 변경 (#{변수명} -> {{변수명}})
         def convert_variable_syntax(text: str) -> str:
-            return re.sub(r'#{([^}]+)}', r'{{\1}}', text)
+            # #{변수명} -> {{변수명}} (먼저 처리)
+            text = re.sub(r'#\{([^}]+)\}', r'{{\1}}', text)
+            # {변수명} -> {{변수명}} (이미 {{변수명}} 형태가 아닌 경우만)
+            text = re.sub(r'(?<!\{)\{([^}]+)\}(?!\})', r'{{\1}}', text)
+            return text
         
-        # 본문 렌더링
-        if 'body' in rendered:
-            template_text = convert_variable_syntax(rendered['body'])
+        # 템플릿 텍스트 렌더링
+        if 'template_text' in rendered:
+            template_text = convert_variable_syntax(rendered['template_text'])
             template = Template(template_text)
-            rendered['body'] = template.render(**variables)
+            rendered['template_text'] = template.render(**variables)
         
         # 제목 렌더링
-        if 'title' in rendered and rendered['title']:
-            template_text = convert_variable_syntax(rendered['title'])
+        if 'template_title' in rendered and rendered['template_title']:
+            template_text = convert_variable_syntax(rendered['template_title'])
             template = Template(template_text)
-            rendered['title'] = template.render(**variables)
+            rendered['template_title'] = template.render(**variables)
         
         # 버튼 URL 렌더링
         if 'buttons' in rendered and rendered['buttons']:
@@ -528,3 +551,40 @@ class SemanticValidator:
             r'(?::\d+)?'  # optional port
             r'(?:/?|[/?]\S+)$', re.IGNORECASE)
         return url_pattern.match(url) is not None
+
+    def _find_unresolved_variables(self, text: str) -> List[str]:
+        """치환되지 않은 변수 찾기"""
+        unresolved = []
+        
+        # {변수명} 패턴 찾기
+        pattern = r'\{([^}]+)\}'
+        matches = re.findall(pattern, text)
+        unresolved.extend(matches)
+        
+        # #{변수명} 패턴 찾기
+        pattern = r'#\{([^}]+)\}'
+        matches = re.findall(pattern, text)
+        unresolved.extend(matches)
+        
+        # {{변수명}} 패턴 찾기
+        pattern = r'\{\{([^}]+)\}\}'
+        matches = re.findall(pattern, text)
+        unresolved.extend(matches)
+        
+        return list(set(unresolved))  # 중복 제거
+
+    def _contains_sensitive_info(self, text: str) -> bool:
+        """민감한 정보 포함 여부 검사"""
+        sensitive_patterns = [
+            r'\d{3}-\d{4}-\d{4}',  # 전화번호
+            r'\d{6}-\d{7}',        # 주민등록번호
+            r'\d{4}-\d{2}-\d{2}',  # 생년월일
+            r'[가-힣]{2,4}님',     # 개인명
+            r'[가-힣]{2,4}고객',   # 고객명
+        ]
+        
+        for pattern in sensitive_patterns:
+            if re.search(pattern, text):
+                return True
+        
+        return False

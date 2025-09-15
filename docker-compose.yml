@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   # ===================================================================
   #  백엔드 서비스 (Spring Boot)
   # ===================================================================
   backend:
-    image: hy7012/pls-jober-backend:latest
+    image: jonathanchoii/pls-jober-backend:latest
     container_name: pls-jober-backend
     ports:
       - "8080:8080"
@@ -13,8 +11,7 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
     env_file:
       - .env
-    depends_on:
-      - mysql
+    # MySQL은 호스트에 설치된 것을 사용하므로 depends_on 제거
     networks:
       - app-network
     restart: unless-stopped
@@ -38,8 +35,7 @@ services:
       - PYTHONPATH=/app
     env_file:
       - .env
-    volumes:
-      - ./ai/chroma_db:/app/chroma_db
+    # ChromaDB는 호스트에 설치된 것을 사용하므로 volumes 제거
     networks:
       - app-network
     restart: unless-stopped
@@ -48,27 +44,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-  # ===================================================================
-  #  MySQL 데이터베이스
-  # ===================================================================
-  mysql:
-    image: mysql:8.0
-    container_name: pls-jober-mysql
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./back/src/main/resources/db/migration:/docker-entrypoint-initdb.d
-    networks:
-      - app-network
-    restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password
 
   # ===================================================================
   #  Redis 캐시 서버
@@ -97,18 +72,22 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - /var/www/frontend/dist:/var/www/html
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./front/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
       - ai-service
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  mysql_data:
   redis_data:
 
 networks:

@@ -20,8 +20,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.alimtalk_models import (
-    ValidationRequest, ValidationResponse, ValidationResult, 
-    AlimtalkTemplate, GuidelineSearchResult, SystemStats
+    ValidationRequest, ValidationResponse, ValidationResult, SystemStats
 )
 from validators.validator_pipeline import ValidationPipeline
 
@@ -58,9 +57,11 @@ class AlimtalkValidationService:
             )
             
             self.is_initialized = True
+            print(">>service<<")
             print("✅ 알림톡 검증 서비스 초기화 완료")
             
         except Exception as e:
+            print(">>service<<")
             print(f"❌ 알림톡 검증 서비스 초기화 실패: {e}")
             raise
     
@@ -107,36 +108,7 @@ class AlimtalkValidationService:
                 validation_results=[],
                 final_message=f"검증 중 오류가 발생했습니다: {str(e)}"
             )
-    
-    async def validate_single_step(self, template_data: Dict[str, Any], step: int) -> ValidationResult:
-        """특정 단계만 검증"""
-        if not self.is_initialized:
-            await self.initialize()
-        
-        return self.validation_pipeline.validate_single_step(template_data, step)
-    
-    async def search_guidelines(self, query: str, limit: int = 10) -> List[GuidelineSearchResult]:
-        """가이드라인 검색"""
-        if not self.is_initialized:
-            await self.initialize()
-        
-        try:
-            results = self.chromadb_service.search_similar(query, n_results=limit)
-            
-            return [
-                GuidelineSearchResult(
-                    id=result['id'],
-                    content=result['content'],
-                    metadata=result['metadata'],
-                    similarity=result['similarity']
-                )
-                for result in results
-            ]
-            
-        except Exception as e:
-            print(f"가이드라인 검색 중 오류: {e}")
-            return []
-    
+
     async def get_health_status(self) -> Dict[str, Any]:
         """헬스 상태 확인"""
         try:
@@ -145,10 +117,10 @@ class AlimtalkValidationService:
                     "status": "not_initialized",
                     "message": "서비스가 초기화되지 않았습니다."
                 }
-            
+
             # ChromaDB 상태 확인
             chromadb_stats = self.chromadb_service.get_collection_stats()
-            
+
             return {
                 "status": "healthy",
                 "vector_db": chromadb_stats,
@@ -158,21 +130,21 @@ class AlimtalkValidationService:
                     "openai": "healthy" if self.openai_service else "not_configured"
                 }
             }
-            
+
         except Exception as e:
             return {
                 "status": "unhealthy",
                 "error": str(e)
             }
-    
+
     async def get_stats(self) -> SystemStats:
         """시스템 통계 정보"""
         if not self.is_initialized:
             await self.initialize()
-        
+
         try:
             chromadb_stats = self.chromadb_service.get_collection_stats()
-            
+
             return SystemStats(
                 vector_db=chromadb_stats,
                 validation_pipeline={
@@ -181,25 +153,25 @@ class AlimtalkValidationService:
                 },
                 service_status="running" if self.is_initialized else "stopped"
             )
-            
+
         except Exception as e:
             return SystemStats(
                 vector_db={"error": str(e)},
                 validation_pipeline={"error": str(e)},
                 service_status="error"
             )
-    
+
     async def get_template_examples(self) -> Dict[str, Any]:
         """템플릿 예시 반환 (ChromaDB 컬렉션에서 조회)"""
         try:
             if not self.is_initialized:
                 await self.initialize()
-            
+
             # 각 컬렉션에서 템플릿 조회
             blacklist_templates = self.chromadb_service.get_blacklist_templates()
             whitelist_templates = self.chromadb_service.get_whitelist_templates()
             approved_templates = self.chromadb_service.get_approved_templates()
-            
+
             return {
                 "blacklist": blacklist_templates,
                 "whitelist": whitelist_templates,
@@ -210,29 +182,29 @@ class AlimtalkValidationService:
                     "approved_count": len(approved_templates)
                 }
             }
-                
+
         except Exception as e:
             print(f"템플릿 예시 로드 중 오류: {e}")
             return self._get_default_examples()
-    
+
     async def _load_initial_guidelines(self):
         """초기 가이드라인 로드 (이제 ChromaDB에서 직접 로드)"""
         try:
             # ChromaDB에서 가이드라인 로드
             await self.chromadb_service.load_initial_guidelines()
             print("✅ 가이드라인 로드 완료")
-            
+
         except Exception as e:
             print(f"❌ 가이드라인 로드 실패: {e}")
-    
+
     def add_template_to_collection(self, collection_name: str, template_data: Dict[str, Any]):
         """특정 컬렉션에 템플릿 추가"""
         return self.chromadb_service.add_template_to_collection(collection_name, template_data)
-    
+
     def search_templates_in_collection(self, collection_name: str, query: str, n_results: int = 5):
         """특정 컬렉션에서 템플릿 검색"""
         return self.chromadb_service.search_templates_in_collection(collection_name, query, n_results)
-    
+
     def _get_default_examples(self) -> Dict[str, Any]:
         """기본 예시 템플릿"""
         return {
@@ -247,7 +219,7 @@ class AlimtalkValidationService:
                 "category": "transaction"
             },
             "valid_marketing_template": {
-                "template_pk": "TPL_MARKET_001", 
+                "template_pk": "TPL_MARKET_001",
                 "channel": "alimtalk",
                 "title": "(광고) 신상품 특가 이벤트",
                 "body": "(광고) 안녕하세요!\n\n신상품 출시 기념 특별 할인 이벤트를 진행합니다.\n\n* 수신거부: 080-000-0000",
