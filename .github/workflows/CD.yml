@@ -13,12 +13,15 @@ jobs:
   build-backend:
     # Ubuntu 최신 버전에서 실행
     runs-on: ubuntu-latest
-    # 실행 조건: main/develop 브랜치이고, back/ 폴더가 변경된 경우
+    # 실행 조건: main/develop 브랜치이고, back/ 폴더 또는 docker-compose.yml이 변경된 경우
     if: |
       (contains(github.ref, 'main') || contains(github.ref, 'develop')) &&
       (contains(github.event.head_commit.modified, 'back/') || 
        contains(github.event.head_commit.added, 'back/') ||
-       contains(github.event.head_commit.removed, 'back/'))
+       contains(github.event.head_commit.removed, 'back/') ||
+       contains(github.event.head_commit.modified, 'docker-compose.yml') ||
+       contains(github.event.head_commit.added, 'docker-compose.yml') ||
+       contains(github.event.head_commit.removed, 'docker-compose.yml'))
     steps:
       # 코드 체크아웃
       - name: Checkout
@@ -53,12 +56,15 @@ jobs:
   build-ai:
     # Ubuntu 최신 버전에서 실행
     runs-on: ubuntu-latest
-    # 실행 조건: main/develop 브랜치이고, ai/ 폴더가 변경된 경우
+    # 실행 조건: main/develop 브랜치이고, ai/ 폴더 또는 docker-compose.yml이 변경된 경우
     if: |
       (contains(github.ref, 'main') || contains(github.ref, 'develop')) &&
       (contains(github.event.head_commit.modified, 'ai/') || 
        contains(github.event.head_commit.added, 'ai/') ||
-       contains(github.event.head_commit.removed, 'ai/'))
+       contains(github.event.head_commit.removed, 'ai/') ||
+       contains(github.event.head_commit.modified, 'docker-compose.yml') ||
+       contains(github.event.head_commit.added, 'docker-compose.yml') ||
+       contains(github.event.head_commit.removed, 'docker-compose.yml'))
     steps:
       # 코드 체크아웃
       - name: Checkout
@@ -93,12 +99,15 @@ jobs:
   build-frontend:
     # Ubuntu 최신 버전에서 실행
     runs-on: ubuntu-latest
-    # 실행 조건: main/develop 브랜치이고, front/ 폴더가 변경된 경우
+    # 실행 조건: main/develop 브랜치이고, front/ 폴더 또는 docker-compose.yml이 변경된 경우
     if: |
       (contains(github.ref, 'main') || contains(github.ref, 'develop')) &&
       (contains(github.event.head_commit.modified, 'front/') || 
        contains(github.event.head_commit.added, 'front/') ||
-       contains(github.event.head_commit.removed, 'front/'))
+       contains(github.event.head_commit.removed, 'front/') ||
+       contains(github.event.head_commit.modified, 'docker-compose.yml') ||
+       contains(github.event.head_commit.added, 'docker-compose.yml') ||
+       contains(github.event.head_commit.removed, 'docker-compose.yml'))
     steps:
       # 코드 체크아웃
       - name: Checkout code
