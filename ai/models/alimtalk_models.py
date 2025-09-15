@@ -54,15 +54,15 @@ class Button(BaseModel):
 
 class AlimtalkTemplate(BaseModel):
     """알림톡 템플릿 모델"""
-    template_pk: Optional[str] = Field(None, description="템플릿 Primary Key")
+    template_pk: Optional[int] = Field(None, description="템플릿 Primary Key")
+    template_text : Optional[str] = Field(None, description="생성된 카카오톡 알림톡 템플릿 전체 내용")
+    template_title: Optional[str] = Field(None, max_length=50, description="제목")
+    variables_detected: Optional[Dict[str, str]] = Field(None, description="변수 목록")
     channel: ChannelType = Field(..., description="채널 타입")
-    title: Optional[str] = Field(None, max_length=50, description="제목")
-    body: str = Field(..., min_length=1, max_length=1000, description="본문")
     buttons: Optional[List[Button]] = Field(None, max_items=5, description="버튼 목록")
-    variables: Optional[Dict[str, str]] = Field(None, description="변수 목록")
     category: Optional[CategoryType] = Field(None, description="분류")
-    
-    @field_validator('body')
+
+    @field_validator('template_text')
     def validate_body(cls, v):
         if not v or not v.strip():
             raise ValueError("본문은 빈 값일 수 없습니다")
@@ -80,6 +80,26 @@ class ValidationRequest(BaseModel):
     template: AlimtalkTemplate
     user_input: str = Field(..., description="사용자 입력 내용")
     
+    @classmethod
+    def from_backend_request(cls, backend_data: Dict[str, Any]) -> "ValidationRequest":
+        """백엔드 요청 데이터로부터 ValidationRequest 생성"""
+        template_data = backend_data.get("template", {})
+        
+        # 백엔드에서 전송하는 구조에 맞게 템플릿 데이터 변환
+        alimtalk_template = AlimtalkTemplate(
+            template_text=template_data.get("body", ""),
+            template_title="알림톡 템플릿",
+            variables_detected=template_data.get("variables", {}),
+            channel="alimtalk",
+            category=template_data.get("category", "marketing"),
+            buttons=[]
+        )
+        
+        return cls(
+            template=alimtalk_template,
+            user_input=backend_data.get("user_input", "")
+        )
+    
 
 class ValidationResponse(BaseModel):
     """검증 응답 모델"""
@@ -88,20 +108,9 @@ class ValidationResponse(BaseModel):
     validation_results: List[ValidationResult] = []
     final_message: str
 
-
-class GuidelineSearchResult(BaseModel):
-    """가이드라인 검색 결과 모델"""
-    id: str
-    content: str
-    metadata: Dict[str, Any]
-    similarity: float
-
-
 class SystemStats(BaseModel):
     """시스템 통계 모델"""
     vector_db: Dict[str, Any]
     validation_pipeline: Dict[str, Any]
     service_status: str
-
-
 

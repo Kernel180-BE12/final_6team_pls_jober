@@ -1,0 +1,36 @@
+# CI 테스트용 경량 requirements
+# 핵심 패키지만 포함하여 설치 시간 단축
+
+# 기본 웹 프레임워크
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+
+# 테스트 프레임워크
+pytest
+pytest-asyncio
+pytest-cov
+flake8
+
+# 데이터 처리 (경량 버전)
+numpy
+pandas>=1.3.0
+
+# 데이터베이스 연결
+pymysql>=1.0.0
+sqlalchemy>=2.0.0
+aiomysql>=0.1.1
+
+# 템플릿 엔진
+jinja2>=3.0.0
+
+# 타입 힌트
+typing-extensions>=4.0.0
+
+# OpenAI API (필수)
+openai>=1.0.0
+
+# NOTE: 무거운 ML 패키지들은 CI에서 제외
+# torch, transformers, sentence-transformers, chromadb, langchain 등
+# 실제 배포 시에는 requirements.txt 사용

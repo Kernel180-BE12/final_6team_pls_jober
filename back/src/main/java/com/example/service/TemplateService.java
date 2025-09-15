@@ -32,7 +32,7 @@ public class TemplateService {
     @Transactional
     public TemplateResponseDto createTemplateWithAi(TemplateRequestDto requestDto, Account account) {
         Category2 category2 = findCategory2ById(requestDto.getCategory2Id());
-        FastAPIResponseDto aiResponse = aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage(), category2.getName());
+        FastAPIResponseDto aiResponse = aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage());
         Template newTemplate = Template.createFromAi(account, category2, aiResponse);
         Template savedTemplate = templateRepository.save(newTemplate);
         log.info("AI 템플릿 및 변수 저장 완료. Template ID: {}", savedTemplate.getTemplateId());

@@ -188,7 +188,8 @@ onMounted(() => {
       templateContent.value = generatedTemplate.value.templateContent
       templateVariables.value = generatedTemplate.value.variables
       templateCategory.value = generatedTemplate.value.category
-      templateCategoryId.value = generatedTemplate.value.categoryId || 11
+      // templateCategoryId는 더 이상 사용되지 않지만, 혹시 모를 오류 방지를 위해 기본값 설정
+      templateCategoryId.value = 11 
       userMessage.value = generatedTemplate.value.userMessage
       
       // 변수 값 초기화
@@ -202,8 +203,8 @@ onMounted(() => {
           'expiryDate': '사용기한',
           'additionalMessage': '추가 메시지'
         }
-        const displayName = koreanNames[variable.name] || variable.name
-        initialVariables[variable.name] = `${displayName} 값`
+        const displayName = koreanNames[variable] || variable
+        initialVariables[variable] = `${displayName} 값`
       })
       editedVariables.value = initialVariables
       

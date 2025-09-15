@@ -78,8 +78,8 @@ export const myPageApi = {
 // 템플릿 관련 API
 export const templateApi = {
   // AI를 통한 템플릿 생성
-  generateTemplate: (categoryId: number, userMessage: string) => 
-    api.post('/ai-generation', { category2Id: categoryId, userMessage }),
+  generateTemplate: (userMessage: string) => 
+    api.post('/ai-generation', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
   validateTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string) => {
@@ -106,14 +106,14 @@ export const templateApi = {
   // 템플릿 수정 요청 (채팅을 통한)
   modifyTemplate: (currentTemplate: string, userMessage: string, chatHistory: any[]) => {
     const aiApi = axios.create({
-      baseURL: 'http://localhost:8000',
+      baseURL: '/ai',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
     })
     
-    return aiApi.post('/ai/template/modify', {
+    return aiApi.post('/template/modify', {
       current_template: currentTemplate,
       user_message: userMessage,
       chat_history: chatHistory
@@ -130,4 +130,3 @@ export const aiApi = {
 }
 
 export default api
-
