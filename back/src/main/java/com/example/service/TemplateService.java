@@ -31,8 +31,13 @@ public class TemplateService {
      */
     @Transactional
     public TemplateResponseDto createTemplateWithAi(TemplateRequestDto requestDto, Account account) {
-        Category2 category2 = findCategory2ById(requestDto.getCategory2Id());
-        FastAPIResponseDto aiResponse = aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage(), category2.getName());
+        // 1. AI 서버에 템플릿 생성을 요청합니다. (사용자 메시지만 전달)
+        FastAPIResponseDto aiResponse = aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage());
+
+        // 2. AI가 분석한 카테고리 이름으로 DB에서 Category2 엔티티를 조회합니다.
+        Category2 category2 = findCategory2ByName(aiResponse.getCategory());
+
+        // 3. AI 응답과 조회된 카테고리로 Template 엔티티를 생성합니다.
         Template newTemplate = Template.createFromAi(account, category2, aiResponse);
         Template savedTemplate = templateRepository.save(newTemplate);
         log.info("AI 템플릿 및 변수 저장 완료. Template ID: {}", savedTemplate.getTemplateId());
