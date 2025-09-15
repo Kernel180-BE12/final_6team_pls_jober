@@ -68,13 +68,18 @@ public class AIService {
         
         try {
             // AI 서버에 전송할 요청 형식으로 변환
+            // HashMap을 사용하여 동적으로 필드 추가 가능
+            Map<String, Object> templateMap = new java.util.HashMap<>();
+            templateMap.put("channel", "alimtalk");
+            templateMap.put("body", validationRequest.get("user_input"));
+            templateMap.put("variables", validationRequest.get("variables"));
+            templateMap.put("category", "marketing");
+            if (validationRequest.containsKey("title") && validationRequest.get("title") != null) {
+                templateMap.put("title", validationRequest.get("title"));
+            }
+            // 조건부로 title 필드 추가
             Map<String, Object> aiRequest = Map.of(
-                "template", Map.of(
-                    "channel", "alimtalk",
-                    "body", validationRequest.get("user_input"),
-                    "variables", validationRequest.get("variables"),
-                    "category", "marketing" // 기본값
-                ),
+                "template", templateMap,
                 "user_input", validationRequest.get("user_input")
             );
             

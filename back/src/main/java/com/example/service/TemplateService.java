@@ -56,6 +56,9 @@ public class TemplateService {
             Map<String, Object> validationRequest = new HashMap<>();
             validationRequest.put("user_input", requestDto.getTemplateContent());
             validationRequest.put("variables", requestDto.getVariables());
+            if (requestDto.getTemplateTitle() != null) {
+                validationRequest.put("title", requestDto.getTemplateTitle());
+            }
             
             // AI 서버 검증 호출 (실제로는 AIService를 통해 호출)
             Map<String, Object> aiValidationResult = aiService.validateTemplateWithFastAPI(validationRequest);

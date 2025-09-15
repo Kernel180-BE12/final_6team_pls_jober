@@ -137,6 +137,7 @@ const handleSubmit = async () => {
     // 생성된 템플릿 데이터를 세션 스토리지에 저장
     sessionStorage.setItem('generatedTemplate', JSON.stringify({
       templateContent: response.data.template_content,
+      templateTitle: response.data.template_title,
       variables: response.data.variables,
       category: response.data.category,
       categoryId: categoryIdMapping[selectedCategoryName] || 11, // 기본값: 기타

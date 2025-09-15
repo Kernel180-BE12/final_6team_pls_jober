@@ -82,7 +82,7 @@ export const templateApi = {
     api.post('/ai-generation', { category2Id: categoryId, userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
-  validateTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string) => {
+  validateTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
     // 변수 정보를 VariableDto 배열로 변환
     const variableList = Object.entries(variables).map(([key, value]) => ({
       variableKey: key,
@@ -95,7 +95,8 @@ export const templateApi = {
       variables: variables,
       category: category,
       userMessage: userMessage,
-      variableList: variableList
+      variableList: variableList,
+      templateTitle: templateTitle
     }
     
     console.log('검증 요청 데이터:', validationRequest)

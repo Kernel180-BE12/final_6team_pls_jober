@@ -18,6 +18,7 @@ public class TemplateValidationRequestDto {
     
     private String category;
     private String userMessage;
+    private String templateTitle;
     
     // 변수 정보를 저장하기 위한 추가 필드
     private List<VariableDto> variableList;

@@ -12,7 +12,7 @@
           <div class="left-panel">
             <!-- 채팅 이력 표시 영역 -->
             <div class="chat-history-container">
-              <div class="chat-history">
+              <div class="chat-history" ref="chatHistoryRef">
                 <template v-for="(message, index) in chatHistory" :key="index">
                   <div :class="['chat-message', message.type]">
                     <div class="message-content">{{ message.content }}</div>
@@ -79,18 +79,16 @@
               <!-- 카카오톡 미리보기 -->
               <div class="kakao-preview-wrapper">
                 <KakaoPreviewComponent
-                  ref="kakaoPreviewRef"
                   :template-content="templateContent"
                   :show-variables="showVariables"
                   :variables="editedVariables"
-                  :is-modifying="isModifying"
+                  :is-modifying="false"
                   :is-rejected="isRejected"
                   :rejected-variables="rejectedVariables"
                   @variable-click="handleVariableClick"
                   @update-variables="updateVariables"
                   @reject-template="rejectTemplate"
                   @submit-template="submitTemplate"
-                  @finish-all-editing="handleFinishAllEditing"
                 />
               </div>
               
@@ -113,13 +111,6 @@
             <div class="action-buttons-container">
               <div class="correction-count">남은 정정 횟수: {{ remainingCorrections }}/{{ maxCorrections }}</div>
               <div class="action-buttons">
-                <button 
-                  class="btn-modify" 
-                  :disabled="isGenerating"
-                  @click="toggleModification"
-                >
-                  {{ isModifying ? '수정 완료' : '사용자 수정' }}
-                </button>
                 <button class="btn-reject" @click="rejectTemplate">반려하기</button>
                 <button class="btn-submit" @click="submitTemplate">제출하기</button>
               </div>
@@ -144,14 +135,14 @@ import { templateApi } from '@/api'
 const router = useRouter()
 
 // 컴포넌트 refs
-const kakaoPreviewRef = ref()
+const chatHistoryRef = ref<HTMLElement | null>(null)
 
 const showVariables = ref(true)
 const showRejectionSidebar = ref(false)
 const isRejected = ref(false)
 const currentVariable = ref('')
 const currentAlternatives = ref<any[]>([])
-const isModifying = ref(false)
+// 사용자 직접 수정 기능 제거
 const rejectedVariables = ref<string[]>([])
 const validationErrors = ref<any[]>([])
 const currentValidationError = ref<any>(null)
@@ -177,8 +168,11 @@ const remainingCorrections = ref(maxCorrections)
 
 // 버전 관리
 const versions = ref([
-  { number: 1, template: '기본 템플릿', messageIndex: 0 }
+  { number: 1, template: '기본 템플릿', messageIndex: 0, templateContent: '', templateTitle: '' }
 ])
+
+// 각 버전의 템플릿 내용 저장
+const versionTemplates = ref<Record<number, { content: string, title: string, variables: any[] }>>({})
 
 // 사용자가 수정할 수 있는 변수 값들
 const editedVariables = ref<Record<string, string>>({})
@@ -190,6 +184,7 @@ onMounted(() => {
     try {
       generatedTemplate.value = JSON.parse(savedTemplate)
       templateContent.value = generatedTemplate.value.templateContent
+      templateTitle.value = generatedTemplate.value.templateTitle || ''
       templateVariables.value = generatedTemplate.value.variables
       templateCategory.value = generatedTemplate.value.category
       templateCategoryId.value = generatedTemplate.value.categoryId || 11
@@ -212,6 +207,13 @@ onMounted(() => {
         initialVariables[variable.name] = `${displayName} 값`
       })
       editedVariables.value = initialVariables
+      
+      // 버전 1에 초기 템플릿 저장
+      versionTemplates.value[1] = {
+        content: templateContent.value,
+        title: templateTitle.value,
+        variables: templateVariables.value
+      }
       
       // 채팅 히스토리 초기화 - 템플릿 생성 시 입력한 메시지를 첫 메시지로 설정
       const now = new Date()
@@ -301,10 +303,6 @@ const handleVariableClick = (variableName: string) => {
     // 대안 정보 설정 (기본값 또는 백엔드에서 받은 대안)
     currentAlternatives.value = JSON.parse(JSON.stringify(variableAlternatives[variableName as keyof typeof variableAlternatives] || []))
     showRejectionSidebar.value = true
-  } else if (isModifying.value) {
-    // 수정 모드에서 변수 클릭 시 - 직접 편집 가능하도록 처리
-    console.log(`변수 "${variableName}" 편집 시작`)
-    // KakaoPreviewComponent에서 직접 편집이 가능하도록 처리됨
   }
 }
 
@@ -352,32 +350,7 @@ const closeRejectionSidebar = () => {
   currentValidationError.value = null
 }
 
-// 수정 모드 토글
-const toggleModification = () => {
-  if (isModifying.value) {
-    // 수정 완료 시 - KakaoPreviewComponent의 finishAllEditing 호출
-    if (kakaoPreviewRef.value && kakaoPreviewRef.value.finishAllEditing) {
-      kakaoPreviewRef.value.finishAllEditing()
-    }
-    console.log('수정 모드 비활성화: 변경사항이 저장되었습니다.')
-        
-    // 수정 완료 시 시각적 피드백 제공
-    setTimeout(() => {
-      console.log('미리보기가 수정된 내용으로 업데이트되었습니다.')
-    }, 100)
-  } else {
-    // 수정 모드 진입 시 변수명 표시 모드로 전환
-    showVariables.value = true
-    console.log('수정 모드 활성화: 변수 부분을 클릭하여 편집할 수 있습니다.')
-  }
-  
-  isModifying.value = !isModifying.value
-}
-
-// 모든 편집 완료 처리
-const handleFinishAllEditing = () => {
-  console.log('모든 변수 편집이 완료되었습니다.')
-}
+// 수정 기능 제거에 따라 관련 함수 삭제
 
 // 변수 업데이트
 const updateVariables = (newVariables: any) => {
@@ -412,6 +385,11 @@ watch(showVariables, (newValue) => {
   }
 })
 
+// 채팅 히스토리 변경 감지하여 자동 스크롤
+watch(chatHistory, () => {
+  scrollToBottom()
+}, { deep: true })
+
 // 수정된 버전 표시
 const showModifiedVersion = () => {
   // 여기에 수정된 버전을 보여주는 로직을 구현할 수 있습니다
@@ -424,12 +402,39 @@ const submitTemplate = async () => {
   try {
     console.log('템플릿 검증 요청 시작')
     
+    // 제출 전 변수 맵 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
+    if (!editedVariables.value || Object.keys(editedVariables.value).length === 0) {
+      const fallback: Record<string, string> = {}
+      if (Array.isArray(templateVariables.value) && templateVariables.value.length > 0) {
+        templateVariables.value.forEach((variable: any) => {
+          const name = variable?.name
+          if (name) {
+            fallback[name] = `${name} 값`
+          }
+        })
+      } else if (templateContent.value) {
+        // 변수 배열이 비어 있으면 템플릿 본문에서 변수 패턴을 파싱해 기본값 구성
+        const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
+        const found = new Set<string>()
+        patterns.forEach((re) => {
+          let m
+          while ((m = re.exec(templateContent.value)) !== null) {
+            const name = (m[1] || '').trim()
+            if (name) found.add(name)
+          }
+        })
+        found.forEach((name) => { fallback[name] = `${name} 값` })
+      }
+      editedVariables.value = fallback
+    }
+
     // 백엔드로 템플릿 검증 요청
     const response = await templateApi.validateTemplate(
       templateContent.value,
       editedVariables.value,
       templateCategory.value,
-      userMessage.value
+      userMessage.value,
+      templateTitle.value
     )
     
     console.log('템플릿 검증 응답:', response.data)
@@ -482,6 +487,9 @@ const sendMessage = async () => {
   }
   chatHistory.value.push(userMessage)
   
+  // 사용자 메시지 추가 후 자동 스크롤
+  scrollToBottom()
+  
   const currentMessage = chatInput.value
   chatInput.value = ''
   isGenerating.value = true
@@ -506,12 +514,29 @@ const sendMessage = async () => {
     }
     chatHistory.value.push(botMessage)
     
+    // 봇 응답 추가 후 자동 스크롤
+    scrollToBottom()
+    
     // 템플릿 업데이트
     console.log('템플릿 수정 전:', templateContent.value)
     templateContent.value = response.data.modified_template
     console.log('템플릿 수정 후:', templateContent.value)
     console.log('템플릿 수정 후 길이:', templateContent.value.length)
-    templateVariables.value = response.data.variables
+    templateVariables.value = Array.isArray(response.data.variables) && response.data.variables.length > 0
+      ? response.data.variables
+      : (() => {
+          // 응답 변수 비어 있으면 본문에서 파싱하여 변수 배열 생성
+          const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
+          const found = new Set<string>()
+          patterns.forEach((re) => {
+            let m
+            while ((m = re.exec(templateContent.value)) !== null) {
+              const name = (m[1] || '').trim()
+              if (name) found.add(name)
+            }
+          })
+          return Array.from(found).map((name) => ({ name }))
+        })()
     console.log('템플릿 변수 업데이트:', templateVariables.value)
     
     // 제목 업데이트 (응답에 제목이 있다면)
@@ -524,18 +549,38 @@ const sendMessage = async () => {
       console.log('응답에 제목이 없음:', response.data)
     }
     
-    // 변수 목록 업데이트 및 editedVariables 초기화
-    // 새로운 변수들이 추가되었을 수 있으므로 editedVariables를 빈 객체로 초기화
-    // 이렇게 하면 변수가 {변수명} 형태로 유지됨
-    editedVariables.value = {}
+    // 변수 목록 업데이트: 응답 변수(없으면 파싱 결과) 기준으로 기본값 세팅
+    const rebuilt: Record<string, string> = {}
+    const sourceVars = (Array.isArray(response.data.variables) && response.data.variables.length > 0)
+      ? response.data.variables
+      : templateVariables.value
+    sourceVars.forEach((variable: any) => {
+      const name = variable?.name
+      if (name) {
+        rebuilt[name] = `${name} 값`
+      }
+    })
+    editedVariables.value = rebuilt
     
     // 새 버전 생성
     const newVersionNumber = versions.value.length + 1
     versions.value.push({
       number: newVersionNumber,
       template: `버전 ${newVersionNumber} 템플릿`,
-      messageIndex: chatHistory.value.length - 1
+      messageIndex: chatHistory.value.length - 1,
+      templateContent: templateContent.value,
+      templateTitle: templateTitle.value
     })
+    
+    // 새 버전의 템플릿 내용 저장
+    versionTemplates.value[newVersionNumber] = {
+      content: templateContent.value,
+      title: templateTitle.value,
+      variables: templateVariables.value
+    }
+    
+    // 새 버전을 현재 선택된 버전으로 설정
+    currentVersion.value = newVersionNumber
     
     console.log('템플릿 수정 완료:', response.data)
     
@@ -552,6 +597,9 @@ const sendMessage = async () => {
       time: timeString
     }
     chatHistory.value.push(errorMessage)
+    
+    // 오류 메시지 추가 후 자동 스크롤
+    scrollToBottom()
   } finally {
     isGenerating.value = false
   }
@@ -559,27 +607,67 @@ const sendMessage = async () => {
 
 // 버전 선택
 const selectVersion = (versionNumber: number) => {
+  // 이미 선택된 버전이면 아무것도 하지 않음
+  if (currentVersion.value === versionNumber) {
+    return
+  }
+  
   currentVersion.value = versionNumber
   console.log(`버전 ${versionNumber} 선택됨`)
-  // 여기서 해당 버전의 템플릿을 미리보기에 표시하는 로직 추가 가능
+  
+  // 해당 버전의 템플릿 내용으로 업데이트
+  const versionTemplate = versionTemplates.value[versionNumber]
+  if (versionTemplate) {
+    templateContent.value = versionTemplate.content
+    templateTitle.value = versionTemplate.title
+    templateVariables.value = versionTemplate.variables
+    
+    // 변수 값 초기화
+    const initialVariables: Record<string, string> = {}
+    versionTemplate.variables.forEach((variable: any) => {
+      const koreanNames: Record<string, string> = {
+        'recipient': '수신자',
+        'sender': '발신자',
+        'couponName': '쿠폰명',
+        'expiryDate': '사용기한',
+        'additionalMessage': '추가 메시지',
+        '이름': '이름',
+        '회사명': '회사명'
+      }
+      const displayName = koreanNames[variable.name] || variable.name
+      initialVariables[variable.name] = `${displayName} 값`
+    })
+    editedVariables.value = initialVariables
+    
+    console.log(`버전 ${versionNumber} 템플릿으로 전환됨`)
+  } else {
+    console.warn(`버전 ${versionNumber}의 템플릿 데이터를 찾을 수 없습니다`)
+  }
 }
 
 // 채팅 비활성화 조건 확인
 const isChatDisabled = () => {
-  return remainingCorrections.value <= 0 || isGenerating.value || isModifying.value
+  return remainingCorrections.value <= 0 || isGenerating.value
 }
 
 // 채팅 placeholder 텍스트 결정
 const getChatPlaceholder = () => {
   if (remainingCorrections.value <= 0) {
     return '정정 횟수가 모두 소진되었습니다.'
-  } else if (isModifying.value) {
-    return '사용자 수정 모드입니다. 수정 완료 후 채팅이 가능합니다.'
   } else if (isGenerating.value) {
     return 'AI가 응답을 생성 중입니다...'
   } else {
     return '메시지를 입력하세요...'
   }
+}
+
+// 채팅 자동 스크롤 함수
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (chatHistoryRef.value) {
+      chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
+    }
+  })
 }
 </script>
 
@@ -1065,7 +1153,6 @@ const getChatPlaceholder = () => {
 }
 
 /* 공통 버튼 스타일 */
-.btn-modify,
 .btn-submit,
 .btn-reject {
   background-color: #6c757d;
@@ -1098,17 +1185,7 @@ const getChatPlaceholder = () => {
   background-color: #c82333;
 }
 
-/* 수정 버튼 호버 효과 */
-.btn-modify:hover:not(:disabled) {
-  background-color: #5a6268;
-}
-
-/* 수정 버튼 비활성화 상태 */
-.btn-modify:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
+/* 수정 버튼 스타일 제거됨 */
 
 /* 변수값 표시 토글 스타일 */
 .variables-toggle {

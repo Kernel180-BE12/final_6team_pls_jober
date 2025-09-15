@@ -14,9 +14,6 @@
           class="kakao-message" 
           v-html="formattedTemplateContent" 
           @click="handleVariableClick"
-          @blur="handleVariableBlur"
-          @keydown="handleKeyDown"
-          @input="handleVariableInput"
         >
         </div>
       </div>
@@ -33,7 +30,6 @@ interface KakaoPreviewProps {
   templateContent?: string
   showVariables: boolean
   variables: Record<string, string>
-  isModifying: boolean
   isRejected: boolean
   rejectedVariables: string[]
 }
@@ -44,22 +40,14 @@ const emit = defineEmits<{
   rejectTemplate: []
   submitTemplate: []
   updateVariables: [variables: Record<string, string>]
-  finishAllEditing: []
 }>()
 
 const editedVariables = ref({ ...props.variables })
-const editingField = ref<string | null>(null)
-const originalValues = ref<Record<string, string>>({ ...props.variables })
 const modifiedVariables = ref<Set<string>>(new Set())
-const isEditing = ref(false)
 const cachedTemplateContent = ref('')
 
 // 템플릿 내용을 포맷팅하여 변수를 적절한 스타일로 렌더링
 const formattedTemplateContent = computed(() => {
-  // 편집 중일 때는 캐시된 내용 사용 (포커스 유지)
-  if (isEditing.value && editingField.value && cachedTemplateContent.value) {
-    return cachedTemplateContent.value
-  }
   
   if (!props.templateContent) {
     // 기본 템플릿 내용
@@ -102,19 +90,14 @@ const formattedTemplateContent = computed(() => {
       
       // 수정된 변수인지 확인
       const isModified = modifiedVariables.value.has(variableName)
-      const isEditing = editingField.value === variableName
+      const isEditing = false
       
       let variableClass = 'variable highlighted'
       
-      // 수정 모드일 때 편집 가능한 스타일 추가
-      if (props.isModifying && !props.isRejected) {
-        variableClass += ' clickable editable'
-      }
+      // 편집 기능 제거
       
       // 편집 중인 변수 표시 (연두색 배경)
-      if (isEditing) {
-        variableClass += ' editing'
-      }
+      // 편집 기능 제거
             
       // 반려된 변수 하이라이트
       if (props.isRejected && props.rejectedVariables.includes(variableName)) {
@@ -122,17 +105,9 @@ const formattedTemplateContent = computed(() => {
       }
       
       // 수정 모드일 때는 중괄호 없이 표시, 수정 완료 후에는 중괄호와 함께 표시
-      let displayValue
-      if (props.isModifying) {
-        // 수정 모드일 때는 중괄호 없이 변수명만 표시
-        // 편집 중인 변수는 현재 입력된 값 유지
-        displayValue = variablesToUse[variableName] || variableName
-      } else {
-        // 수정 완료 후에는 중괄호와 함께 표시
-        displayValue = variablesToUse[variableName] ? `{${variablesToUse[variableName]}}` : match
-      }
+      const displayValue = variablesToUse[variableName] ? `{${variablesToUse[variableName]}}` : match
       
-      return `<span class="${variableClass}" data-variable="${variableName}" ${isEditing ? 'contenteditable="true"' : ''}>${displayValue}</span>`
+      return `<span class="${variableClass}" data-variable="${variableName}">${displayValue}</span>`
     })
   }
   
@@ -154,15 +129,8 @@ const formattedTemplateContent = computed(() => {
       
       let variableClass = 'variable'
       
-      // 수정 모드일 때 편집 가능한 스타일 추가
-      if (props.isModifying && !props.isRejected) {
-        variableClass += ' clickable editable'
-      }
-      
       // 편집 중인 변수 표시
-      if (editingField.value === key) {
-        variableClass += ' editing'
-      }
+      // 편집 기능 제거
     
       // 반려된 변수 하이라이트
       if (props.isRejected && props.rejectedVariables.includes(key)) {
@@ -184,30 +152,14 @@ const formattedTemplateContent = computed(() => {
           return escapeMap[match]
         })
         
-        // 수정 모드일 때는 중괄호 없이 표시, 수정 완료 후에는 중괄호와 함께 표시
-        let displayValue
-        if (props.isModifying) {
-          // 수정 모드일 때는 중괄호 없이 변수명만 표시
-          displayValue = escapedValue
-        } else {
-          // 수정 완료 후에는 중괄호와 함께 표시
-          displayValue = `{${escapedValue}}`
-        }
+        const displayValue = `{${escapedValue}}`
         
-        content = content.replace(pattern, 
-          `<span class="${variableClass}" ${props.isModifying ? 'contenteditable="true"' : ''} data-variable="${key}">${displayValue}</span>`
-        )
+        content = content.replace(pattern, `<span class="${variableClass}" data-variable="${key}">${displayValue}</span>`)
       })
     })
   }
   
-  // 수정 모드일 때 이미 하이라이트된 변수들을 편집 가능하게 만들기
-  if (props.isModifying && !props.isRejected) {
-    // 이미 하이라이트된 변수들을 편집 가능하게 변환
-    content = content.replace(/<span class="variable highlighted" data-variable="\{([^}]+)\}">\{[^}]+\}<\/span>/g, (match, variableName) => {
-      return `<span class="variable clickable editable" data-variable="${variableName}" data-original-text="{${variableName}}"><span class="editable-variable-name" contenteditable="true">${variableName}</span></span>`
-    })
-  }
+  // 편집 기능 제거
   
   // 버튼 처리: (버튼) 텍스트를 실제 버튼으로 변환
   content = content.replace(/\(버튼\)\s*([^\n]+)/g, '<div class="kakao-button">$1</div>')
@@ -226,7 +178,7 @@ const formattedTemplateContent = computed(() => {
   const textContent = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
   
   // 편집 중이 아닐 때만 로그 출력 및 캐시 업데이트
-  if (!isEditing.value || !editingField.value) {
+  if (true) {
     console.log('최종 포맷된 템플릿 (텍스트만):', textContent)
     cachedTemplateContent.value = content
   }
@@ -237,7 +189,6 @@ const formattedTemplateContent = computed(() => {
 // props.variables가 변경될 때마다 editedVariables 업데이트
 watch(() => props.variables, (newVariables) => {
   editedVariables.value = { ...newVariables }
-  originalValues.value = { ...newVariables }
 }, { deep: true })
 
 // editedVariables가 변경될 때마다 미리보기 업데이트
@@ -245,140 +196,6 @@ watch(editedVariables, (newVariables) => {
   // 로그 제거 - 필요시에만 활성화
   // console.log('editedVariables 변경됨:', newVariables)
 }, { deep: true })
-
-// 특정 필드 편집 시작
-const startEditing = (fieldName: string) => {
-  if (!props.isModifying) return
-  
-  console.log('startEditing 호출:', fieldName)
-  
-  // 편집 시작 전에 현재 템플릿 내용을 캐시
-  cachedTemplateContent.value = formattedTemplateContent.value
-  
-  editingField.value = fieldName
-  isEditing.value = true
-  originalValues.value[fieldName] = editedVariables.value[fieldName]
-  
-  // 다음 tick에서 편집 가능한 변수명 부분에 포커스
-  nextTick(() => {
-    let element: HTMLElement | null = null
-    
-    if (props.showVariables) {
-      // showVariables가 true일 때는 변수명 전체를 편집 가능하게 함
-      element = document.querySelector(`[data-variable="${fieldName}"]`) as HTMLElement
-      console.log('편집 요소 찾기 (showVariables=true):', element)
-      
-      if (element) {
-        // contentEditable이 이미 설정되어 있는지 확인
-        if (element.contentEditable !== 'true') {
-          element.contentEditable = 'true'
-        }
-        element.focus()
-        // 텍스트 전체 선택
-        const range = document.createRange()
-        range.selectNodeContents(element)
-        const selection = window.getSelection()
-        if (selection) {
-          selection.removeAllRanges()
-          selection.addRange(range)
-        }
-        console.log('편집 모드 활성화 완료')
-      }
-    } else {
-      // showVariables가 false일 때는 기존 로직 사용
-      element = document.querySelector(`[data-variable="${fieldName}"] .editable-variable-name`) as HTMLElement
-      console.log('편집 요소 찾기 (showVariables=false):', element)
-      
-      if (element) {
-        element.focus()
-        // 텍스트 전체 선택
-        const range = document.createRange()
-        range.selectNodeContents(element)
-        const selection = window.getSelection()
-        if (selection) {
-          selection.removeAllRanges()
-          selection.addRange(range)
-        }
-        console.log('편집 모드 활성화 완료')
-      }
-    }
-  })
-}
-
-// 편집 완료 (자동 저장 제거)
-const finishEditing = (fieldName: string) => {
-  const newValue = editedVariables.value[fieldName]
-  
-  // 빈 값이어도 편집 중에는 원래 값으로 복원하지 않음 (백스페이스로 지우는 중일 수 있음)
-  // 수정 완료 버튼을 눌렀을 때만 빈 값 체크
-  if (newValue && newValue.trim() !== '') {
-    // 값이 변경되었으면 수정된 변수 목록에 추가
-    if (newValue !== originalValues.value[fieldName]) {
-      modifiedVariables.value.add(fieldName)
-    }
-  }
-  
-  editingField.value = null
-  isEditing.value = false
-  
-  // 캐시 클리어하여 다음에 새로운 내용으로 업데이트
-  cachedTemplateContent.value = ''
-  
-  // showVariables가 true일 때는 contentEditable 해제
-  if (props.showVariables) {
-    const element = document.querySelector(`[data-variable="${fieldName}"]`) as HTMLElement
-    if (element) {
-      element.contentEditable = 'false'
-      element.blur() // 포커스 해제
-    }
-  }
-  
-  // 자동 저장 제거 - 수정 완료 버튼을 눌렀을 때만 부모에게 전달
-  // emit('updateVariables', editedVariables.value)
-}
-
-// 편집 취소
-const cancelEditing = () => {
-  if (editingField.value) {
-    editedVariables.value[editingField.value] = originalValues.value[editingField.value]
-    editingField.value = null
-    isEditing.value = false
-    
-    // 캐시 클리어하여 다음에 새로운 내용으로 업데이트
-    cachedTemplateContent.value = ''
-  }
-}
-
-// 모든 편집 완료 (수정 완료 버튼 클릭 시)
-const finishAllEditing = () => {
-  // 현재 편집 중인 필드가 있으면 완료 처리
-  if (editingField.value) {
-    finishEditing(editingField.value)
-  }
-  
-  // 빈 값이 있는 변수들을 원래 값으로 복원
-  Object.keys(editedVariables.value).forEach(key => {
-    const value = editedVariables.value[key]
-    if (!value || value.trim() === '') {
-      editedVariables.value[key] = originalValues.value[key]
-    }
-  })
-  
-  // 캐시 클리어하여 새로운 내용으로 업데이트
-  cachedTemplateContent.value = ''
-  
-  // 수정 완료 시에만 부모에게 변수들을 전달
-  emit('updateVariables', editedVariables.value)
-  emit('finishAllEditing')
-  
-  console.log('모든 편집 완료, 수정된 변수들:', Array.from(modifiedVariables.value))
-  console.log('최종 editedVariables:', editedVariables.value)
-  
-  // 강제로 리렌더링을 위해 nextTick 사용
-  nextTick(() => {
-    console.log('미리보기 업데이트 완료')
-  })
-}
 
 // 변수 클릭 이벤트 처리
 const handleVariableClick = (event: Event) => {
@@ -388,39 +205,9 @@ const handleVariableClick = (event: Event) => {
   const target = event.target as HTMLElement
   const variableElement = target.closest('[data-variable]') as HTMLElement
   
-  console.log('변수 클릭 감지:', { 
-    target: target.tagName, 
-    variableElement: !!variableElement, 
-    isModifying: props.isModifying,
-    showVariables: props.showVariables,
-    currentEditingField: editingField.value
-  })
+  console.log('변수 클릭 감지:', { target: target.tagName, variableElement: !!variableElement })
   
-  if (variableElement && props.isModifying) {
-    const variableName = variableElement.getAttribute('data-variable')
-    console.log('변수명:', variableName)
-    
-    if (variableName) {
-      // 이미 편집 중인 변수라면 중복 편집 시작 방지
-      if (editingField.value === variableName) {
-        console.log('이미 편집 중인 변수, 중복 편집 방지')
-        return
-      }
-      
-      // showVariables가 true일 때는 변수명을 직접 클릭하여 편집
-      if (props.showVariables) {
-        console.log('변수 편집 시작:', variableName)
-        startEditing(variableName)
-      } else {
-        // 편집 가능한 변수명 부분을 클릭했을 때만 편집 시작
-        const editableNameElement = variableElement.querySelector('.editable-variable-name')
-        if (editableNameElement && (target === editableNameElement || editableNameElement.contains(target))) {
-          console.log('변수 편집 시작 (editable):', variableName)
-          startEditing(variableName)
-        }
-      }
-    }
-  } else if (variableElement && props.isRejected) {
+  if (variableElement && props.isRejected) {
     const variableName = variableElement.getAttribute('data-variable')
     if (variableName && props.rejectedVariables.includes(variableName)) {
       // 반려된 변수 클릭 시 부모 컴포넌트에 이벤트 전달
@@ -428,128 +215,7 @@ const handleVariableClick = (event: Event) => {
     }
   }
 }
-
-// 변수 입력 이벤트 처리 (실시간 업데이트)
-const handleVariableInput = (event: Event) => {
-  const target = event.target as HTMLElement
-  const variableElement = target.closest('[data-variable]') as HTMLElement
-  
-  if (variableElement) {
-    const variableName = variableElement.getAttribute('data-variable')
-    if (variableName) {
-      // 실시간으로 변수값 업데이트
-      if (props.showVariables) {
-        const textContent = variableElement.textContent || ''
-        editedVariables.value[variableName] = textContent.replace(/[{}]/g, '')
-      } else {
-        const editableNameElement = variableElement.querySelector('.editable-variable-name')
-        if (editableNameElement) {
-          const newVariableName = editableNameElement.textContent || ''
-          editedVariables.value[variableName] = newVariableName.replace(/[{}]/g, '')
-        } else {
-          const textContent = variableElement.textContent || ''
-          editedVariables.value[variableName] = textContent.replace(/[{}]/g, '')
-        }
-      }
-      
-      // 편집 중 상태 유지
-      if (!editingField.value) {
-        editingField.value = variableName
-        isEditing.value = true
-      }
-    }
-  }
-}
-
-// 변수 편집 완료 감지 (자동 저장 제거)
-const handleVariableBlur = (event: Event) => {
-  const target = event.target as HTMLElement
-  const variableElement = target.closest('[data-variable]') as HTMLElement
-  
-  if (variableElement) {
-    const variableName = variableElement.getAttribute('data-variable')
-    if (variableName) {
-      // 편집 중인 변수값만 로컬에서 업데이트 (자동 저장하지 않음)
-      if (props.showVariables) {
-        const textContent = variableElement.textContent || ''
-        editedVariables.value[variableName] = textContent.replace(/[{}]/g, '')
-      } else {
-        const editableNameElement = variableElement.querySelector('.editable-variable-name')
-        if (editableNameElement) {
-          const newVariableName = editableNameElement.textContent || ''
-          editedVariables.value[variableName] = newVariableName.replace(/[{}]/g, '')
-        } else {
-          const textContent = variableElement.textContent || ''
-          editedVariables.value[variableName] = textContent.replace(/[{}]/g, '')
-        }
-      }
-      
-      // 자동 저장 제거 - 수정 완료 버튼을 눌렀을 때만 부모에게 전달
-      // emit('updateVariables', editedVariables.value)
-      
-      // blur 이벤트에서는 편집 완료하지 않고 편집 상태 유지
-      // finishEditing(variableName) 제거
-    }
-  }
-}
-
-// 키보드 이벤트 처리
-const handleKeyDown = (event: KeyboardEvent) => {
-  const target = event.target as HTMLElement
-  const variableElement = target.closest('[data-variable]') as HTMLElement
-  
-  if (variableElement) {
-    const variableName = variableElement.getAttribute('data-variable')
-    if (variableName) {
-      // 일반 키 입력 시 변수값 업데이트 (편집 완료하지 않음)
-      if (event.key.length === 1 || event.key === 'Backspace' || event.key === 'Delete') {
-        // 실시간으로 변수값 업데이트
-        if (props.showVariables) {
-          const textContent = variableElement.textContent || ''
-          editedVariables.value[variableName] = textContent.replace(/[{}]/g, '')
-        } else {
-          const editableNameElement = variableElement.querySelector('.editable-variable-name')
-          if (editableNameElement) {
-            const newVariableName = editableNameElement.textContent || ''
-            editedVariables.value[variableName] = newVariableName.replace(/[{}]/g, '')
-          } else {
-            const textContent = variableElement.textContent || ''
-            editedVariables.value[variableName] = textContent.replace(/[{}]/g, '')
-          }
-        }
-        
-        // 편집 중 상태 유지
-        if (!editingField.value) {
-          editingField.value = variableName
-          isEditing.value = true
-        }
-      }
-      
-      // Enter 키로 편집 완료
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault()
-        finishEditing(variableName)
-      }
-      
-      // Tab 키로 편집 완료 (다음 변수로 이동)
-      if (event.key === 'Tab') {
-        event.preventDefault()
-        finishEditing(variableName)
-      }
-    }
-  }
-  
-  // Escape 키로 편집 취소
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    cancelEditing()
-  }
-}
-
-// 부모 컴포넌트에서 호출할 수 있도록 함수 노출
-defineExpose({
-  finishAllEditing
-})
+// 편집 관련 이벤트 및 노출 제거
 
 </script>
 
