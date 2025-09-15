@@ -20,16 +20,16 @@
             </p>
             
             <!-- 초기 상태: 로그인/회원가입 버튼 -->
-            <div v-if="!showForm && !userStore.isLoggedIn" class="action-buttons mt-4">
+            <div v-if="!userStore.isLoggedIn" class="action-buttons mt-4">
               <button
-                class="btn btn-basic"
-                @click="showLoginForm"
+                class="btn-login"
+                @click="openLoginForm"
               >
                 로그인
               </button>
               <button
-                class="btn btn-basic02"
-                @click="showRegisterForm"
+                class="btn-register"
+                @click="openRegisterForm"
               >
                 회원가입
               </button>
@@ -38,17 +38,25 @@
         </div>
         
         <!-- 오른쪽: 폼 영역 -->
-        <div v-if="showForm && !userStore.isLoggedIn" class="form-section">
-          <component 
-            :is="currentForm" 
+        <div class="form-section">
+          <!-- 로그인 폼이 아닐 땐 템플릿 생성 -->
+          <TemplateCreateComponent
+            v-if="!showLoginForm"
+            @requireLogin="showLoginForm = true"
+          />
+          
+          <!-- 로그인/회원가입/비번찾기 폼 -->
+          <component
+            v-else
+            :is="currentForm"
             @switchForm="switchForm"
-            @loginSuccess="showForm = false"
+            @loginSuccess="showLoginForm = false"
           />
         </div>
       </div>
     </div>
   </div>
-</template>
+</template> 
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
@@ -56,15 +64,18 @@ import HeaderComponent from '@/components/HeaderComponent.vue'
 import LoginComponent from '@/components/LoginComponent.vue'
 import RegisterComponent from '@/components/RegisterComponent.vue'
 import ForgotPasswordComponent from '@/components/ForgotPasswordComponent.vue'
+import TemplateCreateComponent from '@/components/TemplateCreateComponent.vue'
 import "../assets/styles/btn.css"
 import { useUserStore } from '@/stores/user'
 
-
-
-const showForm = ref(false)
-const currentFormType = ref('login')
 const userStore = useUserStore()
 
+// 상태
+const showLoginForm = ref(false)
+const currentFormType = ref('login')
+const showForm = ref(false) // welcome-section 애니메이션용
+
+// 현재 표시할 폼 계산
 const currentForm = computed(() => {
   switch (currentFormType.value) {
     case 'login':
@@ -78,14 +89,17 @@ const currentForm = computed(() => {
   }
 })
 
-const showLoginForm = () => {
+// 로그인/회원가입 버튼 눌렀을 때
+const openLoginForm = () => {
   currentFormType.value = 'login'
   showForm.value = true
+  showLoginForm.value = true
 }
 
-const showRegisterForm = () => {
+const openRegisterForm = () => {
   currentFormType.value = 'register'
   showForm.value = true
+  showLoginForm.value = true
 }
 
 const switchForm = (formType: string) => {
