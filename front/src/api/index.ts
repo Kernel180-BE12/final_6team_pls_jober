@@ -124,16 +124,9 @@ export const templateApi = {
 // AI 서버 직접 호출용 API (템플릿 생성)
 export const aiApi = {
   // AI 서버에 직접 템플릿 생성 요청
-  generateTemplate: (userMessage: string) => {
-    const aiApi = axios.create({
-      baseURL: 'http://localhost:8080',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    return aiApi.post('/api/ai-generation', { user_message: userMessage })
-  }
+  generateTemplate: (userMessage: string) => 
+    api.post('/ai-generation', { user_message: userMessage })
+  
 }
 
 export default api
