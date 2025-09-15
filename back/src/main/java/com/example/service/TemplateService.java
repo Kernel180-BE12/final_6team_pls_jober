@@ -96,7 +96,7 @@ public class TemplateService {
         // UserDto에서 가져온 accountId로 기존 Account 엔티티 참조
         Account account = accountRepository.findById(currentUser.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + currentUser.getAccountId()));
-        
+
         Template template = Template.builder()
                 .account(account)
                 .templateContent(requestDto.getTemplateContent())
