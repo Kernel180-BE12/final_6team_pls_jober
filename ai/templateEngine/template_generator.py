@@ -72,7 +72,7 @@ class TemplateGenerator:
     def connect_to_chroma(self):
         """ChromaDB 연결"""
         chroma_host = os.getenv('CHROMA_HOST', 'localhost')
-        chroma_port = int(os.getenv('CHROMA_PORT', '8000'))
+        chroma_port = int(os.getenv('CHROMA_PORT', '8001'))
         chroma_persist_dir = os.getenv('CHROMA_PERSIST_DIR', './chroma_db')
         
         logger.info("🔗 ChromaDB 연결 시도 중...")

@@ -12,12 +12,6 @@ const router = createRouter({
       meta: { requiresAuth: false } // 인증 필요 없음
     },
     {
-      path: '/template/create',
-      name: 'template-create',
-      component: () => import('../views/TemplateCreateView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
       path: '/template/result',
       name: 'template-result',
       component: () => import('../views/TemplateResultView.vue'),
@@ -69,6 +63,8 @@ router.beforeEach(async (to, from, next) => {
     })
 
     if (res.ok) {
+      const user = await res.json()
+      userStore.setUser({ accountId: user.accountId, role: user.role })
       return next()
     } else if (res.status === 401) {
       window.alert("로그인이 필요한 페이지 입니다.")

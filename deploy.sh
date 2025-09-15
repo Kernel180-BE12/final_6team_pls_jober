@@ -63,7 +63,7 @@ docker-compose build ai-service
 
 # 백엔드 이미지 pull (Docker Hub에서)
 log_info "백엔드 이미지 다운로드 중..."
-docker pull hy7012/pls-jober-backend:latest
+docker pull jonathanchoii/pls-jober-backend:latest
 
 # 프론트엔드 빌드 (로컬에서)
 log_info "프론트엔드 빌드 중..."
@@ -72,15 +72,33 @@ npm ci
 npm run build
 cd ..
 
-# 프론트엔드 빌드 파일을 Nginx가 사용할 위치로 복사
-log_info "프론트엔드 빌드 파일 배포 중..."
-sudo mkdir -p /var/www/frontend/dist
-sudo cp -r front/dist/* /var/www/frontend/dist/
-sudo chown -R www-data:www-data /var/www/frontend/
-sudo chmod -R 755 /var/www/frontend/
+# 프론트엔드 빌드 완료 (nginx 컨테이너에서 직접 마운트됨)
+log_info "프론트엔드 빌드 완료"
+
+# 호스트 서비스 상태 확인
+log_info "호스트 서비스 상태 확인 중..."
+
+# MySQL 상태 확인
+if systemctl is-active --quiet mysql; then
+    log_success "MySQL이 정상적으로 실행 중입니다."
+else
+    log_warning "MySQL이 실행되지 않았습니다. sudo systemctl start mysql로 시작해주세요."
+fi
+
+# ChromaDB 상태 확인 (포트 8001로 가정)
+if curl -f http://localhost:8001/health > /dev/null 2>&1; then
+    log_success "ChromaDB가 정상적으로 실행 중입니다."
+else
+    log_warning "ChromaDB 헬스체크 실패. ChromaDB가 실행 중인지 확인해주세요."
+fi
+
+# 호스트 Nginx 중지 (Docker nginx 사용)
+log_info "호스트 Nginx 중지 중..."
+sudo systemctl stop nginx || true
+sudo systemctl disable nginx || true
 
 # 서비스 시작
-log_info "모든 서비스 시작 중..."
+log_info "Docker 서비스 시작 중..."
 docker-compose up -d
 
 # 헬스체크
@@ -101,11 +119,11 @@ else
     log_warning "AI 서비스 헬스체크 실패. 로그를 확인해주세요."
 fi
 
-# Nginx 헬스체크
+# Nginx 컨테이너 헬스체크
 if curl -f http://localhost/health > /dev/null 2>&1; then
-    log_success "Nginx가 정상적으로 실행 중입니다."
+    log_success "Nginx 컨테이너가 정상적으로 실행 중입니다."
 else
-    log_warning "Nginx 헬스체크 실패. 로그를 확인해주세요."
+    log_warning "Nginx 컨테이너 헬스체크 실패. 로그를 확인해주세요."
 fi
 
 # 서비스 상태 확인
@@ -120,7 +138,16 @@ echo "  🔧 백엔드 API: http://134.185.106.160/api"
 echo "  🤖 AI 서비스: http://134.185.106.160/ai"
 echo ""
 echo "📊 서비스 관리 명령어:"
-echo "  상태 확인: docker-compose ps"
-echo "  로그 확인: docker-compose logs -f [서비스명]"
-echo "  서비스 중지: docker-compose down"
-echo "  서비스 재시작: docker-compose restart [서비스명]"
+echo "  Docker 서비스 상태 확인: docker-compose ps"
+echo "  Docker 서비스 로그 확인: docker-compose logs -f [서비스명]"
+echo "  Docker 서비스 중지: docker-compose down"
+echo "  Docker 서비스 재시작: docker-compose restart [서비스명]"
+echo ""
+echo "  호스트 서비스 관리:"
+echo "  MySQL 상태: sudo systemctl status mysql"
+echo "  MySQL 재시작: sudo systemctl restart mysql"
+echo "  ChromaDB 상태: curl http://localhost:8001/health"
+echo ""
+echo "  Docker 서비스 관리:"
+echo "  Nginx 컨테이너 로그: docker-compose logs -f nginx"
+echo "  Nginx 컨테이너 재시작: docker-compose restart nginx"
