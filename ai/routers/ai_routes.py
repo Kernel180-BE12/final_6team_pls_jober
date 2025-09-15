@@ -49,7 +49,7 @@ class QuestionAnswerRequest(BaseModel):
 class TemplateGenerationRequest(BaseModel):
     category: str
     user_message: str
-    model: Optional[str] = "gpt-5"
+    model: Optional[str] = "gpt-4o-mini"
 
 class TemplateGenerationResponse(BaseModel):
     template_content: str
