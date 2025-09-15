@@ -14,22 +14,12 @@ CREATE TABLE account (
 ) DEFAULT CHARSET = utf8mb4;
 
 
--- ─── 카테고리 1 ───────────────────────────────
--- 대분류 카테고리 정보
-CREATE TABLE category1 (
-                           category1_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                           name         VARCHAR(100) NOT NULL
-)DEFAULT CHARSET=utf8mb4;
-
-
--- ─── 카테고리 2 ───────────────────────────────
--- 소분류 카테고리 정보, category1과 연결
-CREATE TABLE category2 (
-                           category2_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                           category1_id BIGINT NOT NULL,
+-- ─── 카테고리 ───────────────────────────────
+CREATE TABLE category (
+                           category_id BIGINT PRIMARY KEY AUTO_INCREMENT,
                            name         VARCHAR(100) NOT NULL,
-                           CONSTRAINT fk_category2_category1 FOREIGN KEY (category1_id)
-                               REFERENCES category1(category1_id)
+                           parent_id    BIGINT,
+                           CONSTRAINT fk_category_parent FOREIGN KEY (parent_id) REFERENCES category(category_id)
 )DEFAULT CHARSET=utf8mb4;
 
 
@@ -54,7 +44,7 @@ CREATE TABLE industry (
 CREATE TABLE template (
                           template_id      BIGINT PRIMARY KEY AUTO_INCREMENT,
                           account_id       BIGINT NOT NULL,
-                          category2_id     BIGINT,
+                          category_id      BIGINT,
                           button_id        BIGINT,
                           industry_id      BIGINT,
                           template_content VARCHAR(1000) NOT NULL,
@@ -66,8 +56,8 @@ CREATE TABLE template (
 
                           CONSTRAINT fk_template_account
                               FOREIGN KEY (account_id)   REFERENCES account(account_id),
-                          CONSTRAINT fk_template_category2
-                              FOREIGN KEY (category2_id) REFERENCES category2(category2_id),
+                          CONSTRAINT fk_template_category
+                              FOREIGN KEY (category_id) REFERENCES category(category_id),
                           CONSTRAINT fk_template_button
                               FOREIGN KEY (button_id)    REFERENCES button(button_id),
                           CONSTRAINT fk_template_industry
