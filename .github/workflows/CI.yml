@@ -1,115 +1,221 @@
+# CI 워크플로우 이름
 name: CI
 
+# 트리거 조건: main, develop 브랜치에 대한 Pull Request 생성/업데이트 시 실행
 on:
   pull_request:
     branches: ["main", "develop"]
-
+    
 jobs:
+  # ===================================================================
+  #  Job 1: 변경된 파일 감지 및 필터링
+  # ===================================================================
   changes:
+    # Ubuntu 최신 버전에서 실행
     runs-on: ubuntu-latest
+    # 다른 Job들이 사용할 수 있는 출력값 정의
     outputs:
-      front: ${{ steps.filter.outputs.front }}
-      ai: ${{ steps.filter.outputs.ai }}
-      back: ${{ steps.filter.outputs.back }}
-      root: ${{ steps.filter.outputs.root }}
+      front: ${{ steps.filter.outputs.front }}    # front/ 폴더 변경 여부
+      ai: ${{ steps.filter.outputs.ai }}          # ai/ 폴더 변경 여부  
+      back: ${{ steps.filter.outputs.back }}      # back/ 폴더 변경 여부
+      config: ${{ steps.filter.outputs.config }}  # 설정 파일 변경 여부
+      docs: ${{ steps.filter.outputs.docs }}      # 문서 파일 변경 여부
     steps:
+      # 코드 체크아웃
       - uses: actions/checkout@v4
+      # 경로 기반 필터링으로 변경된 파일 감지
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
             front:
-              - 'front/**'
+              - 'front/**'    # 프론트엔드 관련 파일들
             ai:
-              - 'ai/**'
+              - 'ai/**'       # AI 서비스 관련 파일들
             back:
-              - 'back/**'
-            root:
-              - '*'
-              - '.github/**'
+              - 'back/**'     # 백엔드 관련 파일들
+            config:
+              - '.github/workflows/**'  # CI/CD 워크플로우 파일들
+              - 'docker-compose.yml'    # Docker Compose 설정
+              - 'nginx/**'              # Nginx 설정 파일들
+              - 'deploy.sh'             # 배포 스크립트
+            docs:
+              - 'README.md'             # 프로젝트 문서
+              - 'docs/**'               # 문서 폴더
+              - '*.md'                  # 마크다운 파일들
 
+  # ===================================================================
+  #  Job 2: 프론트엔드 빌드 및 테스트
+  # ===================================================================
   node-build:
+    # changes Job이 완료된 후에 실행
     needs: changes
-    if: ${{ needs.changes.outputs.front == 'true' || needs.changes.outputs.root == 'true' }}
+    # 실행 조건: front/ 폴더 또는 CI/CD 설정 파일이 변경된 경우에만 실행
+    if: ${{ needs.changes.outputs.front == 'true' || needs.changes.outputs.config == 'true' }}
+    # Ubuntu 최신 버전에서 실행
     runs-on: ubuntu-latest
+    # 모든 run 명령어의 기본 작업 디렉토리를 front/로 설정
     defaults:
       run:
         working-directory: ./front
     steps:
+      # 코드 체크아웃
       - uses: actions/checkout@v4
+      # Node.js 22 버전 설정 및 npm 캐시 활성화
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: ./front/package-lock.json
+          node-version: 22  # Node.js 버전 (deploy.yml과 일치)
+          cache: 'npm'  # npm 캐시 활성화로 빌드 속도 향상
+          cache-dependency-path: ./front/package-lock.json  # 캐시 경로
+      # 의존성 설치 (package-lock.json 기반, 빠르고 안정적)
       - run: npm ci
+      # 애플리케이션 빌드 (빌드 스크립트가 있는 경우에만)
       - run: npm run build --if-present
-      - run: npm test --if-present
+      # 테스트 실행 (필수 - 실패 시 빌드 중단)
+      - run: npm test
 
+  # ===================================================================
+  #  Job 3: AI 서비스 빌드 및 테스트
+  # ===================================================================
   python-build:
+    # changes Job이 완료된 후에 실행
     needs: changes
-    if: ${{ needs.changes.outputs.ai == 'true' || needs.changes.outputs.root == 'true' }}
+    # 실행 조건: ai/ 폴더 또는 CI/CD 설정 파일이 변경된 경우에만 실행
+    if: ${{ needs.changes.outputs.ai == 'true' || needs.changes.outputs.config == 'true' }}
+    # Ubuntu 최신 버전에서 실행
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.changed_files, 'ai/')
     steps:
+      # 코드 체크아웃
       - uses: actions/checkout@v4
+      # Python 3.10 환경 설정
       - name: Set up Python 3.10
         uses: actions/setup-python@v3
         with:
           python-version: "3.10"
+      # Python 의존성 설치 (CI용 경량 버전)
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r ai/requirements.txt
+          python -m pip install --upgrade pip  # pip 최신 버전으로 업그레이드
+          # CI용 경량 requirements 사용 (torch, transformers 등 제외)
+          pip install --cache-dir ~/.cache/pip -r ai/requirements-ci.txt   # 경량 의존성 설치로 시간 단축
+      # Python 코드 린팅 (flake8)
       - name: Lint with flake8
         run: |
+          # 심각한 오류만 체크 (E9,F63,F7,F82)
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # 복잡도와 라인 길이 체크 (경고만, 빌드 중단하지 않음)
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      # AI 서비스 테스트 실행 (테스트가 없으면 스킵)
       - name: Test with pytest
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  # OpenAI API 키 (테스트용)
         run: |
-          pytest ai/tests || echo "⚠️ 테스트가 없습니다. (pytest exit code 5)"
+          echo "🔍 테스트 디렉토리 확인 중..."
+          echo "현재 디렉토리: $(pwd)"
+          echo "ai/tests 디렉토리 존재: $([ -d "ai/tests" ] && echo "YES" || echo "NO")"
+          
+          if [ -d "ai/tests" ]; then
+            echo "ai/tests 디렉토리 내용:"
+            ls -la ai/tests/ || echo "디렉토리 읽기 실패"
+            
+            PYTHON_FILES=$(find ai/tests -name "*.py" -type f 2>/dev/null)
+            FILE_COUNT=$(echo "$PYTHON_FILES" | wc -l)
+            echo "Python 파일 개수: $FILE_COUNT"
+            echo "Python 파일 목록: $PYTHON_FILES"
+            
+            if [ "$FILE_COUNT" -gt 0 ]; then
+              echo "✅ 테스트 파일이 있습니다. pytest 실행합니다."
+              pytest ai/tests -v --tb=short
+            else
+              echo "⚠️ Python 테스트 파일이 없습니다. 테스트를 스킵합니다."
+              exit 0
+            fi
+          else
+            echo "⚠️ ai/tests 디렉토리가 존재하지 않습니다. 테스트를 스킵합니다."
+            exit 0
+          fi
 
+  # ===================================================================
+  #  Job 4: 백엔드 빌드 및 테스트
+  # ===================================================================
   java-build:
+    # changes Job이 완료된 후에 실행
     needs: changes
-    if: ${{ needs.changes.outputs.back == 'true' || needs.changes.outputs.root == 'true' }}
+    # 실행 조건: back/ 폴더 또는 CI/CD 설정 파일이 변경된 경우에만 실행
+    if: ${{ needs.changes.outputs.back == 'true' || needs.changes.outputs.config == 'true' }}
+    # Ubuntu 최신 버전에서 실행
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.changed_files, 'back/')
+    # 모든 run 명령어의 기본 작업 디렉토리를 back/로 설정
     defaults:
       run:
         working-directory: back
+    # GitHub 리포지토리 읽기 권한 설정
     permissions:
       contents: read
     steps:
+      # 코드 체크아웃
       - uses: actions/checkout@v4
+      # JDK 17 환경 설정 (Temurin 배포판 사용)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: 'temurin'  # Eclipse Temurin JDK 사용
+      # Gradle 빌드 도구 설정
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+      # Gradle Wrapper 실행 권한 부여
       - name: Make gradlew executable
         run: chmod +x gradlew
+      # Gradle을 사용한 백엔드 빌드 및 테스트
       - name: Build with Gradle Wrapper
-        run: ./gradlew build
+        run: ./gradlew build  # 빌드와 테스트를 모두 실행
 
+  # ===================================================================
+  #  Job 5: 의존성 그래프 제출 (보안 취약점 스캔용)
+  # ===================================================================
   dependency-submission:
+    # changes Job이 완료된 후에 실행
     needs: changes
-    if: ${{ needs.changes.outputs.back == 'true' || needs.changes.outputs.root == 'true' }}
+    # 실행 조건: back/ 폴더 또는 CI/CD 설정 파일이 변경된 경우에만 실행
+    if: ${{ needs.changes.outputs.back == 'true' || needs.changes.outputs.config == 'true' }}
+    # Ubuntu 최신 버전에서 실행
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.changed_files, 'back/')
+    # GitHub 리포지토리 쓰기 권한 설정 (의존성 그래프 제출용)
     permissions:
       contents: write
     steps:
+      # 코드 체크아웃
       - uses: actions/checkout@v4
+      # JDK 17 환경 설정 (dependency-submission용)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+      # 의존성 그래프 생성 및 GitHub Dependabot에 제출
       - name: Generate and submit dependency graph
         uses: gradle/actions/dependency-submission@af1da67850ed9a4cedd57bfd976089dd991e2582
         with:
-          build-root-directory: back
+          build-root-directory: back  # 백엔드 프로젝트 루트 디렉토리
+
+  # ===================================================================
+  #  Job 6: 문서 변경 감지 (선택적 실행)
+  # ===================================================================
+  docs-check:
+    # changes Job이 완료된 후에 실행
+    needs: changes
+    # 실행 조건: 문서 파일만 변경된 경우에만 실행
+    if: ${{ needs.changes.outputs.docs == 'true' && needs.changes.outputs.front != 'true' && needs.changes.outputs.ai != 'true' && needs.changes.outputs.back != 'true' && needs.changes.outputs.config != 'true' }}
+    # Ubuntu 최신 버전에서 실행
+    runs-on: ubuntu-latest
+    steps:
+      # 코드 체크아웃
+      - uses: actions/checkout@v4
+      # 문서 변경 사항 확인 및 알림
+      - name: Check documentation changes
+        run: |
+          echo "📚 문서 파일이 변경되었습니다."
+          echo "변경된 문서 파일들:"
+          git diff --name-only HEAD~1 HEAD | grep -E '\.(md|txt)$' || echo "변경된 문서 파일 없음"
+          echo "✅ 문서 변경 확인 완료 - 별도의 빌드/테스트가 필요하지 않습니다."

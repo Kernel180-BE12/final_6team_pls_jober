@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useUserStore } from '@/stores/user'
 
 // API 기본 설정
 const api = axios.create({
@@ -12,10 +13,10 @@ const api = axios.create({
 // 요청 인터셉터
 api.interceptors.request.use(
   (config) => {
-    // 토큰이 있다면 헤더에 추가
-    const token = localStorage.getItem('accessToken')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    // user store에서 토큰 가져오기
+    const userStore = useUserStore()
+    if (userStore.accessToken) {
+      config.headers.Authorization = `Bearer ${userStore.accessToken}`
     }
     return config
   },
@@ -29,11 +30,11 @@ api.interceptors.response.use(
   (response) => {
     return response
   },
-  (error) => {
-    // 401 에러 시 토큰 제거
+  async (error) => {
+    // 401 에러 시 자동 로그아웃
     if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
+      const userStore = useUserStore()
+      userStore.logout()
     }
     return Promise.reject(error)
   }
@@ -106,14 +107,14 @@ export const templateApi = {
   // 템플릿 수정 요청 (채팅을 통한)
   modifyTemplate: (currentTemplate: string, userMessage: string, chatHistory: any[]) => {
     const aiApi = axios.create({
-      baseURL: 'http://localhost:8000',
+      baseURL: '/ai',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
     })
     
-    return aiApi.post('/ai/template/modify', {
+    return aiApi.post('/template/modify', {
       current_template: currentTemplate,
       user_message: userMessage,
       chat_history: chatHistory
@@ -124,16 +125,9 @@ export const templateApi = {
 // AI 서버 직접 호출용 API (템플릿 생성)
 export const aiApi = {
   // AI 서버에 직접 템플릿 생성 요청
-  generateTemplate: (category: string, userMessage: string) => {
-    const aiApi = axios.create({
-      baseURL: 'http://localhost:8000',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    return aiApi.post('/ai/template/generate', { category, user_message: userMessage })
-  }
+  generateTemplate: (userMessage: string) => 
+    api.post('/ai-generation', { user_message: userMessage })
+  
 }
 
 export default api
