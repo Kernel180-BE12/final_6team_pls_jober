@@ -70,7 +70,7 @@ const handleSubmit = async () => {
   try {
     const response = await aiApi.generateTemplate(messageText.value)
     templateStore.setUserText(messageText.value)
-    router.push('/template/result')
+    router.push('/template/generate')
   } catch (e) {
     alert('템플릿 생성 실패. 다시 시도해주세요.')
   } finally {
