@@ -83,9 +83,9 @@ export const templateApi = {
     api.post('/ai-generation', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
-  validateTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
+  validateTemplate: (templateContent: string, variableList: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
     // 변수 정보를 VariableDto 배열로 변환
-    const variableList = Object.entries(variables).map(([key, value]) => ({
+    const variables = Object.entries(variableList).map(([key, value]) => ({
       variableKey: key,
       variableValue: String(value)
     }))
@@ -93,10 +93,9 @@ export const templateApi = {
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {
       templateContent: templateContent,
-      variables: variables,
+      variableList: variables,
       category: category,
       userMessage: userMessage,
-      variableList: variableList,
       templateTitle: templateTitle
     }
     
@@ -106,19 +105,18 @@ export const templateApi = {
   },
   
   // 템플릿 수정 요청 (채팅을 통한)
-  modifyTemplate: (templateContent: string, templateTitle: string, userMessage: string, variables: Record<string, any>, category: string, chatHistory: any[]) => {
-    const variableList = Object.entries(variables).map(([key, value]) => ({
+  modifyTemplate: (templateContent: string, templateTitle: string, userMessage: string, variableList: Record<string, any>, category: string, chatHistory: any[]) => {
+    const variableListArray = Object.entries(variableList).map(([key, value]) => ({
       variableKey: key,
       variableValue: String(value)
     }))
     
     const modificationRequest = {
       templateContent: templateContent, 
-      variables: variables,  
       category: category,  
       userMessage: userMessage,
       templateTitle: templateTitle,
-      variableList: variableList,
+      variableList: variableListArray,
       chatHistory: chatHistory 
     }
     

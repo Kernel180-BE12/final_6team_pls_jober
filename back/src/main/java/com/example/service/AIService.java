@@ -72,7 +72,7 @@ public class AIService {
             Map<String, Object> templateMap = new java.util.HashMap<>();
             templateMap.put("channel", "alimtalk");
             templateMap.put("body", validationRequest.get("user_input"));
-            templateMap.put("variables", validationRequest.get("variables"));
+            templateMap.put("variableList", validationRequest.get("variableList"));
             templateMap.put("category", "marketing");
             if (validationRequest.containsKey("title") && validationRequest.get("title") != null) {
                 templateMap.put("title", validationRequest.get("title"));

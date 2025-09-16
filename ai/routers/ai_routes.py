@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+import re
 from services.openai_service import OpenAIService
 from services.chromadb_service import ChromaDBService
 from services.huggingface_service import HuggingFaceService
@@ -237,7 +238,6 @@ async def generate_template(
         variables = []
         
         # 변수 추출 ({{변수명}} 형태)
-        import re
         variable_pattern = r'\{\{([^}]+)\}\}'
         found_variables = re.findall(variable_pattern, response)
         
@@ -247,6 +247,9 @@ async def generate_template(
                 "type": "string",
                 "description": f"{var} 관련 정보"
             })
+        
+        # 템플릿 제목 생성 (사용자 메시지 기반)
+        template_title = f"{request.category} 템플릿 - {request.userMessage[:30]}..."
         
         return TemplateGenerationResponse(
             template_content=template_content,
@@ -309,7 +312,6 @@ async def modify_template(
         variables = []
         
         # 변수 추출 ({{변수명}} 형태)
-        import re
         variable_pattern = r'\{\{([^}]+)\}\}'
         found_variables = re.findall(variable_pattern, modified_template)
 

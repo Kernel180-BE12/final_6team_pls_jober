@@ -358,11 +358,11 @@ const updateVariables = (newVariables: any) => {
 watch(showVariables, (newValue) => {
   if (newValue && templateVariables.value.length > 0) {
     // 변수 토글을 활성화했을 때 변수값 설정
-    const variables: Record<string, string> = {}
+    const initialVariables: Record<string, string> = {}
     templateVariables.value.forEach((variable: any) => {
-      variables[variable.name] = `${variable.name} 값`
+      initialVariables[variable.name] = `${variable.name} 값`
     })
-    editedVariables.value = variables
+    editedVariables.value = initialVariables
   }
 })
 
