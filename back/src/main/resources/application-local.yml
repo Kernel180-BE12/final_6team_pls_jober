@@ -1,7 +1,7 @@
 spring:
   application:
     name: final-project-backend
-  
+
   # 데이터베이스 설정
   datasource:
     url: ${DB_URL}
@@ -61,6 +61,7 @@ logging:
     com.example: DEBUG
     org.springframework.security: DEBUG
 
+# AI 서버 (로컬 IP로 직접 접근)
 ai:
   fastapi:
     url: http://localhost:8000 #로컬 AI 서버 URL
