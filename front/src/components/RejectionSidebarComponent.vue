@@ -83,7 +83,7 @@ interface RejectionSidebarProps {
   currentVariable: string
   alternatives: Alternative[]
   rejectedVariables: string[]
-  validationError?: ValidationError | null
+  validationErrors?: ValidationError | null
 }
 
 const props = defineProps<RejectionSidebarProps>()
