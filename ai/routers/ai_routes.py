@@ -193,7 +193,6 @@ async def generate_template(request: TemplateGenerationRequest):
     category = "구매취소"
     """알림톡 템플릿 생성"""
     try:
-        print(f"사용자 {current_user['user_name']}({current_user['email']})가 템플릿 생성을 요청했습니다.")
         # 가이드라인 검색을 통한 컨텍스트 생성
         try:
             guidelines = await chromadb_service.search_documents(
