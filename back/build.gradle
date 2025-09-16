@@ -50,7 +50,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-mysql'
 
     // H2 (테스트용)
-    testRuntimeOnly 'com.h2database:h2'
+//    testRuntimeOnly 'com.h2database:h2'
     
     // Lombok
     compileOnly 'org.projectlombok:lombok'

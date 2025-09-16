@@ -53,7 +53,7 @@ public class TemplateController {
             UserDto userDto = userService.convertToUserDto(currentUser);
             // 사용자 정보를 로그에 출력 (UserDto에서 가져온 정보)
             System.out.println("사용자 " + userDto.getUserName() + "(" + userDto.getEmail() + ")가 템플릿 검증을 요청했습니다.");
-            TemplateValidationResponseDto response = templateService.validateTemplate(requestDto, userDto.getAccountId());
+            TemplateValidationResponseDto response = templateService.validateTemplate(requestDto, userDto);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
