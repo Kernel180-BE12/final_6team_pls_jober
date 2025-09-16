@@ -194,18 +194,7 @@ onMounted(() => {
       // 변수 값 초기화 (showVariables가 true이므로 변수값 설정)
       const initialVariables: Record<string, string> = {}
       templateVariables.value.forEach((variable: any) => {
-        // 변수명을 한글로 변환하여 더 친숙하게 표시
-        const koreanNames: Record<string, string> = {
-          'recipient': '수신자',
-          'sender': '발신자',
-          'couponName': '쿠폰명',
-          'expiryDate': '사용기한',
-          'additionalMessage': '추가 메시지',
-          '이름': '이름',
-          '회사명': '회사명'
-        }
-        const displayName = koreanNames[variable] || variable
-        initialVariables[variable] = `${displayName} 값`
+        initialVariables[variable] = `${variable} 값`
       })
       editedVariables.value = initialVariables
       
@@ -236,11 +225,11 @@ onMounted(() => {
       console.log('생성된 템플릿 로드됨:', generatedTemplate.value)
     } catch (error) {
       console.error('템플릿 데이터 파싱 실패:', error)
-      router.push('/template/create')
+      router.push('/')
     }
   } else {
     // 생성된 템플릿이 없으면 생성 페이지로 리다이렉트
-    router.push('/template/create')
+    router.push('/')
   }
 })
 
@@ -369,18 +358,7 @@ watch(showVariables, (newValue) => {
     // 변수 토글을 활성화했을 때 변수값 설정
     const variables: Record<string, string> = {}
     templateVariables.value.forEach((variable: any) => {
-      // 변수명을 한글로 변환하여 더 친숙하게 표시
-      const koreanNames: Record<string, string> = {
-        'recipient': '수신자',
-        'sender': '발신자',
-        'couponName': '쿠폰명',
-        'expiryDate': '사용기한',
-        'additionalMessage': '추가 메시지',
-        '이름': '이름',
-        '회사명': '회사명'
-      }
-      const displayName = koreanNames[variable.name] || variable.name
-      variables[variable.name] = `${displayName} 값`
+      variables[variable.name] = `${variable.name} 값`
     })
     editedVariables.value = variables
   }
@@ -415,7 +393,7 @@ const submitTemplate = async () => {
         })
       } else if (templateContent.value) {
         // 변수 배열이 비어 있으면 템플릿 본문에서 변수 패턴을 파싱해 기본값 구성
-        const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
+        const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g]
         const found = new Set<string>()
         patterns.forEach((re) => {
           let m
@@ -499,18 +477,22 @@ const sendMessage = async () => {
     // 정정 횟수 감소
     remainingCorrections.value--
     
-    // AI 서버에 템플릿 수정 요청
+    // 백엔드 API를 통해 AI 서버에 템플릿 수정 요청
     const response = await templateApi.modifyTemplate(
       templateContent.value,
       templateTitle.value,
       currentMessage,
+      editedVariables.value,
+      templateCategory.value,
       chatHistory.value
     )
     
-    // AI 응답 추가
+    // AI 응답 추가 - 설명만 표시 (수정된 템플릿은 미리보기에서 확인)
+    const explanation = response.data.explanation || '템플릿을 수정했습니다.'
+    
     const botMessage = {
       type: 'bot',
-      content: response.data.explanation,
+      content: explanation,
       time: timeString
     }
     chatHistory.value.push(botMessage)
@@ -520,24 +502,32 @@ const sendMessage = async () => {
     
     // 템플릿 업데이트
     console.log('템플릿 수정 전:', templateContent.value)
-    templateContent.value = response.data.modified_template
+    const newTemplateContent = response.data.modified_template || response.data.template_text || templateContent.value
+    const templateChanged = newTemplateContent !== templateContent.value
+    templateContent.value = newTemplateContent
     console.log('템플릿 수정 후:', templateContent.value)
-    console.log('템플릿 수정 후 길이:', templateContent.value.length)
-    templateVariables.value = Array.isArray(response.data.variables) && response.data.variables.length > 0
-      ? response.data.variables
-      : (() => {
-          // 응답 변수 비어 있으면 본문에서 파싱하여 변수 배열 생성
-          const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
-          const found = new Set<string>()
-          patterns.forEach((re) => {
-            let m
-            while ((m = re.exec(templateContent.value)) !== null) {
-              const name = (m[1] || '').trim()
-              if (name) found.add(name)
-            }
-          })
-          return Array.from(found).map((name) => ({ name }))
-        })()
+    console.log('템플릿 수정 후 길이:', templateContent.value ? templateContent.value.length : 0)
+    console.log('템플릿이 변경되었는가:', templateChanged)
+    // 변수 처리 - 백엔드에서 variables 필드 사용
+    if (response.data.variables && Array.isArray(response.data.variables)) {
+      templateVariables.value = response.data.variables.map((variable: any) => ({ 
+        name: variable.name || variable 
+      }))
+    } else if (response.data.metadata && response.data.metadata.variablesDetected) {
+      templateVariables.value = response.data.metadata.variablesDetected.map((name: string) => ({ name }))
+    } else {
+      // 응답 변수 비어 있으면 본문에서 파싱하여 변수 배열 생성
+      const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
+      const found = new Set<string>()
+      patterns.forEach((re) => {
+        let m
+        while ((m = re.exec(templateContent.value)) !== null) {
+          const name = (m[1] || '').trim()
+          if (name) found.add(name)
+        }
+      })
+      templateVariables.value = Array.from(found).map((name) => ({ name }))
+    }
     console.log('템플릿 변수 업데이트:', templateVariables.value)
     
     // 제목 업데이트 (응답에 제목이 있다면)
@@ -626,17 +616,7 @@ const selectVersion = (versionNumber: number) => {
     // 변수 값 초기화
     const initialVariables: Record<string, string> = {}
     versionTemplate.variables.forEach((variable: any) => {
-      const koreanNames: Record<string, string> = {
-        'recipient': '수신자',
-        'sender': '발신자',
-        'couponName': '쿠폰명',
-        'expiryDate': '사용기한',
-        'additionalMessage': '추가 메시지',
-        '이름': '이름',
-        '회사명': '회사명'
-      }
-      const displayName = koreanNames[variable.name] || variable.name
-      initialVariables[variable.name] = `${displayName} 값`
+      initialVariables[variable.name] = `${variable.name} 값`
     })
     editedVariables.value = initialVariables
     

@@ -2,7 +2,6 @@ package com.example.service;
 
 import com.example.dto.FastAPIResponseDto;
 import com.example.dto.TemplateRequestDto;
-import com.example.dto.TemplateResponseDto;
 import com.example.dto.TemplateValidationRequestDto;
 import com.example.dto.TemplateValidationResponseDto;
 import com.example.entity.*;
@@ -221,5 +220,17 @@ public class TemplateService {
     public Category findCategoryByName(String categoryName) {
         return categoryRepository.findByName(categoryName)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with name: " + categoryName));
+    }
+
+    /**
+     * AI를 활용하여 템플릿을 수정합니다.
+     */
+    public FastAPIResponseDto modifyTemplateWithAi(TemplateRequestDto requestDto) {
+        log.info("AI 템플릿 수정 요청을 AI 서버로 전달합니다. 현재 템플릿: {}, 사용자 메시지: {}", 
+                requestDto.getTemplateContent() != null ? requestDto.getTemplateContent().substring(0, Math.min(50, requestDto.getTemplateContent().length())) : "null", 
+                requestDto.getUserMessage());
+        
+        // AI 서버에 템플릿 수정을 요청하고, 받은 응답을 그대로 반환합니다.
+        return aiService.modifyTemplateWithFastAPI(requestDto);
     }
 }

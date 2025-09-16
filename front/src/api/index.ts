@@ -106,23 +106,24 @@ export const templateApi = {
   },
   
   // 템플릿 수정 요청 (채팅을 통한)
-  modifyTemplate: (currentTemplate: string, currentTemplateTitle: string, userMessage: string, chatHistory: any[]) => {
-    const aiApi = axios.create({
-      baseURL: '/ai',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+  modifyTemplate: (templateContent: string, templateTitle: string, userMessage: string, variables: Record<string, any>, category: string, chatHistory: any[]) => {
+    const variableList = Object.entries(variables).map(([key, value]) => ({
+      variableKey: key,
+      variableValue: String(value)
+    }))
     
-    return aiApi.post('/template/modify', {
-      current_template: currentTemplate,
-      current_template_title: currentTemplateTitle,
-
+    const modificationRequest = {
+      templateContent: templateContent, 
+      variables: variables,  
+      category: category,  
       userMessage: userMessage,
-      chat_history: chatHistory
-    })
-  }
+      templateTitle: templateTitle,
+      variableList: variableList,
+      chatHistory: chatHistory 
+    }
+    
+    return api.post('/template/modify', modificationRequest)
+  },
 }
 
 // AI 서버 직접 호출용 API (템플릿 생성)
@@ -130,7 +131,6 @@ export const aiApi = {
   // AI 서버에 직접 템플릿 생성 요청
   generateTemplate: (userMessage: string) => 
     api.post('/ai-generation', { userMessage: userMessage })
-  
 }
 
 export default api

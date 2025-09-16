@@ -265,7 +265,7 @@ async def modify_template(request: TemplateModificationRequest):
         # 프롬프트 빌더 사용
         prompt_builder = TemplateModificationPromptBuilder(
             current_template=request.current_template,
-            userMessage=request.userMessage,
+            user_message=request.userMessage,
             chat_context=chat_context
         )
         prompt = prompt_builder.build()
@@ -300,7 +300,7 @@ async def modify_template(request: TemplateModificationRequest):
         # 변수 추출 ({{변수명}} 형태)
         import re
         variable_pattern = r'\{\{([^}]+)\}\}'
-        found_variables = re.findall(variable_pattern, response)
+        found_variables = re.findall(variable_pattern, modified_template)
 
         for var in set(found_variables):
             variables.append({
