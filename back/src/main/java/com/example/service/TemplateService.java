@@ -201,7 +201,7 @@ public class TemplateService {
     }
 
     /**
-     * 주어진 ID로 Category2 엔티티를 조회합니다.
+     * 주어진 ID로 Category 엔티티를 조회합니다.
      * @param categoryId 조회할 Category의 ID
      * @return 조회된 Category 엔티티
      * @throws ResourceNotFoundException 해당 ID의 Category가 존재하지 않을 경우

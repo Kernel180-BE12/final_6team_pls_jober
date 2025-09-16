@@ -18,7 +18,7 @@ public interface TemplateRepository extends JpaRepository<Template, Long> {
      */
     @Query("SELECT t FROM Template t " +
            "LEFT JOIN FETCH t.account " +
-           "LEFT JOIN FETCH t.category2 " +
+           "LEFT JOIN FETCH t.category " +
            "LEFT JOIN FETCH t.industry " +
            "LEFT JOIN FETCH t.variables " +
            "WHERE t.templateId = :id")
