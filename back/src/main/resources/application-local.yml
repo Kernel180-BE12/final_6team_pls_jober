@@ -1,15 +1,15 @@
 spring:
   application:
     name: final-project-backend
-
-  # 로컬 데이터베이스 설정
+  
+  # 데이터베이스 설정
   datasource:
-    url: jdbc:mysql://134.185.106.160:3306/final_project
-    username: user
-    password: 1234
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: ${DB_DRIVER}
 
-  # Flyway 마이그레이션 설정
+  # flyway 마이그레이션 설정
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -33,7 +33,7 @@ spring:
     redis:
       host: 134.185.106.160
       port: 6379
-      password: 1234
+      password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 2000ms
       lettuce:
@@ -45,9 +45,9 @@ spring:
 
 # JWT 설정
 jwt:
-  secret: beb305030e21a9a32e1b77bc685749ac  # 환경변수에서 필수로 설정해야 함
-  access-expiration: 3600000
-  refresh-expiration: 604800000
+  secret: ${JWT_SECRET}  # 환경변수에서 필수로 설정해야 함
+  access-expiration: 3600000     # 1시간 (ms)
+  refresh-expiration: 604800000  # 7일 (ms)
 
 # 서버 설정
 server:
@@ -61,8 +61,10 @@ logging:
     com.example: DEBUG
     org.springframework.security: DEBUG
 
+
 # AI 서버 (로컬 IP로 직접 접근)
 ai:
   fastapi:
-    url: http://127.0.0.1:8000
-    path: /ai/template/generate
+    url: http://localhost:8000 #로컬 AI 서버 URL
+    path: /ai/template/generate #AI 서버 템플릿 생성 엔드포인트
+

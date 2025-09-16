@@ -100,6 +100,7 @@
                   :alternatives="currentAlternatives"
                   :rejected-variables="rejectedVariables"
                   :validation-error="currentValidationError"
+                  :validation-stage="validationStage"
                   @close="closeRejectionSidebar"
                   @variable-click="handleVariableClick"
                   @apply-alternative="applySelectedAlternative"
@@ -146,6 +147,7 @@ const isModifying = ref(false)
 const rejectedVariables = ref<string[]>([])
 const validationErrors = ref<any[]>([])
 const currentValidationError = ref<any>(null)
+const validationStage = ref<string>('') // 검증 단계 정보 추가
 
 // 생성된 템플릿 데이터
 const generatedTemplate = ref<any>(null)
@@ -403,16 +405,19 @@ const submitTemplate = async () => {
       // 백엔드에서 전달된 반려된 변수들 사용
       const rejectedVars = response.data.rejectedVariables || []
       const errors = response.data.validationErrors || []
+      const stage = response.data.validationStage || '알 수 없음'
       console.log('반려된 변수들:', rejectedVars)
       console.log('검증 오류 상세:', errors)
+      console.log('검증 단계:', stage)
       
       rejectedVariables.value = rejectedVars
       validationErrors.value = errors
+      validationStage.value = stage
       isRejected.value = true
       showRejectionSidebar.value = true
       
-      // 사용자에게 오류 메시지 표시
-      alert(`템플릿 검증 실패: ${response.data.message}`)
+      // 사용자에게 오류 메시지 표시 (검증 단계 포함)
+      alert(`템플릿 검증 실패 (${stage}): ${response.data.message}`)
     }
   } catch (error) {
     console.error('템플릿 검증 실패:', error)

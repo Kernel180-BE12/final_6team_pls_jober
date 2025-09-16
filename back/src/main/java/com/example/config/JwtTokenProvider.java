@@ -122,7 +122,6 @@ public class JwtTokenProvider {
         }
     }
 
-
     // 토큰에서 역할 추출
     public String getRole(String token) {
         try {
