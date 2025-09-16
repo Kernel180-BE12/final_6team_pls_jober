@@ -1,9 +1,9 @@
 package com.example.service;
 
 import com.example.dto.MyPageDto;
+import com.example.dto.UserDto;
 import com.example.entity.Account;
 import com.example.repository.AccountRepository;
-import com.example.common.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,9 +16,9 @@ public class MyPageService {
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // JWT 토큰에서 가져온 사용자 정보를 DTO로 변환 (DB 조회 없이)
+    // UserDto를 DTO로 변환
     @Transactional(readOnly = true)
-    public MyPageDto.UserInfoResponse toUserInfoResponse(UserPrincipal currentUser) {
+    public MyPageDto.UserInfoResponse toUserInfoResponse(UserDto currentUser) {
         return new MyPageDto.UserInfoResponse(
                 currentUser.getAccountId(),
                 currentUser.getUserName(),
@@ -28,7 +28,7 @@ public class MyPageService {
 
     // 이름 업데이트: 값이 있을 때만 반영
     @Transactional
-    public MyPageDto.UserInfoResponse updateName(UserPrincipal currentUser, MyPageDto.UpdateNameRequest req) {
+    public MyPageDto.UserInfoResponse updateName(UserDto currentUser, MyPageDto.UpdateNameRequest req) {
         if (req.getName() == null || req.getName().isBlank()) {
             throw new IllegalArgumentException("이름은 비어 있을 수 없습니다.");
         }
@@ -39,13 +39,13 @@ public class MyPageService {
         user.setUserName(req.getName().trim());
         accountRepository.save(user);
 
-        // JWT 토큰 정보로 응답 생성
+        // UserDto 정보로 응답 생성
         return toUserInfoResponse(currentUser);
     }
 
     // 이메일(=로그인 아이디) 변경: 현재 비번 재검증 + 중복 검사 + 버전 증가
     @Transactional
-    public MyPageDto.UserInfoResponse updateEmail(UserPrincipal currentUser, MyPageDto.UpdateEmailRequest req) {
+    public MyPageDto.UserInfoResponse updateEmail(UserDto currentUser, MyPageDto.UpdateEmailRequest req) {
         Account user = accountRepository.findById(currentUser.getAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
@@ -72,7 +72,7 @@ public class MyPageService {
 
     // 비밀번호 변경: 현재 비번 검증 + 새/확인 일치(Validator) + 해시 저장 + 버전 증가
     @Transactional
-    public void updatePassword(UserPrincipal currentUser, MyPageDto.UpdatePasswordRequest req) {
+    public void updatePassword(UserDto currentUser, MyPageDto.UpdatePasswordRequest req) {
         Account user = accountRepository.findById(currentUser.getAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
@@ -89,8 +89,8 @@ public class MyPageService {
         // ToDo: 자격증명 버전 증가
     }
 
-    // 내 정보 조회 (JWT 토큰에서 가져온 정보 사용)
-    public MyPageDto.UserInfoResponse getMe(UserPrincipal currentUser) {
+    // 내 정보 조회 (UserDto 사용)
+    public MyPageDto.UserInfoResponse getMe(UserDto currentUser) {
         return toUserInfoResponse(currentUser);
     }
 }

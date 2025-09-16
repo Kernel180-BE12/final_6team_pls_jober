@@ -5,7 +5,7 @@ import com.example.dto.TemplateRequestDto;
 import com.example.dto.TemplateValidationRequestDto;
 import com.example.dto.TemplateValidationResponseDto;
 import com.example.entity.*;
-import com.example.common.UserPrincipal;
+import com.example.dto.UserDto;
 import com.example.exception.ResourceNotFoundException;
 import com.example.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +44,7 @@ public class TemplateService {
      * 템플릿을 검증합니다.
      */
     @Transactional
-    public TemplateValidationResponseDto validateTemplate(TemplateValidationRequestDto requestDto, UserPrincipal currentUser) {
+    public TemplateValidationResponseDto validateTemplate(TemplateValidationRequestDto requestDto, UserDto currentUser) {
         try {
             log.info("템플릿 검증 시작: {}", requestDto.getTemplateContent().substring(0, Math.min(50, requestDto.getTemplateContent().length())));
             
@@ -89,8 +89,8 @@ public class TemplateService {
         return false;
     }
 
-    private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, UserPrincipal currentUser) {
-        // JWT 토큰에서 가져온 accountId로 기존 Account 엔티티 참조
+    private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, UserDto currentUser) {
+        // UserDto에서 가져온 accountId로 기존 Account 엔티티 참조
         Account account = accountRepository.findById(currentUser.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + currentUser.getAccountId()));
         

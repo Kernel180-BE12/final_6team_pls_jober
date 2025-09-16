@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
 import lombok.RequiredArgsConstructor;
 import com.example.service.TokenService;
+import com.example.entity.Account;
+import com.example.repository.AccountRepository;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,7 +17,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
-import com.example.common.UserPrincipal;
 
 @Component
 @RequiredArgsConstructor
@@ -23,6 +24,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenService tokenService;
+    private final AccountRepository accountRepository;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, 
@@ -36,25 +38,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if ("access".equals(tokenType)) {
                 // 블랙리스트 확인
                 if (!tokenService.isTokenBlacklisted(token)) {
-                    // 인증 정보 설정 - 토큰에서 사용자 정보 추출
-                    String email = jwtTokenProvider.getEmail(token);
+                    // JWT에서 accountId 추출
                     Long accountId = jwtTokenProvider.getAccountId(token);
-                    String role = jwtTokenProvider.getRole(token);
-                    String userName = jwtTokenProvider.getUserName(token);
                     
-                    if (email != null && accountId != null) {
-                        // 사용자 정보를 포함한 인증 객체 생성
-                        UserPrincipal userPrincipal = new UserPrincipal(
-                            accountId, email, role, userName
-                        );
+                    if (accountId != null) {
+                        // DB에서 실제 Account 엔티티 조회 (상태 확인)
+                        Account account = accountRepository.findById(accountId).orElse(null);
                         
-                        UsernamePasswordAuthenticationToken auth = 
-                            new UsernamePasswordAuthenticationToken(
-                                userPrincipal, // principal을 UserPrincipal로 설정
-                                null,
-                                Collections.singletonList(new SimpleGrantedAuthority(role != null ? role : "ROLE_USER"))
-                            );
-                        SecurityContextHolder.getContext().setAuthentication(auth);
+                        if (account != null && "ACTIVE".equals(account.getStatus())) {
+                            // Account 엔티티를 SecurityContext에 설정
+                            UsernamePasswordAuthenticationToken auth = 
+                                new UsernamePasswordAuthenticationToken(
+                                    account, // principal을 Account 엔티티로 설정
+                                    null,
+                                    Collections.singletonList(new SimpleGrantedAuthority(account.getRole()))
+                                );
+                            SecurityContextHolder.getContext().setAuthentication(auth);
+                        }
                     }
                 }
             }
