@@ -57,13 +57,29 @@ docker-compose down --remove-orphans || true
 log_info "사용하지 않는 Docker 이미지 정리 중..."
 docker image prune -f
 
-# AI 서비스 이미지 빌드
-log_info "AI 서비스 이미지 빌드 중..."
-docker-compose build ai-service
+# Docker BuildKit 활성화 (빌드 성능 향상)
+export DOCKER_BUILDKIT=1
+export BUILDKIT_PROGRESS=plain
+
+# AI 서비스 이미지 빌드 (최적화된 빌드)
+log_info "AI 서비스 이미지 빌드 중... (최초 빌드시 시간이 오래 걸릴 수 있습니다)"
+if ! timeout 1800 docker-compose build --parallel --build-arg BUILDKIT_INLINE_CACHE=1 ai-service; then
+    log_error "AI 서비스 빌드 실패 또는 타임아웃 (30분 제한)"
+    log_info "캐시를 무시하고 재시도합니다..."
+    if ! timeout 1800 docker-compose build --no-cache ai-service; then
+        log_error "AI 서비스 빌드 완전 실패"
+        exit 1
+    fi
+fi
+log_success "AI 서비스 빌드 완료"
 
 # 백엔드 이미지 빌드 (로컬에서 직접 빌드)
 log_info "백엔드 이미지 빌드 중..."
-docker-compose build backend
+if ! timeout 600 docker-compose build --parallel backend; then
+    log_error "백엔드 빌드 실패 또는 타임아웃 (10분 제한)"
+    exit 1
+fi
+log_success "백엔드 빌드 완료"
 
 # 프론트엔드 빌드 (로컬에서)
 log_info "프론트엔드 빌드 중..."
