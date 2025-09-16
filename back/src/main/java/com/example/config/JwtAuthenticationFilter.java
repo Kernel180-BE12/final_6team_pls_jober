@@ -6,9 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
 import lombok.RequiredArgsConstructor;
+import com.example.config.JwtTokenProvider;
 import com.example.service.TokenService;
-import com.example.entity.Account;
-import com.example.repository.AccountRepository;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,7 +23,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenService tokenService;
-    private final AccountRepository accountRepository;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, 
@@ -38,23 +36,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if ("access".equals(tokenType)) {
                 // 블랙리스트 확인
                 if (!tokenService.isTokenBlacklisted(token)) {
-                    // JWT에서 accountId 추출
+                    // 인증 정보 설정
+                    String email = jwtTokenProvider.getEmail(token);
                     Long accountId = jwtTokenProvider.getAccountId(token);
-                    
-                    if (accountId != null) {
-                        // DB에서 실제 Account 엔티티 조회 (상태 확인)
-                        Account account = accountRepository.findById(accountId).orElse(null);
-                        
-                        if (account != null && "ACTIVE".equals(account.getStatus())) {
-                            // Account 엔티티를 SecurityContext에 설정
-                            UsernamePasswordAuthenticationToken auth = 
-                                new UsernamePasswordAuthenticationToken(
-                                    account, // principal을 Account 엔티티로 설정
-                                    null,
-                                    Collections.singletonList(new SimpleGrantedAuthority(account.getRole()))
-                                );
-                            SecurityContextHolder.getContext().setAuthentication(auth);
-                        }
+                    String role = jwtTokenProvider.getRole(token);
+
+                    if (email != null && accountId != null && role != null) {
+                        // Spring Security는 ROLE_ 접두사를 기대하므로 추가
+                        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+
+                        UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(
+                                accountId, // principal을 accountId로 설정
+                                null,
+                                Collections.singletonList(new SimpleGrantedAuthority(roleWithPrefix))
+                            );
+                        SecurityContextHolder.getContext().setAuthentication(auth);
                     }
                 }
             }
