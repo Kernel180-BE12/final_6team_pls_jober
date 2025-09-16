@@ -48,7 +48,6 @@ class QuestionAnswerRequest(BaseModel):
     model: Optional[str] = "deepset/roberta-base-squad2"
 
 class TemplateGenerationRequest(BaseModel):
-    category: str
     userMessage: str
     model: Optional[str] = "gpt-4o-mini"
 
@@ -199,13 +198,14 @@ async def generate_template(
     request: TemplateGenerationRequest,
     current_user: dict = Depends(get_current_user)
 ):
+    category = "구매취소"
     """알림톡 템플릿 생성 (인증 필요)"""
     try:
         print(f"사용자 {current_user['user_name']}({current_user['email']})가 템플릿 생성을 요청했습니다.")
         # 가이드라인 검색을 통한 컨텍스트 생성
         try:
             guidelines = await chromadb_service.search_documents(
-                f"{request.category} {request.userMessage}", 
+                f"{category} {request.userMessage}",
                 3
             )
         except Exception as e:
@@ -219,7 +219,7 @@ async def generate_template(
         
         # 프롬프트 빌더 사용
         prompt_builder = TemplateGenerationPromptBuilder(
-            category=request.category,
+            category=category,
             userMessage=request.userMessage,
             context=context
         )
@@ -248,7 +248,7 @@ async def generate_template(
         return TemplateGenerationResponse(
             template_content=template_content,
             variables=variables,
-            category=request.category,
+            category=category,
             model=request.model
         )
         
@@ -263,7 +263,6 @@ async def modify_template(
 ):
     """채팅을 통한 템플릿 수정 (인증 필요)"""
     try:
-        print(f"사용자 {current_user['user_name']}({current_user['email']})가 템플릿 수정을 요청했습니다.")
         # 채팅 히스토리를 포함한 프롬프트 구성
         chat_context = ""
         if request.chat_history:
