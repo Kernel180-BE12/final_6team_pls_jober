@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+# Virtual environments
+venv/
+env/
+ENV/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+# OS
+.DS_Store
+Thumbs.db
+# Git
+.git/
+.gitignore
+# Documentation
+*.md
+docs/
+# Tests
+tests/
+test_*.py
+*_test.py
+# Logs
+*.log
+logs/
+# Data files (except necessary ones)
+*.csv
+*.json
+*.xml
+!requirements.txt
+# Cache
+.cache/
+.pytest_cache/
+# Temporary files
+tmp/
+temp/

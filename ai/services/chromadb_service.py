@@ -25,8 +25,8 @@ class ChromaDBService:
         
         # 환경 변수에서 ChromaDB 설정 읽기
         persist_dir = os.getenv('CHROMA_PERSIST_DIR', './chroma_db')
-        chroma_host = os.getenv('CHROMA_HOST', '134.185.106.160')  # 기본값 설정
-        chroma_port = os.getenv('CHROMA_PORT', '8001')  # 기본값 설정
+        chroma_host = os.getenv('CHROMA_HOST')
+        chroma_port = os.getenv('CHROMA_PORT')
         
         # db_path 설정
         self.db_path = db_path or persist_dir

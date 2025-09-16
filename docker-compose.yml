@@ -3,7 +3,9 @@ services:
   #  백엔드 서비스 (Spring Boot)
   # ===================================================================
   backend:
-    image: jonathanchoii/pls-jober-backend:latest
+    build:
+      context: ./back
+      dockerfile: Dockerfile
     container_name: pls-jober-backend
     ports:
       - "8080:8080"
