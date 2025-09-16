@@ -8,9 +8,9 @@
     <!-- 반려 사유 -->
     <div class="rejection-reason" v-if="currentVariable">
       <h4>• 반려 사유</h4>
-      <div v-if="validationError" class="error-details">
-        <p><strong>검증기:</strong> {{ validationError.errorType }}</p>
-        <p><strong>오류 메시지:</strong> {{ validationError.errorMessage }}</p>
+      <div v-if="validationErrors" class="error-details">
+        <p><strong>검증기:</strong> {{ validationErrors.errorType }}</p>
+        <p><strong>오류 메시지:</strong> {{ validationErrors.errorMessage }}</p>
         <p>변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
       </div>
       <div v-else>
