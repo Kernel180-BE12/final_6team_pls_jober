@@ -39,7 +39,20 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 
 class TemplateRequest(BaseModel):
     """템플릿 생성 요청 모델"""
-    user_text: str                      
+    category_main: str
+    category_sub: str
+    type: str
+    has_channel_link: bool = False
+    has_extra_info: bool = False
+    label: Optional[str] = None
+    use_case: Optional[str] = None
+    intent_type: Optional[str] = None
+    recipient_scope: Optional[str] = None
+    links_allowed: bool = True
+    variables: List[str] = []
+    section_path: List[str] = []
+    source: Optional[str] = None
+    source_tag: Optional[str] = None
 
 class TemplateResponse(BaseModel):
     """템플릿 생성 응답 모델"""
@@ -415,17 +428,7 @@ generator = TemplateGenerator()
 @app.post("/generate-template", response_model=TemplateResponse)
 async def generate_template_endpoint(request: TemplateRequest):
     """템플릿 생성 API 엔드포인트"""
-    # 원래 코드
-    # return generator.generate_template(request)
-
-    # ai 상의 코드 변화가 아직이니 우선은 더미데이터를 채워 잘 연결이 되었는지 확인용
-    internal_request = TemplateRequest(
-        user_text=request.user_text,
-        category_main="기타", 
-        category_sub="기타",  
-        type="BASIC",
-    )
-    return generator.generate_template(internal_request)
+    return generator.generate_template(request)
 
 @app.get("/health")
 async def health_check():
