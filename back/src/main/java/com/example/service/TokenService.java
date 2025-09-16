@@ -28,7 +28,7 @@ public class TokenService {
     public Map<String, String> generateTokenPair(Account account) {
         String accessToken = jwtTokenProvider.createAccessToken(
             account.getEmail(), account.getRole(), account.getId(), 
-            account.getUserName(), account.getCompanyName());
+            account.getUserName());
         String refreshToken = jwtTokenProvider.createRefreshToken(
             account.getEmail(), account.getId());
 
@@ -42,7 +42,6 @@ public class TokenService {
         tokens.put("userId", account.getId().toString());
         tokens.put("role", account.getRole());
         tokens.put("userName", account.getUserName());
-        tokens.put("companyName", account.getCompanyName());
         return tokens;
     }
 
@@ -81,14 +80,13 @@ public class TokenService {
         // 새로운 Access Token 생성
         String newAccessToken = jwtTokenProvider.createAccessToken(
             account.getEmail(), account.getRole(), account.getId(),
-            account.getUserName(), account.getCompanyName());
+            account.getUserName());
 
         Map<String, String> result = new HashMap<>();
         result.put("accessToken", newAccessToken);
         result.put("userId", account.getId().toString());
         result.put("role", account.getRole());
         result.put("userName", account.getUserName());
-        result.put("companyName", account.getCompanyName());
         return result;
     }
 

@@ -18,7 +18,6 @@ public class UserPrincipal {
     private String email;
     private String role;
     private String userName;
-    private String companyName;
 
     /**
      * 사용자 이름 반환 (null 체크 포함)
@@ -27,12 +26,6 @@ public class UserPrincipal {
         return userName != null ? userName : "";
     }
 
-    /**
-     * 회사명 반환 (null 체크 포함)
-     */
-    public String getCompanyName() {
-        return companyName != null ? companyName : "";
-    }
 
     /**
      * 역할 반환 (null 체크 포함)

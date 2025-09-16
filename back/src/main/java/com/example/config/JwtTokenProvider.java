@@ -26,7 +26,7 @@ public class JwtTokenProvider {
     }
 
     // Access Token 생성 - 사용자 정보를 포함하여 DB 조회 최소화
-    public String createAccessToken(String email, String role, Long accountId, String userName, String companyName) {
+    public String createAccessToken(String email, String role, Long accountId, String userName) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + accessTokenValidity);
 
@@ -35,7 +35,6 @@ public class JwtTokenProvider {
                 .claim("role", role)             // 사용자 권한
                 .claim("account_id", accountId)  // 계정 ID (인증에 필요)
                 .claim("user_name", userName)    // 사용자 이름
-                .claim("company_name", companyName) // 회사명
                 .claim("type", "access")      // 토큰 타입 구분
                 .issuedAt(now)                // iat
                 .expiration(expiry)           // exp
@@ -123,19 +122,6 @@ public class JwtTokenProvider {
         }
     }
 
-    // 토큰에서 회사명 추출
-    public String getCompanyName(String token) {
-        try {
-            return Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload()
-                    .get("company_name", String.class);
-        } catch (Exception e) {
-            return null;
-        }
-    }
 
     // 토큰에서 역할 추출
     public String getRole(String token) {

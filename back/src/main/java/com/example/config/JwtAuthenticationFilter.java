@@ -41,12 +41,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     Long accountId = jwtTokenProvider.getAccountId(token);
                     String role = jwtTokenProvider.getRole(token);
                     String userName = jwtTokenProvider.getUserName(token);
-                    String companyName = jwtTokenProvider.getCompanyName(token);
                     
                     if (email != null && accountId != null) {
                         // 사용자 정보를 포함한 인증 객체 생성
                         UserPrincipal userPrincipal = new UserPrincipal(
-                            accountId, email, role, userName, companyName
+                            accountId, email, role, userName
                         );
                         
                         UsernamePasswordAuthenticationToken auth = 
