@@ -39,12 +39,12 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 
 class TemplateRequest(BaseModel):
     """템플릿 생성 요청 모델"""
-    category_main: str                    # 카테고리 대분류
-    category_sub: str                     # 카테고리 소분류
-    type: str                            # 메시지 유형: "BASIC" | "EXTRA_INFO" | "CHANNEL_ADD" | "HYBRID"
-    has_channel_link: bool               # 채널 링크 여부
-    has_extra_info: bool                 # 부가 설명 여부
-    label: Optional[str] = None          # 라벨
+    category_main: str
+    category_sub: str
+    type: str
+    has_channel_link: bool = False
+    has_extra_info: bool = False
+    label: Optional[str] = None
     use_case: Optional[str] = None
     intent_type: Optional[str] = None
     recipient_scope: Optional[str] = None
@@ -53,7 +53,6 @@ class TemplateRequest(BaseModel):
     section_path: List[str] = []
     source: Optional[str] = None
     source_tag: Optional[str] = None
-    user_text: str                       # 원본 사용자 메시지 (유사도 검색용)
 
 class TemplateResponse(BaseModel):
     """템플릿 생성 응답 모델"""

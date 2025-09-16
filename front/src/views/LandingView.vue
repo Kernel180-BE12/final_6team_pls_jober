@@ -138,7 +138,7 @@ onMounted(() => {
     // 유저 스토어에 토큰과 사용자 정보 저장
     userStore.setUser(
       {
-        accountId: userId,
+        accountId: parseInt(userId),
         role: role
       },
       {

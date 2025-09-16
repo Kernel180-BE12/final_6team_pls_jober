@@ -63,7 +63,7 @@ logging:
 
 ai:
   fastapi:
-    url: http://ai-service:8000 #AI 서버 URL
+    url: http://localhost:8000 #AI 서버 URL
     path: /ai/template/generate #AI 서버 템플릿 생성 엔드포인트
 
   # OAuth2 설정
@@ -76,7 +76,9 @@ ai:
             client-secret: ${KAKAO_CLIENT_SECRET}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
-            redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/api/auth/kakao/callback}
+
+            redirect-uri: ${KAKAO_REDIRECT_URI:http://134.185.106.160:8080/api/auth/kakao/callback}
+
             scope:
               - profile_nickname
               - account_email

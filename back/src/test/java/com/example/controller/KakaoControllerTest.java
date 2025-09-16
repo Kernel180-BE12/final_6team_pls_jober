@@ -37,7 +37,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("카카오 로그인 컨트롤러 테스트")
 @TestPropertySource(properties = {
         "KAKAO_CLIENT_ID=test_client_id",
-        "KAKAO_REDIRECT_URI=http://test.localhost:8080/api/auth/kakao/callback"
+
+        "KAKAO_REDIRECT_URI=http://test.134.185.106.160:8080/api/auth/kakao/callback"
+
 })
 @Disabled("카카오 컨트롤러 테스트 임시 비활성화 - 의존성 문제")
 class KakaoControllerTest {

@@ -10,7 +10,16 @@ const api = axios.create({
   },
 })
 
-// 요청 인터셉터
+// AI 서비스용 API 설정
+const aiApi = axios.create({
+  baseURL: '/ai',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// 백엔드 API 요청 인터셉터
 api.interceptors.request.use(
   (config) => {
     // user store에서 토큰 가져오기
@@ -25,7 +34,18 @@ api.interceptors.request.use(
   }
 )
 
-// 응답 인터셉터
+// AI 서비스 API 요청 인터셉터 (인증 불필요)
+aiApi.interceptors.request.use(
+  (config) => {
+    // AI 서비스는 인증이 필요하지 않음
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// 백엔드 API 응답 인터셉터
 api.interceptors.response.use(
   (response) => {
     // 카카오 로그인 응답에 대한 디버깅
@@ -40,6 +60,17 @@ api.interceptors.response.use(
       const userStore = useUserStore()
       userStore.logout()
     }
+    return Promise.reject(error)
+  }
+)
+
+// AI 서비스 API 응답 인터셉터 (인증 불필요)
+aiApi.interceptors.response.use(
+  (response) => {
+    return response
+  },
+  async (error) => {
+    // AI 서비스는 인증이 필요하지 않으므로 401 에러 처리 불필요
     return Promise.reject(error)
   }
 )
@@ -102,8 +133,8 @@ export const myPageApi = {
 // 템플릿 관련 API
 export const templateApi = {
   // AI를 통한 템플릿 생성
-  generateTemplate: (userMessage: string) =>
-    api.post('/ai-generation', { userMessage }),
+  generateTemplate: (userMessage: string) => 
+    aiApi.post('/template/generate', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
   validateTemplate: (templateContent: string, variableList: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
@@ -148,11 +179,12 @@ export const templateApi = {
 }
 
 // AI 서버 직접 호출용 API (템플릿 생성)
-export const aiApi = {
+export const aiApiDirect = {
   // AI 서버에 직접 템플릿 생성 요청
-  generateTemplate: (userMessage: string) => 
-    api.post('/ai-generation', { userMessage: userMessage })
+  generateTemplate: (userMessage: string) =>
+    aiApi.post('/template/generate', { userMessage: userMessage })
 }
 
+export { aiApi }
 export default api
 
