@@ -3,7 +3,7 @@ import { useUserStore } from '@/stores/user'
 
 // API 기본 설정
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: '/ai',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -148,9 +148,9 @@ export const templateApi = {
 // AI 서버 직접 호출용 API (템플릿 생성)
 export const aiApi = {
   // AI 서버에 직접 템플릿 생성 요청
-  generateTemplate: (userMessage: string) => 
-    api.post('/ai-generation', { userMessage: userMessage })
-  
+  generateTemplate: (userMessage: string) =>
+    api.post('/template/generate', { userMessage: userMessage })
+
 }
 
 export default api

@@ -234,7 +234,7 @@ onMounted(() => {
     }
   } else {
     // 생성된 템플릿이 없으면 생성 페이지로 리다이렉트
-    router.push('/template/create')
+    router.push('/')
   }
 })
 
