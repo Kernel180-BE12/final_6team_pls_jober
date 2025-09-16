@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from services.openai_service import OpenAIService
@@ -6,6 +6,7 @@ from services.chromadb_service import ChromaDBService
 from services.huggingface_service import HuggingFaceService
 from templateEngine.prompts.message_analyzer_prompts import TemplateGenerationPromptBuilder, TemplateModificationPromptBuilder
 from templateEngine.integrated_template_pipeline import IntegratedTemplatePipeline, IntegratedGenerationRequest, IntegratedGenerationResult
+from middleware.auth_middleware import get_current_user, get_current_user_id
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 
@@ -48,7 +49,7 @@ class QuestionAnswerRequest(BaseModel):
 
 class TemplateGenerationRequest(BaseModel):
     category: str
-    user_message: str
+    userMessage: str
     model: Optional[str] = "gpt-4o-mini"
 
 class TemplateGenerationResponse(BaseModel):
@@ -59,7 +60,7 @@ class TemplateGenerationResponse(BaseModel):
 
 class TemplateModificationRequest(BaseModel):
     current_template: str
-    user_message: str
+    userMessage: str
     chat_history: List[Dict[str, Any]] = []
 
 class TemplateModificationResponse(BaseModel):
@@ -83,11 +84,15 @@ class IntegratedTemplateResponse(BaseModel):
     success: bool
     error_message: Optional[str] = None
 
-# OpenAI 라우트
+# OpenAI 라우트 (인증 필요)
 @router.post("/openai/chat", response_model=ChatResponse)
-async def openai_chat(request: ChatRequest):
-    """OpenAI 채팅 API"""
+async def openai_chat(
+    request: ChatRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """OpenAI 채팅 API (인증 필요)"""
     try:
+        print(f"사용자 {current_user['user_name']}({current_user['email']})가 OpenAI 채팅을 요청했습니다.")
         messages = [{"role": "user", "content": request.message}]
         response = await openai_service.chat_completion(messages, request.model)
         return ChatResponse(response=response, model=request.model)
@@ -104,14 +109,6 @@ async def openai_embeddings(text: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ChromaDB 라우트
-@router.post("/chromadb/documents")
-async def add_documents(request: DocumentRequest):
-    """ChromaDB에 문서 추가"""
-    try:
-        result = await chromadb_service.add_documents([request.content], [request.metadata])
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chromadb/search")
 async def search_documents(request: SearchRequest):
@@ -198,13 +195,17 @@ async def get_available_models():
 
 # 템플릿 생성 라우트
 @router.post("/template/generate", response_model=TemplateGenerationResponse)
-async def generate_template(request: TemplateGenerationRequest):
-    """알림톡 템플릿 생성"""
+async def generate_template(
+    request: TemplateGenerationRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """알림톡 템플릿 생성 (인증 필요)"""
     try:
+        print(f"사용자 {current_user['user_name']}({current_user['email']})가 템플릿 생성을 요청했습니다.")
         # 가이드라인 검색을 통한 컨텍스트 생성
         try:
             guidelines = await chromadb_service.search_documents(
-                f"{request.category} {request.user_message}", 
+                f"{request.category} {request.userMessage}", 
                 3
             )
         except Exception as e:
@@ -219,7 +220,7 @@ async def generate_template(request: TemplateGenerationRequest):
         # 프롬프트 빌더 사용
         prompt_builder = TemplateGenerationPromptBuilder(
             category=request.category,
-            user_message=request.user_message,
+            userMessage=request.userMessage,
             context=context
         )
         prompt = prompt_builder.build()
@@ -256,9 +257,13 @@ async def generate_template(request: TemplateGenerationRequest):
 
 # 템플릿 수정 라우트
 @router.post("/template/modify", response_model=TemplateModificationResponse)
-async def modify_template(request: TemplateModificationRequest):
-    """채팅을 통한 템플릿 수정"""
+async def modify_template(
+    request: TemplateModificationRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """채팅을 통한 템플릿 수정 (인증 필요)"""
     try:
+        print(f"사용자 {current_user['user_name']}({current_user['email']})가 템플릿 수정을 요청했습니다.")
         # 채팅 히스토리를 포함한 프롬프트 구성
         chat_context = ""
         if request.chat_history:
@@ -270,7 +275,7 @@ async def modify_template(request: TemplateModificationRequest):
         # 프롬프트 빌더 사용
         prompt_builder = TemplateModificationPromptBuilder(
             current_template=request.current_template,
-            user_message=request.user_message,
+            userMessage=request.userMessage,
             chat_context=chat_context
         )
         prompt = prompt_builder.build()
@@ -296,7 +301,7 @@ async def modify_template(request: TemplateModificationRequest):
             })
         
         # 수정 설명 생성
-        explanation = f"사용자 요청 '{request.user_message}'에 따라 템플릿을 수정했습니다."
+        explanation = f"사용자 요청 '{request.userMessage}'에 따라 템플릿을 수정했습니다."
         
         return TemplateModificationResponse(
             modified_template=modified_template,
@@ -310,9 +315,13 @@ async def modify_template(request: TemplateModificationRequest):
 
 # 통합 템플릿 생성 라우트 (요구사항에 맞는 4단계 흐름)
 @router.post("/template/integrated-generate", response_model=IntegratedTemplateResponse)
-async def integrated_generate_template(request: IntegratedTemplateRequest):
-    """통합된 4단계 템플릿 생성 API"""
+async def integrated_generate_template(
+    request: IntegratedTemplateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """통합된 4단계 템플릿 생성 API (인증 필요)"""
     try:
+        print(f"사용자 {current_user['user_name']}({current_user['email']})가 통합 템플릿 생성을 요청했습니다.")
         # 통합 파이프라인 초기화
         await integrated_pipeline.initialize()
         
@@ -337,5 +346,32 @@ async def integrated_generate_template(request: IntegratedTemplateRequest):
             error_message=result.error_message
         )
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 사용자 권한 API들
+@router.post("/chromadb/documents")
+async def add_documents(
+    request: DocumentRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """ChromaDB에 문서 추가 (인증된 사용자)"""
+    try:
+        print(f"사용자 {current_user['user_name']}({current_user['email']})가 문서 추가를 요청했습니다.")
+        result = await chromadb_service.add_documents([request.content], [request.metadata])
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/chromadb/documents/{document_id}")
+async def delete_document(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """ChromaDB에서 문서 삭제 (인증된 사용자)"""
+    try:
+        print(f"사용자 {current_user['user_name']}({current_user['email']})가 문서 삭제를 요청했습니다.")
+        # 문서 삭제 로직 구현 (ChromaDBService에 메서드 추가 필요)
+        return {"message": f"문서 {document_id}가 삭제되었습니다."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

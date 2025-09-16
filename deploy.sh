@@ -6,7 +6,7 @@
 
 set -e  # 에러 발생 시 스크립트 중단
 
-echo "🚀 PLS-Jober 통합 배포 시작..."
+echo "PLS-Jober 통합 배포 시작..."
 
 # 색상 정의
 RED='\033[0;31m'
@@ -57,13 +57,25 @@ docker-compose down --remove-orphans || true
 log_info "사용하지 않는 Docker 이미지 정리 중..."
 docker image prune -f
 
-# AI 서비스 이미지 빌드
-log_info "AI 서비스 이미지 빌드 중..."
-docker-compose build ai-service
+# Docker BuildKit 활성화 (빌드 성능 향상)
+export DOCKER_BUILDKIT=1
+export BUILDKIT_PROGRESS=plain
 
-# 백엔드 이미지 pull (Docker Hub에서)
-log_info "백엔드 이미지 다운로드 중..."
-docker pull jonathanchoii/pls-jober-backend:latest
+# AI 서비스 이미지 빌드 (최적화된 빌드)
+log_info "AI 서비스 이미지 빌드 중... (최초 빌드시 10-15분 소요 예상)"
+if ! timeout 5400 docker-compose build ai-service; then
+    log_error "AI 서비스 빌드 실패 또는 타임아웃 (90분 제한)"
+    exit 1
+fi
+log_success "AI 서비스 빌드 완료"
+
+# 백엔드 이미지 빌드 (로컬에서 직접 빌드)
+log_info "백엔드 이미지 빌드 중..."
+if ! timeout 600 docker-compose build --parallel backend; then
+    log_error "백엔드 빌드 실패 또는 타임아웃 (10분 제한)"
+    exit 1
+fi
+log_success "백엔드 빌드 완료"
 
 # 프론트엔드 빌드 (로컬에서)
 log_info "프론트엔드 빌드 중..."
@@ -78,12 +90,20 @@ log_info "프론트엔드 빌드 완료"
 # 호스트 서비스 상태 확인
 log_info "호스트 서비스 상태 확인 중..."
 
-# MySQL 상태 확인
+# MySQL 상태 확인 및 자동 시작
 if systemctl is-active --quiet mysql; then
     log_success "MySQL이 정상적으로 실행 중입니다."
 else
-    log_warning "MySQL이 실행되지 않았습니다. sudo systemctl start mysql로 시작해주세요."
+    log_warning "MySQL이 실행되지 않았습니다. 자동으로 시작합니다."
+    sudo systemctl start mysql
+    if systemctl is-active --quiet mysql; then
+        log_success "MySQL이 성공적으로 시작되었습니다."
+    else
+        log_error "MySQL 시작에 실패했습니다."
+        exit 1
+    fi
 fi
+
 
 # ChromaDB 상태 확인 (포트 8001로 가정)
 if curl -f http://localhost:8001/health > /dev/null 2>&1; then
@@ -130,14 +150,14 @@ fi
 log_info "서비스 상태 확인:"
 docker-compose ps
 
-log_success "🎉 배포가 완료되었습니다!"
+log_success "배포가 완료되었습니다!"
 echo ""
-echo "📋 서비스 접속 정보:"
-echo "  🌐 프론트엔드: http://134.185.106.160"
-echo "  🔧 백엔드 API: http://134.185.106.160/api"
-echo "  🤖 AI 서비스: http://134.185.106.160/ai"
+echo "서비스 접속 정보:"
+echo "  프론트엔드: http://134.185.106.160"
+echo "  백엔드 API: http://134.185.106.160/api"
+echo "  AI 서비스: http://134.185.106.160/ai"
 echo ""
-echo "📊 서비스 관리 명령어:"
+echo "서비스 관리 명령어:"
 echo "  Docker 서비스 상태 확인: docker-compose ps"
 echo "  Docker 서비스 로그 확인: docker-compose logs -f [서비스명]"
 echo "  Docker 서비스 중지: docker-compose down"

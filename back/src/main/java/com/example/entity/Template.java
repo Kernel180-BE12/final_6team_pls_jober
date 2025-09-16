@@ -28,8 +28,8 @@ public class  Template {
     private Account account;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category2_id")
-    private Category2 category2;
+    @JoinColumn(name = "category_id")
+    private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "industry_id")
@@ -37,6 +37,9 @@ public class  Template {
 
     @Column(name = "template_content", columnDefinition = "TEXT")
     private String templateContent;
+
+    @Column(name = "user_message", columnDefinition = "TEXT")
+    private String userMessage;
 
     @Column(name = "auto_title", length = 255)
     private String autoTitle;
@@ -72,12 +75,13 @@ public class  Template {
 
 
     @Builder
-    private Template(Account account, Category2 category2, Industry industry, String templateContent, String autoTitle, String imageUrl, String status, String buttonText, String buttonUrl, String templateAddon) {
+    private Template(Account account, Category category, Industry industry, String templateContent, String userMessage, String autoTitle, String imageUrl, String status, String buttonText, String buttonUrl, String templateAddon) {
         this.account = account;
-        this.category2 = category2;
+        this.category = category;
         this.industry = industry;
         this.templateContent = templateContent;
         this.autoTitle = autoTitle;
+        this.userMessage = userMessage;
         this.imageUrl = imageUrl;
         this.status = status;
         this.buttonText = buttonText;
@@ -100,28 +104,27 @@ public class  Template {
     /**
      * AI 응답 DTO를 기반으로 Template 엔티티와 하위 Var 엔티티들을 생성하는 정적 팩토리 메소드입니다.
      * @param account 연관 계정
-     * @param category2 연관 카테고리
+     * @param category 연관 카테고리
      * @param aiResponse AI 서비스로부터 받은 응답 DTO
      * @return 완전히 구성된 Template 인스턴스
      */
 
-    public static Template createFromAi(Account account, Category2 category2, FastAPIResponseDto aiResponse) {
+    public static Template createFromAi(Account account, Category category, String userMessage, FastAPIResponseDto aiResponse) {
         Template template = Template.builder()
                 .account(account)
-                .category2(category2)
-                .templateContent(aiResponse.getBody())
+                .category(category)
+                .userMessage(userMessage)
+                .templateContent(aiResponse.getTemplateText())
                 .autoTitle(aiResponse.getTemplateTitle())
-                .buttonUrl(aiResponse.getLinks())
                 .status("CREATED")
                 .build();
 
-        aiResponse.getVariables().forEach((key, value) ->
-                template.addVariable(Var.builder().variableKey(key).variableValue(value).build())
-        );
-
-        aiResponse.getPolicyRefs().forEach(docId ->
-                template.addPolicyRef(PolicyRef.builder().docId(docId).build())
-        );
+        // AI가 감지한 변수 목록을 Var 엔티티로 변환하여 추가
+        if (aiResponse.getMetadata() != null && aiResponse.getMetadata().getVariablesDetected() != null) {
+            aiResponse.getMetadata().getVariablesDetected().forEach(varName ->
+                    template.addVariable(Var.builder().variableKey(varName).build())
+            );
+        }
 
         return template;
     }

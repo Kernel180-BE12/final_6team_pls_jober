@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -38,9 +37,8 @@ public class AuthController {
         }
         
         // 인증된 사용자는 사용자 정보 반환
-        // TODO: 권한 반환 추가?
-        Long accountId = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(Map.of("userId", accountId));
+        Account account = (Account) authentication.getPrincipal();
+        return ResponseEntity.ok(Map.of("userId", account.getId()));
     }
 
     // 회원가입

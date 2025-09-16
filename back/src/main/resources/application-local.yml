@@ -1,8 +1,6 @@
 spring:
   application:
     name: final-project-backend
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:default}
   
   # 데이터베이스 설정
   datasource:
@@ -65,6 +63,5 @@ logging:
 
 ai:
   fastapi:
-    url: http://ai-service:8000 #AI 서버 URL
+    url: http://localhost:8000 #로컬 AI 서버 URL
     path: /ai/template/generate #AI 서버 템플릿 생성 엔드포인트
-

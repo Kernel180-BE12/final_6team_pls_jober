@@ -3,7 +3,9 @@ services:
   #  백엔드 서비스 (Spring Boot)
   # ===================================================================
   backend:
-    image: jonathanchoii/pls-jober-backend:latest
+    build:
+      context: ./back
+      dockerfile: Dockerfile
     container_name: pls-jober-backend
     ports:
       - "8080:8080"
@@ -45,22 +47,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # ===================================================================
-  #  Redis 캐시 서버
-  # ===================================================================
-  redis:
-    image: redis:7-alpine
-    container_name: pls-jober-redis
-    ports:
-      - "6379:6379"
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-    command: redis-server --requirepass ${REDIS_PASSWORD}
-    volumes:
-      - redis_data:/data
-    networks:
-      - app-network
-    restart: unless-stopped
+
 
   # ===================================================================
   #  Nginx 리버스 프록시
@@ -86,9 +73,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-volumes:
-  redis_data:
 
 networks:
   app-network:

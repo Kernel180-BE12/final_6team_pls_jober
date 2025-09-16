@@ -38,19 +38,19 @@
         </div>
         
         <!-- 오른쪽: 폼 영역 -->
-        <div class="form-section">
-          <!-- 로그인 폼이 아닐 땐 템플릿 생성 -->
+        <div class="form-section" v-if="userStore.isLoggedIn || showLoginForm">
+          <!-- 로그인된 상태에서만 템플릿 생성 모달 표시 -->
           <TemplateCreateComponent
-            v-if="!showLoginForm"
+            v-if="userStore.isLoggedIn && !showLoginForm"
             @requireLogin="showLoginForm = true"
           />
           
           <!-- 로그인/회원가입/비번찾기 폼 -->
           <component
-            v-else
+            v-else-if="showLoginForm"
             :is="currentForm"
             @switchForm="switchForm"
-            @loginSuccess="showLoginForm = false"
+            @loginSuccess="handleLoginSuccess"
           />
         </div>
       </div>
@@ -105,6 +105,12 @@ const openRegisterForm = () => {
 const switchForm = (formType: string) => {
   currentFormType.value = formType
 }
+
+// 로그인 성공 시 처리
+const handleLoginSuccess = () => {
+  showLoginForm.value = false
+  showForm.value = false
+}
 </script>
 
 <style scoped>
@@ -131,6 +137,7 @@ const switchForm = (formType: string) => {
   gap: 4rem;
   padding: 0 2rem;
 }
+
 
 .welcome-section {
   flex: 1;

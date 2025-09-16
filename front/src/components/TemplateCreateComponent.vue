@@ -1,29 +1,36 @@
 <template>
-  <h1 class="page-title"> 
-    만들고 싶은 알림톡 템플릿 주제를 알려주세요
-  </h1>
-  <div class="template-create-container">
-    <div class="content-wrapper">
-      <!-- 텍스트 입력 + 제출 버튼 -->
-      <div class="text-input-section">
-        <div class="textarea-container">
-          <textarea
-            v-model="templateStore.userText"
-            placeholder="원하는 템플릿 내용을 입력하세요..."
-            class="message-textarea"
-            :disabled="isGenerating"
-            rows="6"
-          ></textarea>
+  <div class="template-form">
+    <div class="form-header">
+      <h2 class="form-title">알림톡 템플릿 생성</h2>
+      <p class="form-subtitle">원하는 템플릿 내용을 입력해주세요</p>
+    </div>
+    
+    <div class="form-content">
+      <div class="input-section">
+        <textarea
+          v-model="templateStore.userMessage"
+          placeholder="예시: 회원가입 완료 알림, 주문 배송 안내, 이벤트 참여 안내 등&#10;&#10;구체적으로 작성할수록 더 정확한 템플릿이 생성됩니다."
+          class="template-textarea"
+          :disabled="isGenerating"
+          rows="6"
+        ></textarea>
+        
+        <div class="input-footer">
+          <span class="char-count">{{ templateStore.userMessage.length }}/500</span>
           <button 
-            class="submit-arrow-btn"
+            class="generate-btn"
             @click="handleSubmit"
             :disabled="!canSubmit"
           >
             <span v-if="isGenerating" class="loading-spinner"></span>
-            <span v-else>↑</span>
+            <span v-else class="btn-content">
+              <i class="mdi mdi-magic-staff"></i>
+              템플릿 생성하기
+            </span>
           </button>
         </div>
       </div>
+      
     </div>
   </div>
 </template>
@@ -41,7 +48,7 @@ const templateStore = useTemplateStore()
 const isGenerating = ref(false)
 
 const canSubmit = computed(() =>
-  templateStore.userText.trim().length > 0 && !isGenerating.value
+  templateStore.userMessage.trim().length > 0 && !isGenerating.value
 )
 
 const emit = defineEmits<{
@@ -53,7 +60,7 @@ const handleSubmit = async () => {
 
   // 로그인 여부 확인
   if (!userStore.isLoggedIn) {
-    templateStore.setUserText(templateStore.userText)
+    templateStore.setUserMessage(templateStore.userMessage)
     alert('로그인이 필요합니다.')
     emit('requireLogin')
     return
@@ -61,8 +68,8 @@ const handleSubmit = async () => {
 
   isGenerating.value = true
   try {
-    const response = await aiApi.generateTemplate(templateStore.userText)
-    templateStore.setUserText(templateStore.userText)
+    const response = await aiApi.generateTemplate(templateStore.userMessage)
+    templateStore.setUserMessage(templateStore.userMessage)
     router.push({
       name: 'template-result',
       state: response.data
@@ -76,92 +83,120 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.template-create-container {
-  width: 100%;
-  background: #fff;
-  padding: 1.5rem;
+/* 템플릿 폼 컨테이너 */
+.template-form {
+  background: white;
   border-radius: 0.8rem;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 450px;
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
-/* 제목 */
-.header-section {
+/* 폼 헤더 */
+.form-header {
+  padding: 2rem 2rem 1rem 2rem;
   text-align: center;
-  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.page-title {
+.form-title {
   font-size: 1.5rem;
   font-weight: 700;
   color: #1a1a1a;
+  margin: 0 0 0.5rem 0;
 }
 
-/* 텍스트 입력 영역 */
-.text-input-section {
+.form-subtitle {
+  font-size: 1rem;
+  color: #666;
+  margin: 0;
+}
+
+/* 폼 콘텐츠 */
+.form-content {
+  padding: 2rem;
+}
+
+/* 입력 섹션 */
+.input-section {
+  margin-bottom: 1.5rem;
+}
+
+.template-textarea {
   width: 100%;
-}
-
-.textarea-container {
-  position: relative;
-}
-
-.message-textarea {
-  width: 100%;
-  min-height: 10rem;
-  padding: 1.2rem;
-  padding-right: 3.5rem; /* 버튼 자리 확보 */
-  border: 0.1rem solid #e0e0e0;
-  border-radius: 0.6rem;
+  min-height: 8rem;
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 0.8rem;
   font-size: 1rem;
   line-height: 1.6;
   resize: vertical;
   font-family: inherit;
   background: white;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  margin-bottom: 1rem;
 }
 
-.message-textarea:focus {
+.template-textarea:focus {
   outline: none;
   border-color: #8E24AA;
-  box-shadow: 0 0 0 0.15rem rgba(142, 36, 170, 0.1);
+  box-shadow: 0 0 0 3px rgba(142, 36, 170, 0.1);
 }
 
-/* 제출 버튼 */
-.submit-arrow-btn {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
-  width: 2.8rem;
-  height: 2.8rem;
+.template-textarea:disabled {
+  background: #f8f9fa;
+  cursor: not-allowed;
+}
+
+/* 입력 하단 */
+.input-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.char-count {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.generate-btn {
+  padding: 0.8rem 1.5rem;
   border: none;
-  background: #8E24AA;
+  background: linear-gradient(135deg, #8E24AA 0%, #7B1FA2 100%);
   color: white;
-  border-radius: 50%;
-  font-size: 1.2rem;
-  font-weight: bold;
+  border-radius: 0.6rem;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 6px rgba(142, 36, 170, 0.3);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(142, 36, 170, 0.3);
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.5rem;
 }
 
-.submit-arrow-btn:hover:not(:disabled) {
-  background: #7B1FA2;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(142, 36, 170, 0.4);
+.generate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(142, 36, 170, 0.4);
 }
 
-.submit-arrow-btn:disabled {
+.generate-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
   transform: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 
 /* 로딩 스피너 */
 .loading-spinner {

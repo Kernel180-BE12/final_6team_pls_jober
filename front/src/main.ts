@@ -4,6 +4,7 @@ import { VueQueryPlugin } from '@tanstack/vue-query'
 
 import App from './App.vue'
 import router from './router'
+import { useUserStore } from './stores/user'
 
 // Vuetify
 import 'vuetify/styles'
@@ -21,11 +22,16 @@ const vuetify = createVuetify({
 })
 
 const app = createApp(App)
+const pinia = createPinia()
 
-app.use(createPinia())
+app.use(pinia)
 app.use(router)
 app.use(vuetify)
 app.use(VueQueryPlugin)
+
+// 앱 마운트 전에 사용자 정보 복원
+const userStore = useUserStore()
+userStore.restoreUser()
 
 app.mount('#app')
 

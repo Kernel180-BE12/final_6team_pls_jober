@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useUserStore } from '@/stores/user'
 
 // API 기본 설정
 const api = axios.create({
@@ -12,10 +13,10 @@ const api = axios.create({
 // 요청 인터셉터
 api.interceptors.request.use(
   (config) => {
-    // 토큰이 있다면 헤더에 추가
-    const token = localStorage.getItem('accessToken')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    // user store에서 토큰 가져오기
+    const userStore = useUserStore()
+    if (userStore.accessToken) {
+      config.headers.Authorization = `Bearer ${userStore.accessToken}`
     }
     return config
   },
@@ -29,11 +30,11 @@ api.interceptors.response.use(
   (response) => {
     return response
   },
-  (error) => {
-    // 401 에러 시 토큰 제거
+  async (error) => {
+    // 401 에러 시 자동 로그아웃
     if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
+      const userStore = useUserStore()
+      userStore.logout()
     }
     return Promise.reject(error)
   }
@@ -115,7 +116,7 @@ export const templateApi = {
     
     return aiApi.post('/template/modify', {
       current_template: currentTemplate,
-      user_message: userMessage,
+      userMessage: userMessage,
       chat_history: chatHistory
     })
   }
@@ -125,7 +126,7 @@ export const templateApi = {
 export const aiApi = {
   // AI 서버에 직접 템플릿 생성 요청
   generateTemplate: (userMessage: string) => 
-    api.post('/ai-generation', { user_message: userMessage })
+    api.post('/ai-generation', { userMessage: userMessage })
   
 }
 
