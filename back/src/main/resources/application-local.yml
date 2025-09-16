@@ -1,0 +1,68 @@
+spring:
+  application:
+    name: final-project-backend
+
+  # 로컬 데이터베이스 설정
+  datasource:
+    url: jdbc:mysql://134.185.106.160:3306/final_project
+    username: user
+    password: 1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # Flyway 마이그레이션 설정
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations:
+      - classpath:db/migration
+      - classpath:db/seed
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  # Redis 설정
+  data:
+    redis:
+      host: 134.185.106.160
+      port: 6379
+      password: 1234
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+# JWT 설정
+jwt:
+  secret: beb305030e21a9a32e1b77bc685749ac  # 환경변수에서 필수로 설정해야 함
+  access-expiration: 3600000
+  refresh-expiration: 604800000
+
+# 서버 설정
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# 로깅 설정
+logging:
+  level:
+    com.example: DEBUG
+    org.springframework.security: DEBUG
+
+# AI 서버 (로컬 IP로 직접 접근)
+ai:
+  fastapi:
+    url: http://127.0.0.1:8000
+    path: /ai/template/generate
