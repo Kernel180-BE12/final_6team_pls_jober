@@ -63,8 +63,8 @@ export BUILDKIT_PROGRESS=plain
 
 # AI 서비스 이미지 빌드 (최적화된 빌드)
 log_info "AI 서비스 이미지 빌드 중... (최초 빌드시 10-15분 소요 예상)"
-if ! timeout 3600 docker-compose build ai-service; then
-    log_error "AI 서비스 빌드 실패 또는 타임아웃 (60분 제한)"
+if ! timeout 5400 docker-compose build ai-service; then
+    log_error "AI 서비스 빌드 실패 또는 타임아웃 (90분 제한)"
     exit 1
 fi
 log_success "AI 서비스 빌드 완료"
@@ -90,11 +90,32 @@ log_info "프론트엔드 빌드 완료"
 # 호스트 서비스 상태 확인
 log_info "호스트 서비스 상태 확인 중..."
 
-# MySQL 상태 확인
+# MySQL 상태 확인 및 자동 시작
 if systemctl is-active --quiet mysql; then
     log_success "MySQL이 정상적으로 실행 중입니다."
 else
-    log_warning "MySQL이 실행되지 않았습니다. sudo systemctl start mysql로 시작해주세요."
+    log_warning "MySQL이 실행되지 않았습니다. 자동으로 시작합니다."
+    sudo systemctl start mysql
+    if systemctl is-active --quiet mysql; then
+        log_success "MySQL이 성공적으로 시작되었습니다."
+    else
+        log_error "MySQL 시작에 실패했습니다."
+        exit 1
+    fi
+fi
+
+# Redis 상태 확인 및 자동 시작
+if systemctl is-active --quiet redis-server; then
+    log_success "Redis가 정상적으로 실행 중입니다."
+else
+    log_warning "Redis가 실행되지 않았습니다. 자동으로 시작합니다."
+    sudo systemctl start redis-server
+    if systemctl is-active --quiet redis-server; then
+        log_success "Redis가 성공적으로 시작되었습니다."
+    else
+        log_error "Redis 시작에 실패했습니다."
+        exit 1
+    fi
 fi
 
 # ChromaDB 상태 확인 (포트 8001로 가정)
@@ -158,6 +179,8 @@ echo ""
 echo "  호스트 서비스 관리:"
 echo "  MySQL 상태: sudo systemctl status mysql"
 echo "  MySQL 재시작: sudo systemctl restart mysql"
+echo "  Redis 상태: sudo systemctl status redis-server"
+echo "  Redis 재시작: sudo systemctl restart redis-server"
 echo "  ChromaDB 상태: curl http://localhost:8001/health"
 echo ""
 echo "  Docker 서비스 관리:"
