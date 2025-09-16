@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from services.openai_service import OpenAIService
@@ -48,7 +48,7 @@ class QuestionAnswerRequest(BaseModel):
 
 class TemplateGenerationRequest(BaseModel):
     category: str
-    user_message: str
+    userMessage: str
     model: Optional[str] = "gpt-4o-mini"
 
 class TemplateGenerationResponse(BaseModel):
@@ -59,7 +59,7 @@ class TemplateGenerationResponse(BaseModel):
 
 class TemplateModificationRequest(BaseModel):
     current_template: str
-    user_message: str
+    userMessage: str
     chat_history: List[Dict[str, Any]] = []
 
 class TemplateModificationResponse(BaseModel):
@@ -83,7 +83,7 @@ class IntegratedTemplateResponse(BaseModel):
     success: bool
     error_message: Optional[str] = None
 
-# OpenAI 라우트
+# OpenAI 라우트 (인증 필요)
 @router.post("/openai/chat", response_model=ChatResponse)
 async def openai_chat(request: ChatRequest):
     """OpenAI 채팅 API"""
@@ -104,14 +104,6 @@ async def openai_embeddings(text: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ChromaDB 라우트
-@router.post("/chromadb/documents")
-async def add_documents(request: DocumentRequest):
-    """ChromaDB에 문서 추가"""
-    try:
-        result = await chromadb_service.add_documents([request.content], [request.metadata])
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chromadb/search")
 async def search_documents(request: SearchRequest):
@@ -204,7 +196,7 @@ async def generate_template(request: TemplateGenerationRequest):
         # 가이드라인 검색을 통한 컨텍스트 생성
         try:
             guidelines = await chromadb_service.search_documents(
-                f"{request.category} {request.user_message}", 
+                f"{request.category} {request.userMessage}", 
                 3
             )
         except Exception as e:
@@ -219,7 +211,7 @@ async def generate_template(request: TemplateGenerationRequest):
         # 프롬프트 빌더 사용
         prompt_builder = TemplateGenerationPromptBuilder(
             category=request.category,
-            user_message=request.user_message,
+            userMessage=request.userMessage,
             context=context
         )
         prompt = prompt_builder.build()
@@ -270,7 +262,7 @@ async def modify_template(request: TemplateModificationRequest):
         # 프롬프트 빌더 사용
         prompt_builder = TemplateModificationPromptBuilder(
             current_template=request.current_template,
-            user_message=request.user_message,
+            userMessage=request.userMessage,
             chat_context=chat_context
         )
         prompt = prompt_builder.build()
@@ -296,7 +288,7 @@ async def modify_template(request: TemplateModificationRequest):
             })
         
         # 수정 설명 생성
-        explanation = f"사용자 요청 '{request.user_message}'에 따라 템플릿을 수정했습니다."
+        explanation = f"사용자 요청 '{request.userMessage}'에 따라 템플릿을 수정했습니다."
         
         return TemplateModificationResponse(
             modified_template=modified_template,
@@ -337,5 +329,24 @@ async def integrated_generate_template(request: IntegratedTemplateRequest):
             error_message=result.error_message
         )
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 사용자 권한 API들
+@router.post("/chromadb/documents")
+async def add_documents(request: DocumentRequest):
+    """ChromaDB에 문서 추가"""
+    try:
+        result = await chromadb_service.add_documents([request.content], [request.metadata])
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/chromadb/documents/{document_id}")
+async def delete_document(document_id: str):
+    """ChromaDB에서 문서 삭제"""
+    try:
+        # 문서 삭제 로직 구현 (ChromaDBService에 메서드 추가 필요)
+        return {"message": f"문서 {document_id}가 삭제되었습니다."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

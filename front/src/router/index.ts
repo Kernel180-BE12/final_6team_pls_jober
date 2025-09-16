@@ -64,7 +64,10 @@ router.beforeEach(async (to, from, next) => {
 
     if (res.ok) {
       const user = await res.json()
-      userStore.setUser({ accountId: user.accountId, role: user.role })
+      userStore.setUser(
+        { accountId: user.accountId, role: user.role },
+        { accessToken: user.data.accessToken, refreshToken: user.data.refreshToken }
+      )
       return next()
     } else if (res.status === 401) {
       window.alert("로그인이 필요한 페이지 입니다.")

@@ -8,7 +8,7 @@
     <div class="form-content">
       <div class="input-section">
         <textarea
-          v-model="templateStore.userText"
+          v-model="templateStore.userMessage"
           placeholder="예시: 회원가입 완료 알림, 주문 배송 안내, 이벤트 참여 안내 등&#10;&#10;구체적으로 작성할수록 더 정확한 템플릿이 생성됩니다."
           class="template-textarea"
           :disabled="isGenerating"
@@ -16,7 +16,7 @@
         ></textarea>
         
         <div class="input-footer">
-          <span class="char-count">{{ templateStore.userText.length }}/500</span>
+          <span class="char-count">{{ templateStore.userMessage.length }}/500</span>
           <button 
             class="generate-btn"
             @click="handleSubmit"
@@ -48,7 +48,7 @@ const templateStore = useTemplateStore()
 const isGenerating = ref(false)
 
 const canSubmit = computed(() =>
-  templateStore.userText.trim().length > 0 && !isGenerating.value
+  templateStore.userMessage.trim().length > 0 && !isGenerating.value
 )
 
 const emit = defineEmits<{
@@ -60,7 +60,7 @@ const handleSubmit = async () => {
 
   // 로그인 여부 확인
   if (!userStore.isLoggedIn) {
-    templateStore.setUserText(templateStore.userText)
+    templateStore.setUserMessage(templateStore.userMessage)
     alert('로그인이 필요합니다.')
     emit('requireLogin')
     return
@@ -68,8 +68,8 @@ const handleSubmit = async () => {
 
   isGenerating.value = true
   try {
-    const response = await aiApi.generateTemplate(templateStore.userText)
-    templateStore.setUserText(templateStore.userText)
+    const response = await aiApi.generateTemplate(templateStore.userMessage)
+    templateStore.setUserMessage(templateStore.userMessage)
     router.push({
       name: 'template-result',
       state: response.data

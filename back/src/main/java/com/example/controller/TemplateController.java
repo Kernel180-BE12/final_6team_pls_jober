@@ -2,12 +2,13 @@ package com.example.controller;
 
 import com.example.dto.FastAPIResponseDto;
 import com.example.dto.TemplateRequestDto;
-import com.example.dto.TemplateResponseDto;
 import com.example.dto.TemplateValidationRequestDto;
 import com.example.dto.TemplateValidationResponseDto;
 import com.example.entity.Account;
-import jakarta.validation.Valid;
+import com.example.dto.UserDto;
 import com.example.service.TemplateService;
+import com.example.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class TemplateController {
 
     private final TemplateService templateService;
+    private final UserService userService;
 
     /**
      * AI를 사용하여 새로운 템플릿을 생성합니다. (POST /api/ai-generation)
@@ -28,8 +30,11 @@ public class TemplateController {
     @PostMapping("/ai-generation")
     public ResponseEntity<FastAPIResponseDto> createTemplateWithAi(
             @Valid @RequestBody TemplateRequestDto requestDto,
-            @AuthenticationPrincipal Account authenticatedAccount
+            @AuthenticationPrincipal Account currentUser
     ) {
+        UserDto userDto = userService.convertToUserDto(currentUser);
+        // 사용자 정보를 로그에 출력 (UserDto에서 가져온 정보)
+        System.out.println("사용자 " + userDto.getUserName() + "(" + userDto.getEmail() + ")가 AI 템플릿 생성을 요청했습니다.");
         FastAPIResponseDto response = templateService.createTemplateWithAi(requestDto);
         return ResponseEntity.ok(response);
     }
@@ -40,10 +45,13 @@ public class TemplateController {
     @PostMapping("/template/validate")
     public ResponseEntity<?> validateTemplate(
             @Valid @RequestBody TemplateValidationRequestDto requestDto,
-            @AuthenticationPrincipal Account authenticatedAccount
+            @AuthenticationPrincipal Account currentUser
     ) {
         try {
-            TemplateValidationResponseDto response = templateService.validateTemplate(requestDto, authenticatedAccount);
+            UserDto userDto = userService.convertToUserDto(currentUser);
+            // 사용자 정보를 로그에 출력 (UserDto에서 가져온 정보)
+            System.out.println("사용자 " + userDto.getUserName() + "(" + userDto.getEmail() + ")가 템플릿 검증을 요청했습니다.");
+            TemplateValidationResponseDto response = templateService.validateTemplate(requestDto, userDto);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

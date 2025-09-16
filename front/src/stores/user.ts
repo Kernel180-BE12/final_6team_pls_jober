@@ -10,18 +10,28 @@ export const useUserStore = defineStore('user', {
   state: () => ({
     accountId: null as number | null, // 유저 ID
     role: null as string | null,      // 유저 역할
+    userName: null as string | null,  // 유저 이름
+    email: null as string | null,     // 이메일
     accessToken: null as string | null, // 액세스 토큰
     refreshToken: null as string | null, // 리프레시 토큰
   }),
   getters: {
     isLoggedIn: (state) => !!state.accessToken && !!state.accountId,
     isAdmin: (state) => state.role === 'ROLE_ADMIN',
+    displayName: (state) => state.userName || state.email || '사용자',
   },
   actions: {
     // 로그인 시 사용자 정보와 토큰 저장
-    setUser(user: { accountId: number; role: string }, tokens: { accessToken: string; refreshToken: string }) {
+    setUser(user: { 
+      accountId: number; 
+      role: string; 
+      userName?: string; 
+      email?: string 
+    }, tokens: { accessToken: string; refreshToken: string }) {
       this.accountId = user.accountId
       this.role = user.role
+      this.userName = user.userName || null
+      this.email = user.email || null
       this.accessToken = tokens.accessToken
       this.refreshToken = tokens.refreshToken
       
@@ -32,9 +42,16 @@ export const useUserStore = defineStore('user', {
     },
     
     // 사용자 정보만 업데이트 (토큰은 그대로 유지)
-    updateUser(user: { accountId: number; role: string }) {
+    updateUser(user: { 
+      accountId: number; 
+      role: string; 
+      userName?: string; 
+      email?: string 
+    }) {
       this.accountId = user.accountId
       this.role = user.role
+      this.userName = user.userName || null
+      this.email = user.email || null
       localStorage.setItem(USER_INFO_KEY, JSON.stringify(user))
     },
     
@@ -53,6 +70,8 @@ export const useUserStore = defineStore('user', {
     clearUser() {
       this.accountId = null
       this.role = null
+      this.userName = null
+      this.email = null
       this.accessToken = null
       this.refreshToken = null
       
@@ -80,6 +99,8 @@ export const useUserStore = defineStore('user', {
           const userInfo = JSON.parse(userInfoStr)
           this.accountId = userInfo.accountId
           this.role = userInfo.role
+          this.userName = userInfo.userName || null
+          this.email = userInfo.email || null
           this.accessToken = accessToken
           this.refreshToken = refreshToken
         } catch (error) {
