@@ -271,7 +271,7 @@ async def generate_template(request: TemplateGenerationRequest):
             })
         
         # 템플릿 제목 생성 (사용자 메시지 기반)
-        template_title = f"{request.category} 템플릿 - {request.userMessage[:30]}..."
+        template_title = f"{category} 템플릿 - {request.userMessage[:30]}..."
         
         print(f"템플릿 생성 완료: {len(variables)}개 변수 추출")
         return TemplateGenerationResponse(
