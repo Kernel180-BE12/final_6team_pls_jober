@@ -2,15 +2,19 @@
   <div v-if="show" class="rejection-sidebar">
     <div class="sidebar-header">
       <h3>반려 사유 및 대안</h3>
+      <div v-if="validationStage" class="validation-stage">
+        <span class="stage-badge">{{ validationStage }}</span>
+      </div>
       <button class="close-btn" @click="$emit('close')">×</button>
     </div>
     
     <!-- 반려 사유 -->
     <div class="rejection-reason" v-if="currentVariable">
       <h4>• 반려 사유</h4>
-      <div v-if="validationError" class="error-details">
-        <p><strong>검증기:</strong> {{ validationError.errorType }}</p>
-        <p><strong>오류 메시지:</strong> {{ validationError.errorMessage }}</p>
+      <div v-if="validationErrors" class="error-details">
+        <p><strong>검증기:</strong> {{ validationErrors.errorType }}</p>
+        <p v-if="validationErrors.validationStage"><strong>검증 단계:</strong> {{ validationErrors.validationStage }}</p>
+        <p><strong>오류 메시지:</strong> {{ validationErrors.errorMessage }}</p>
         <p>변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
       </div>
       <div v-else>
@@ -76,6 +80,7 @@ interface ValidationError {
   variableName: string
   errorMessage: string
   errorType: string
+  validationStage?: string
 }
 
 interface RejectionSidebarProps {
@@ -83,7 +88,8 @@ interface RejectionSidebarProps {
   currentVariable: string
   alternatives: Alternative[]
   rejectedVariables: string[]
-  validationError?: ValidationError | null
+  validationErrors?: ValidationError | null
+  validationStage?: string
 }
 
 const props = defineProps<RejectionSidebarProps>()
@@ -142,6 +148,21 @@ const applySelectedAlternative = () => {
   margin-bottom: 0.8rem;
   padding-bottom: 0.6rem;
   border-bottom: 0.1rem solid #e0e0e0;
+}
+
+.validation-stage {
+  margin-left: auto;
+  margin-right: 0.5rem;
+}
+
+.stage-badge {
+  background: #ff6b6b;
+  color: white;
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
 }
 
 .sidebar-header h3 {
