@@ -39,13 +39,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // 인증 정보 설정
                     String email = jwtTokenProvider.getEmail(token);
                     Long accountId = jwtTokenProvider.getAccountId(token);
-                    
-                    if (email != null && accountId != null) {
-                        UsernamePasswordAuthenticationToken auth = 
+                    String role = jwtTokenProvider.getRole(token);
+
+                    if (email != null && accountId != null && role != null) {
+                        // Spring Security는 ROLE_ 접두사를 기대하므로 추가
+                        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+
+                        UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(
                                 accountId, // principal을 accountId로 설정
                                 null,
-                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                                Collections.singletonList(new SimpleGrantedAuthority(roleWithPrefix))
                             );
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     }

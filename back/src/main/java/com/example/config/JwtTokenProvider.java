@@ -106,4 +106,18 @@ public class JwtTokenProvider {
             return null;
         }
     }
+
+    // 토큰에서 role 추출
+    public String getRole(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get("role", String.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

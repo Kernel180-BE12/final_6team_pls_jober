@@ -6,7 +6,7 @@
 
 set -e  # 에러 발생 시 스크립트 중단
 
-echo "🚀 PLS-Jober 통합 배포 시작..."
+echo "PLS-Jober 통합 배포 시작..."
 
 # 색상 정의
 RED='\033[0;31m'
@@ -61,9 +61,9 @@ docker image prune -f
 log_info "AI 서비스 이미지 빌드 중..."
 docker-compose build ai-service
 
-# 백엔드 이미지 pull (Docker Hub에서)
-log_info "백엔드 이미지 다운로드 중..."
-docker pull jonathanchoii/pls-jober-backend:latest
+# 백엔드 이미지 빌드 (로컬에서 직접 빌드)
+log_info "백엔드 이미지 빌드 중..."
+docker-compose build backend
 
 # 프론트엔드 빌드 (로컬에서)
 log_info "프론트엔드 빌드 중..."
@@ -130,14 +130,14 @@ fi
 log_info "서비스 상태 확인:"
 docker-compose ps
 
-log_success "🎉 배포가 완료되었습니다!"
+log_success "배포가 완료되었습니다!"
 echo ""
-echo "📋 서비스 접속 정보:"
-echo "  🌐 프론트엔드: http://134.185.106.160"
-echo "  🔧 백엔드 API: http://134.185.106.160/api"
-echo "  🤖 AI 서비스: http://134.185.106.160/ai"
+echo "서비스 접속 정보:"
+echo "  프론트엔드: http://134.185.106.160"
+echo "  백엔드 API: http://134.185.106.160/api"
+echo "  AI 서비스: http://134.185.106.160/ai"
 echo ""
-echo "📊 서비스 관리 명령어:"
+echo "서비스 관리 명령어:"
 echo "  Docker 서비스 상태 확인: docker-compose ps"
 echo "  Docker 서비스 로그 확인: docker-compose logs -f [서비스명]"
 echo "  Docker 서비스 중지: docker-compose down"
