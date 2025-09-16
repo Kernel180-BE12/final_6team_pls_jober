@@ -59,7 +59,8 @@
 </template> 
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 import LoginComponent from '@/components/LoginComponent.vue'
 import RegisterComponent from '@/components/RegisterComponent.vue'
@@ -69,6 +70,8 @@ import "../assets/styles/btn.css"
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
+const route = useRoute()
+const router = useRouter()
 
 // 상태
 const showLoginForm = ref(false)
@@ -111,6 +114,46 @@ const handleLoginSuccess = () => {
   showLoginForm.value = false
   showForm.value = false
 }
+
+// 카카오 로그인 콜백 처리
+onMounted(() => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const accessToken = urlParams.get('accessToken')
+  const refreshToken = urlParams.get('refreshToken')
+  const userId = urlParams.get('userId')
+  const role = urlParams.get('role')
+  const error = urlParams.get('error')
+
+  if (error) {
+    console.error('카카오 로그인 에러:', error)
+    alert('카카오 로그인에 실패했습니다: ' + error)
+    // URL 파라미터 제거
+    router.replace({ path: '/' })
+    return
+  }
+
+  if (accessToken && refreshToken && userId && role) {
+    console.log('카카오 로그인 성공, 토큰 저장 중...')
+
+    // 유저 스토어에 토큰과 사용자 정보 저장
+    userStore.setUser(
+      {
+        accountId: userId,
+        role: role
+      },
+      {
+        accessToken: accessToken,
+        refreshToken: refreshToken
+      }
+    )
+
+    // URL 파라미터 제거하고 랜딩 페이지로 이동
+    router.replace({ path: '/' })
+
+    // 로그인 폼 닫기
+    handleLoginSuccess()
+  }
+})
 </script>
 
 <style scoped>
