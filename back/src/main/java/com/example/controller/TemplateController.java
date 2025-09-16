@@ -4,7 +4,7 @@ import com.example.dto.FastAPIResponseDto;
 import com.example.dto.TemplateRequestDto;
 import com.example.dto.TemplateValidationRequestDto;
 import com.example.dto.TemplateValidationResponseDto;
-import com.example.entity.Account;
+import com.example.common.UserPrincipal;
 import jakarta.validation.Valid;
 import com.example.service.TemplateService;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +27,10 @@ public class TemplateController {
     @PostMapping("/ai-generation")
     public ResponseEntity<FastAPIResponseDto> createTemplateWithAi(
             @Valid @RequestBody TemplateRequestDto requestDto,
-            @AuthenticationPrincipal Account authenticatedAccount
+            @AuthenticationPrincipal UserPrincipal currentUser
     ) {
+        // 사용자 정보를 로그에 출력 (DB 조회 없이 토큰에서 가져온 정보)
+        System.out.println("사용자 " + currentUser.getUserName() + "(" + currentUser.getEmail() + ")가 AI 템플릿 생성을 요청했습니다.");
         FastAPIResponseDto response = templateService.createTemplateWithAi(requestDto);
         return ResponseEntity.ok(response);
     }
@@ -39,10 +41,12 @@ public class TemplateController {
     @PostMapping("/template/validate")
     public ResponseEntity<?> validateTemplate(
             @Valid @RequestBody TemplateValidationRequestDto requestDto,
-            @AuthenticationPrincipal Account authenticatedAccount
+            @AuthenticationPrincipal UserPrincipal currentUser
     ) {
         try {
-            TemplateValidationResponseDto response = templateService.validateTemplate(requestDto, authenticatedAccount);
+            // 사용자 정보를 로그에 출력 (DB 조회 없이 토큰에서 가져온 정보)
+            System.out.println("사용자 " + currentUser.getUserName() + "(" + currentUser.getEmail() + ")가 템플릿 검증을 요청했습니다.");
+            TemplateValidationResponseDto response = templateService.validateTemplate(requestDto, currentUser);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
