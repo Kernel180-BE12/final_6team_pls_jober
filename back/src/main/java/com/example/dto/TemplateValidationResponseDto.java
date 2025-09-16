@@ -14,6 +14,7 @@ public class TemplateValidationResponseDto {
     private Map<String, List<String>> alternatives;
     private String templateId;
     private List<ValidationError> validationErrors;
+    private String validationStage; // 검증 단계 정보 추가 (1차, 2차 등)
     
     @Getter
     @Setter
@@ -21,11 +22,19 @@ public class TemplateValidationResponseDto {
         private String variableName;
         private String errorMessage;
         private String errorType;
+        private String validationStage; // 검증 단계 정보 추가
         
         public ValidationError(String variableName, String errorMessage, String errorType) {
             this.variableName = variableName;
             this.errorMessage = errorMessage;
             this.errorType = errorType;
+        }
+        
+        public ValidationError(String variableName, String errorMessage, String errorType, String validationStage) {
+            this.variableName = variableName;
+            this.errorMessage = errorMessage;
+            this.errorType = errorType;
+            this.validationStage = validationStage;
         }
     }
     
