@@ -116,7 +116,7 @@ export const templateApi = {
     
     return aiApi.post('/template/modify', {
       current_template: currentTemplate,
-      user_message: userMessage,
+      userMessage: userMessage,
       chat_history: chatHistory
     })
   }
@@ -126,7 +126,7 @@ export const templateApi = {
 export const aiApi = {
   // AI 서버에 직접 템플릿 생성 요청
   generateTemplate: (userMessage: string) => 
-    api.post('/ai-generation', { user_message: userMessage })
+    api.post('/ai-generation', { userMessage: userMessage })
   
 }
 

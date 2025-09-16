@@ -48,7 +48,7 @@ class QuestionAnswerRequest(BaseModel):
 
 class TemplateGenerationRequest(BaseModel):
     category: str
-    user_message: str
+    userMessage: str
     model: Optional[str] = "gpt-4o-mini"
 
 class TemplateGenerationResponse(BaseModel):
@@ -59,7 +59,7 @@ class TemplateGenerationResponse(BaseModel):
 
 class TemplateModificationRequest(BaseModel):
     current_template: str
-    user_message: str
+    userMessage: str
     chat_history: List[Dict[str, Any]] = []
 
 class TemplateModificationResponse(BaseModel):
@@ -204,7 +204,7 @@ async def generate_template(request: TemplateGenerationRequest):
         # 가이드라인 검색을 통한 컨텍스트 생성
         try:
             guidelines = await chromadb_service.search_documents(
-                f"{request.category} {request.user_message}", 
+                f"{request.category} {request.userMessage}", 
                 3
             )
         except Exception as e:
@@ -219,7 +219,7 @@ async def generate_template(request: TemplateGenerationRequest):
         # 프롬프트 빌더 사용
         prompt_builder = TemplateGenerationPromptBuilder(
             category=request.category,
-            user_message=request.user_message,
+            userMessage=request.userMessage,
             context=context
         )
         prompt = prompt_builder.build()
@@ -270,7 +270,7 @@ async def modify_template(request: TemplateModificationRequest):
         # 프롬프트 빌더 사용
         prompt_builder = TemplateModificationPromptBuilder(
             current_template=request.current_template,
-            user_message=request.user_message,
+            userMessage=request.userMessage,
             chat_context=chat_context
         )
         prompt = prompt_builder.build()
@@ -296,7 +296,7 @@ async def modify_template(request: TemplateModificationRequest):
             })
         
         # 수정 설명 생성
-        explanation = f"사용자 요청 '{request.user_message}'에 따라 템플릿을 수정했습니다."
+        explanation = f"사용자 요청 '{request.userMessage}'에 따라 템플릿을 수정했습니다."
         
         return TemplateModificationResponse(
             modified_template=modified_template,

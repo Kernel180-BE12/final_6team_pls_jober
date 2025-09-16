@@ -2,14 +2,14 @@ import { defineStore } from 'pinia'
 
 export const useTemplateStore = defineStore('template', {
   state: () => ({
-    userText: '' as string
+    userMessage: '' as string
   }),
   actions: {
-    setUserText(text: string) {
-      this.userText = text
+    setUserMessage(text: string) {
+      this.userMessage = text
     },
-    clearUserText() {
-      this.userText = ''
+    clearUserMessage() {
+      this.userMessage = ''
     }
   }
 })
