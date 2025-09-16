@@ -4,7 +4,7 @@ name: Deploy to Oracle Cloud
 # 트리거 조건: main, develop 브랜치에 PR이 merge될 때만 실행
 on:
   pull_request:
-    branches: ["main", "develop", "CD-test"]
+    branches: ["main", "develop", "finalCDtest"]
     types: [closed]
 
 jobs:
