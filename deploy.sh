@@ -104,19 +104,6 @@ else
     fi
 fi
 
-# Redis 상태 확인 및 자동 시작
-if systemctl is-active --quiet redis-server; then
-    log_success "Redis가 정상적으로 실행 중입니다."
-else
-    log_warning "Redis가 실행되지 않았습니다. 자동으로 시작합니다."
-    sudo systemctl start redis-server
-    if systemctl is-active --quiet redis-server; then
-        log_success "Redis가 성공적으로 시작되었습니다."
-    else
-        log_error "Redis 시작에 실패했습니다."
-        exit 1
-    fi
-fi
 
 # ChromaDB 상태 확인 (포트 8001로 가정)
 if curl -f http://localhost:8001/health > /dev/null 2>&1; then
@@ -179,8 +166,6 @@ echo ""
 echo "  호스트 서비스 관리:"
 echo "  MySQL 상태: sudo systemctl status mysql"
 echo "  MySQL 재시작: sudo systemctl restart mysql"
-echo "  Redis 상태: sudo systemctl status redis-server"
-echo "  Redis 재시작: sudo systemctl restart redis-server"
 echo "  ChromaDB 상태: curl http://localhost:8001/health"
 echo ""
 echo "  Docker 서비스 관리:"
