@@ -38,7 +38,7 @@ aiApi.interceptors.response.use(
 // AI 서비스 타입 정의
 export interface TemplateGenerationRequest {
   category: string
-  user_message: string
+  userMessage: string
   model?: string
 }
 
@@ -55,7 +55,7 @@ export interface TemplateGenerationResponse {
 
 export interface TemplateModificationRequest {
   current_template: string
-  user_message: string
+  userMessage: string
   chat_history?: Array<{
     type: string
     content: string
@@ -77,7 +77,7 @@ export interface TemplateModificationResponse {
 export const aiService = {
   // 템플릿 생성
   async generateTemplate(request: TemplateGenerationRequest): Promise<TemplateGenerationResponse> {
-    const response = await aiApi.post('/template/generate', request)
+    const response = await aiApi.post('/ai-generation', request)
     return response.data
   },
 
