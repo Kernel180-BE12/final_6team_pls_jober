@@ -15,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import com.example.common.UserPrincipal;
 
 @Component
 @RequiredArgsConstructor
@@ -35,16 +36,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if ("access".equals(tokenType)) {
                 // 블랙리스트 확인
                 if (!tokenService.isTokenBlacklisted(token)) {
-                    // 인증 정보 설정
+                    // 인증 정보 설정 - 토큰에서 사용자 정보 추출
                     String email = jwtTokenProvider.getEmail(token);
                     Long accountId = jwtTokenProvider.getAccountId(token);
+                    String role = jwtTokenProvider.getRole(token);
+                    String userName = jwtTokenProvider.getUserName(token);
+                    String companyName = jwtTokenProvider.getCompanyName(token);
                     
                     if (email != null && accountId != null) {
+                        // 사용자 정보를 포함한 인증 객체 생성
+                        UserPrincipal userPrincipal = new UserPrincipal(
+                            accountId, email, role, userName, companyName
+                        );
+                        
                         UsernamePasswordAuthenticationToken auth = 
                             new UsernamePasswordAuthenticationToken(
-                                accountId, // principal을 accountId로 설정
+                                userPrincipal, // principal을 UserPrincipal로 설정
                                 null,
-                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                                Collections.singletonList(new SimpleGrantedAuthority(role != null ? role : "ROLE_USER"))
                             );
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     }
