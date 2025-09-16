@@ -90,7 +90,7 @@ public class TemplateService {
     }
 
     private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, UserPrincipal currentUser) {
-        // UserPrincipal에서 Account 엔티티 조회
+        // JWT 토큰에서 가져온 accountId로 기존 Account 엔티티 참조
         Account account = accountRepository.findById(currentUser.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + currentUser.getAccountId()));
         
