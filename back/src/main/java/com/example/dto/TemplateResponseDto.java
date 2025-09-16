@@ -45,7 +45,7 @@ public class TemplateResponseDto {
                 .imageUrl(template.getImageUrl())
                 .status(template.getStatus())
                 .accountName(template.getAccount() != null ? template.getAccount().getUserName() : null)
-                .categoryName(template.getCategory2() != null ? template.getCategory2().getName() : null)
+                .categoryName(template.getCategory() != null ? template.getCategory().getName() : null)
                 .buttonText(template.getButtonText())
                 .buttonUrl(template.getButtonUrl())
                 .templateAddon(template.getTemplateAddon())

@@ -1,5 +1,6 @@
 package com.example.controller;
 
+import com.example.dto.FastAPIResponseDto;
 import com.example.dto.TemplateRequestDto;
 import com.example.dto.TemplateResponseDto;
 import com.example.dto.TemplateValidationRequestDto;
@@ -25,12 +26,12 @@ public class TemplateController {
      * AI를 사용하여 새로운 템플릿을 생성합니다. (POST /api/ai-generation)
      */
     @PostMapping("/ai-generation")
-    public ResponseEntity<TemplateResponseDto> createTemplateWithAi(
+    public ResponseEntity<FastAPIResponseDto> createTemplateWithAi(
             @Valid @RequestBody TemplateRequestDto requestDto,
             @AuthenticationPrincipal Account authenticatedAccount
     ) {
-        TemplateResponseDto response = templateService.createTemplateWithAi(requestDto, authenticatedAccount);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        FastAPIResponseDto response = templateService.createTemplateWithAi(requestDto);
+        return ResponseEntity.ok(response);
     }
 
     /**

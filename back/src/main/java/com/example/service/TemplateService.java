@@ -23,21 +23,18 @@ import java.util.*;
 public class TemplateService {
 
     private final TemplateRepository templateRepository;
-    private final Category2Repository category2Repository;
+    private final CategoryRepository categoryRepository;
     private final AIService aiService; // FastAPI 통신을 전담할 서비스 주입
 
     /**
      * AI를 활용하여 새로운 템플릿을 생성하고 연관된 변수들을 함께 저장합니다.
      */
     @Transactional
-    public TemplateResponseDto createTemplateWithAi(TemplateRequestDto requestDto, Account account) {
-        Category2 category2 = findCategory2ById(requestDto.getCategory2Id());
-        FastAPIResponseDto aiResponse = aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage());
-        Template newTemplate = Template.createFromAi(account, category2, aiResponse);
-        Template savedTemplate = templateRepository.save(newTemplate);
-        log.info("AI 템플릿 및 변수 저장 완료. Template ID: {}", savedTemplate.getTemplateId());
-
-        return TemplateResponseDto.fromEntity(savedTemplate);
+    public FastAPIResponseDto createTemplateWithAi(TemplateRequestDto requestDto) {
+        log.info("AI 템플릿 생성 요청을 AI 서버로 전달합니다. User Message: {}", requestDto.getUserMessage());
+        // AI 서버에 템플릿 생성을 요청하고, 받은 응답을 그대로 반환합니다.
+        // DB 저장 로직은 여기에서 제외됩니다.
+        return aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage());
     }
 
 
@@ -94,7 +91,7 @@ public class TemplateService {
         Template template = Template.builder()
                 .account(account)
                 .templateContent(requestDto.getTemplateContent())
-                .category2(findCategory2ByName(requestDto.getCategory()))
+                .category(findCategoryByName(requestDto.getCategory()))
                 .status("APPROVED")
                 .build();
         
@@ -205,23 +202,22 @@ public class TemplateService {
 
     /**
      * 주어진 ID로 Category2 엔티티를 조회합니다.
-     *
-     * @param category2Id 조회할 Category2의 ID
-     * @return 조회된 Category2 엔티티
-     * @throws ResourceNotFoundException 해당 ID의 Category2가 존재하지 않을 경우
+     * @param categoryId 조회할 Category의 ID
+     * @return 조회된 Category 엔티티
+     * @throws ResourceNotFoundException 해당 ID의 Category가 존재하지 않을 경우
      */
     @Transactional(readOnly = true)
-    public Category2 findCategory2ById(Long category2Id) {
-        return category2Repository.findById(category2Id)
-                .orElseThrow(() -> new ResourceNotFoundException("Category2 not found with id: " + category2Id));
+    public Category findCategoryById(Long categoryId) {
+        return categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
     }
     
     /**
-     * 주어진 이름으로 Category2 엔티티를 조회합니다.
+     * 주어진 이름으로 Category 엔티티를 조회합니다.
      */
     @Transactional(readOnly = true)
-    public Category2 findCategory2ByName(String categoryName) {
-        return category2Repository.findByName(categoryName)
-                .orElseThrow(() -> new ResourceNotFoundException("Category2 not found with name: " + categoryName));
+    public Category findCategoryByName(String categoryName) {
+        return categoryRepository.findByName(categoryName)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with name: " + categoryName));
     }
 }

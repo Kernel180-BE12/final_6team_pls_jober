@@ -29,22 +29,9 @@ app.use(router)
 app.use(vuetify)
 app.use(VueQueryPlugin)
 
-// 앱 초기화 시 토큰이 있으면 userStore 복원
-const token = localStorage.getItem('accessToken')
-if (token) {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    const userStore = useUserStore()
-    userStore.setUser({
-      accountId: payload.account_id,
-      role: payload.role
-    })
-  } catch (error) {
-    console.error('토큰 파싱 실패:', error)
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-  }
-}
+// 앱 마운트 전에 사용자 정보 복원
+const userStore = useUserStore()
+userStore.restoreUser()
 
 app.mount('#app')
 

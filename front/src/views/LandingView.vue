@@ -20,16 +20,16 @@
             </p>
             
             <!-- 초기 상태: 로그인/회원가입 버튼 -->
-            <div v-if="!showForm && !userStore.isLoggedIn" class="action-buttons mt-4">
+            <div v-if="!userStore.isLoggedIn" class="action-buttons mt-4">
               <button
-                class="btn btn-basic"
-                @click="showLoginForm"
+                class="btn-login"
+                @click="openLoginForm"
               >
                 로그인
               </button>
               <button
-                class="btn btn-basic02"
-                @click="showRegisterForm"
+                class="btn-register"
+                @click="openRegisterForm"
               >
                 회원가입
               </button>
@@ -38,70 +38,44 @@
         </div>
         
         <!-- 오른쪽: 폼 영역 -->
-        <div v-if="showForm && !userStore.isLoggedIn" class="form-section">
-          <component 
-            :is="currentForm" 
+        <div class="form-section" v-if="userStore.isLoggedIn || showLoginForm">
+          <!-- 로그인된 상태에서만 템플릿 생성 모달 표시 -->
+          <TemplateCreateComponent
+            v-if="userStore.isLoggedIn && !showLoginForm"
+            @requireLogin="showLoginForm = true"
+          />
+          
+          <!-- 로그인/회원가입/비번찾기 폼 -->
+          <component
+            v-else-if="showLoginForm"
+            :is="currentForm"
             @switchForm="switchForm"
-            @loginSuccess="showForm = false"
+            @loginSuccess="handleLoginSuccess"
           />
         </div>
       </div>
     </div>
   </div>
-</template>
+</template> 
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 import LoginComponent from '@/components/LoginComponent.vue'
 import RegisterComponent from '@/components/RegisterComponent.vue'
 import ForgotPasswordComponent from '@/components/ForgotPasswordComponent.vue'
+import TemplateCreateComponent from '@/components/TemplateCreateComponent.vue'
 import "../assets/styles/btn.css"
 import { useUserStore } from '@/stores/user'
 
-const router = useRouter()
-const showForm = ref(false)
-const currentFormType = ref('login')
 const userStore = useUserStore()
 
-// 카카오 로그인 콜백 처리
-onMounted(() => {
-  const urlParams = new URLSearchParams(window.location.search)
-  const accessToken = urlParams.get('accessToken')
-  const refreshToken = urlParams.get('refreshToken')
-  const userId = urlParams.get('userId')
-  const role = urlParams.get('role')
-  const error = urlParams.get('error')
+// 상태
+const showLoginForm = ref(false)
+const currentFormType = ref('login')
+const showForm = ref(false) // welcome-section 애니메이션용
 
-  if (error) {
-    console.error('카카오 로그인 에러:', error)
-    alert('카카오 로그인에 실패했습니다: ' + error)
-    // URL에서 에러 파라미터 제거
-    router.replace({ query: {} })
-    return
-  }
-
-  if (accessToken && refreshToken && userId && role) {
-    console.log('카카오 로그인 성공, 토큰 저장 중...')
-
-    // 토큰 저장
-    localStorage.setItem('accessToken', accessToken)
-    localStorage.setItem('refreshToken', refreshToken)
-
-    // 유저 스토어 업데이트
-    userStore.setUser({
-      accountId: parseInt(userId),
-      role: role
-    })
-
-    console.log('로그인 완료, 마이페이지로 이동...')
-
-    // URL에서 토큰 파라미터 제거하고 마이페이지로 이동
-    router.replace('/mypage')
-  }
-})
-
+// 현재 표시할 폼 계산
 const currentForm = computed(() => {
   switch (currentFormType.value) {
     case 'login':
@@ -115,18 +89,27 @@ const currentForm = computed(() => {
   }
 })
 
-const showLoginForm = () => {
+// 로그인/회원가입 버튼 눌렀을 때
+const openLoginForm = () => {
   currentFormType.value = 'login'
   showForm.value = true
+  showLoginForm.value = true
 }
 
-const showRegisterForm = () => {
+const openRegisterForm = () => {
   currentFormType.value = 'register'
   showForm.value = true
+  showLoginForm.value = true
 }
 
 const switchForm = (formType: string) => {
   currentFormType.value = formType
+}
+
+// 로그인 성공 시 처리
+const handleLoginSuccess = () => {
+  showLoginForm.value = false
+  showForm.value = false
 }
 </script>
 
@@ -154,6 +137,7 @@ const switchForm = (formType: string) => {
   gap: 4rem;
   padding: 0 2rem;
 }
+
 
 .welcome-section {
   flex: 1;
