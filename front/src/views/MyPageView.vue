@@ -333,7 +333,7 @@ const updatePassword = async () => {
 
 // 템플릿 작성 페이지 이동
 const goToTemplateCreate = () => {
-  router.push('/template/create')
+  router.push('/')
 }
 </script>
 

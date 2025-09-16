@@ -10,5 +10,4 @@ import lombok.Getter;
 public class FastAPIRequestDto {
     @JsonProperty("user_text")
     private String user_text;
-
 }

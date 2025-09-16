@@ -1,35 +1,55 @@
 package com.example.dto;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 @Getter
-public final class FastAPIResponseDto {
+@Setter
+@NoArgsConstructor
+public class FastAPIResponseDto {
 
-    private final String templateTitle; // AI가 생성한 제목
-    private final String body;          // AI가 생성한 본문 ({{var}} 포함)
-    private final Map<String, String> variables; // AI가 추출한 변수 키-값 맵
-    private final String links;  // AI가 추출한 URL
-    private final List<String> policyRefs; // AI가 참조한 정책/템플릿 ID 목록
-    private final String category; // AI가 판단한 카테고리
+    @JsonProperty("template_text")
+    private String templateText;
 
-    @JsonCreator
-    public FastAPIResponseDto(
-            @JsonProperty("template_title") String templateTitle,
-            @JsonProperty("body") String body,
-            @JsonProperty("variables") Map<String, String> variables,
-            @JsonProperty("links") String links,
-            @JsonProperty("policy_refs") List<String> policyRefs,
-            @JsonProperty("category") String category
-    ) {
-        this.templateTitle = templateTitle;
-        this.body = body;
-        this.links = links; // AI가 제공하는 단일 URL
-        this.policyRefs = (policyRefs != null) ? policyRefs : Collections.emptyList();
-        this.variables = (variables != null) ? variables : Collections.emptyMap();
-        this.category = category;
+    @JsonProperty("template_title")
+    private String templateTitle;
+
+    @JsonProperty("generation_method")
+    private String generationMethod;
+
+    @JsonProperty("reference_template_id")
+    private String referenceTemplateId;
+
+    @JsonProperty("metadata")
+    private MetadataDto metadata;
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class MetadataDto {
+        @JsonProperty("request_info")
+        private RequestInfoDto requestInfo;
+
+        @JsonProperty("reference_templates")
+        private List<Map<String, Object>> referenceTemplates;
+
+        @JsonProperty("generation_flow")
+        private String generationFlow;
+
+        @JsonProperty("variables_detected")
+        private List<String> variablesDetected;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class RequestInfoDto {
+        @JsonProperty("category_sub")
+        private String categorySub;
     }
 }
