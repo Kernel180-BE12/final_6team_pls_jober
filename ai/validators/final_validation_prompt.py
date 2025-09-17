@@ -96,7 +96,6 @@ def get_prompt_examples():
     # 예시 템플릿 데이터
     example_template = {
         "template_pk": "TPL_20241201_001",
-        "channel": "alimtalk",
         "title": "주문 배송 완료 안내",
         "body": "안녕하세요 #{customer_name}님,\n\n주문하신 상품이 배송 완료되었습니다.\n주문번호: #{order_no}\n\n감사합니다.",
         "variables": {
