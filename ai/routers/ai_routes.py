@@ -143,7 +143,7 @@ async def get_document(document_id: str):
 # 템플릿 생성 라우트
 @router.post("/template/generate", response_model=TemplateGenerationResponse)
 async def generate_template(request: TemplateGenerationRequest):
-    category = "구매취소"
+    category = "예약취소"
     """알림톡 템플릿 생성"""
     try:
         print(f"템플릿 생성 요청 받음: {request.userMessage}")
