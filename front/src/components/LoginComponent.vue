@@ -38,22 +38,6 @@
       </v-btn>
     </v-form>
 
-    <!-- 카카오 로그인 버튼 -->
-    <v-divider class="mb-4">
-      <span class="text-grey-500">또는</span>
-    </v-divider>
-
-    <v-btn
-      @click="handleKakaoLogin"
-      color="#FEE500"
-      size="large"
-      block
-      :loading="isKakaoLoading"
-      class="mb-4 kakao-btn"
-    >
-      <v-icon start>mdi-chat</v-icon>
-      카카오로 로그인
-    </v-btn>
     
     <!-- 에러 메시지 표시 -->
     <v-alert
@@ -106,7 +90,6 @@ const email = ref('')
 const password = ref('')
 const isFormValid = ref(false)
 const isLoading = ref(false)
-const isKakaoLoading = ref(false)
 const errorMessage = ref('')
 
 const emailRules = [
@@ -153,23 +136,6 @@ const handleLogin = async () => {
   }
 }
 
-const handleKakaoLogin = async () => {
-  isKakaoLoading.value = true
-  errorMessage.value = ''
-
-  try {
-    // 백엔드에서 카카오 로그인 URL 가져오기
-    const response = await authApi.getKakaoLoginUrl()
-
-    // 카카오 로그인 페이지로 리다이렉트
-    window.location.href = response.data.url
-  } catch (error: any) {
-    console.error('카카오 로그인 실패:', error)
-    errorMessage.value = '카카오 로그인에 실패했습니다.'
-  } finally {
-    isKakaoLoading.value = false
-  }
-}
 </script>
 
 <style scoped>
@@ -178,9 +144,4 @@ const handleKakaoLogin = async () => {
   width: 100%;
 }
 
-.kakao-btn {
-  color: #000000 !important;
-  text-transform: none !important;
-  font-weight: 600 !important;
-}
 </style>

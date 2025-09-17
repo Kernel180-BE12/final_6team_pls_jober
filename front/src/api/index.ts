@@ -101,6 +101,10 @@ export const authApi = {
   kakaoLogin: (authorizationCode: string) =>
     api.post('/auth/kakao/login', null, { params: { code: authorizationCode } }),
 
+  // 카카오 로그아웃 URL 조회
+  getKakaoLogoutUrl: () =>
+    api.post('/auth/kakao/logout'),
+
   // 로그아웃
   logout: (accessToken: string, refreshToken?: string) =>
     api.post('/auth/logout',
