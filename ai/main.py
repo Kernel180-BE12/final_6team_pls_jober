@@ -9,17 +9,17 @@ from typing import List, Optional
 from contextlib import asynccontextmanager
 import os
 from routers import ai_routes
-# 로깅 안되서 넣음
-# import logging
-#
-# logging.basicConfig(
-#     level=logging.DEBUG,  # 또는 INFO
-#     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-#     datefmt="%Y-%m-%d %H:%M:%S"
-# )
-#
-# logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+# 로깅 활성화 - 디버깅용
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,  # INFO 레벨로 설정
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,10 +28,15 @@ async def lifespan(app: FastAPI):
         from routers import alimtalk_routes
         print(">>main<<")
         print("🔧 알림톡 검증 서비스 초기화 중...")
+        logger.info("알림톡 검증 서비스 초기화 시작")
         await alimtalk_routes.validation_service.initialize()
         print("✅ 알림톡 검증 서비스 초기화 완료!")
+        logger.info("알림톡 검증 서비스 초기화 완료")
     except Exception as e:
         print(f"❌ 알림톡 서비스 초기화 실패: {e}")
+        logger.error(f"알림톡 서비스 초기화 실패: {e}")
+        import traceback
+        logger.error(f"상세 오류: {traceback.format_exc()}")
     
     yield
     
@@ -60,16 +65,23 @@ app.include_router(ai_routes.router)
 # 알림톡 검증 라우터 추가
 try:
     from routers import alimtalk_routes
+    logger.info("알림톡 라우터 모듈 로드 완료")
     app.include_router(alimtalk_routes.router)
     print(">>main<<")
     print("✅ 알림톡 검증 라우터 등록 완료")
+    logger.info("알림톡 검증 라우터 등록 완료")
+    logger.info(f"등록된 라우터 경로: {alimtalk_routes.router.prefix}")
     
 except ImportError as e:
     print(">>main<<")
     print(f"⚠️ 알림톡 검증 라우터 로드 실패: {e}")
+    logger.error(f"알림톡 검증 라우터 로드 실패: {e}")
 except Exception as e:
     print(">>main<<")
     print(f"❌ 알림톡 검증 라우터 등록 실패: {e}")
+    logger.error(f"알림톡 검증 라우터 등록 실패: {e}")
+    import traceback
+    logger.error(f"상세 오류: {traceback.format_exc()}")
 
 # 템플릿 라우터 추가 (존재하지 않으므로 제거)
 # from routers import template_routes
