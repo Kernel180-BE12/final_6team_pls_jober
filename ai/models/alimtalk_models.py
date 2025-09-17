@@ -13,12 +13,6 @@ class ButtonType(str, Enum):
     DELIVERY = "DS"  # 배송조회
 
 
-class ChannelType(str, Enum):
-    """채널 타입 열거형"""
-    ALIMTALK = "alimtalk"
-    FRIENDTALK = "friendtalk"
-
-
 class CategoryType(str, Enum):
     """알림톡 분류 열거형"""
     TRANSACTION = "transaction"  # 거래성
@@ -58,7 +52,6 @@ class AlimtalkTemplate(BaseModel):
     template_text : Optional[str] = Field(None, description="생성된 카카오톡 알림톡 템플릿 전체 내용")
     template_title: Optional[str] = Field(None, max_length=50, description="제목")
     variables_detected: Optional[Dict[str, str]] = Field(None, description="변수 목록")
-    channel: ChannelType = Field(..., description="채널 타입")
     buttons: Optional[List[Button]] = Field(None, max_items=5, description="버튼 목록")
     category: Optional[CategoryType] = Field(None, description="분류")
 
@@ -98,7 +91,6 @@ class ValidationRequest(BaseModel):
             template_text=template_data.get("body", ""),
             template_title="알림톡 템플릿",
             variables_detected=variables_detected,
-            channel="alimtalk",
             category=template_data.get("category", "marketing"),
             buttons=[]
         )

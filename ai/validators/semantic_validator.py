@@ -84,13 +84,7 @@ class SemanticValidator:
             warnings.extend(rendering_result['warnings'])
             details['rendering_check'] = rendering_result
             
-            # 4. 채널 규정 검증
-            channel_result = self._check_channel_requirements(template_data)
-            errors.extend(channel_result['errors'])
-            warnings.extend(channel_result['warnings'])
-            details['channel_requirements'] = channel_result
-            
-            # 5. 컨텍스트 기반 금지 표현 검출
+            # 4. 컨텍스트 기반 금지 표현 검출
             contextual_result = self._check_contextual_violations(template_data)
             errors.extend(contextual_result['errors'])
             warnings.extend(contextual_result['warnings'])
@@ -117,9 +111,9 @@ class SemanticValidator:
     
     def _classify_content(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
         """내용 분류 판별"""
-        body = template_data.get('body', '')
-        title = template_data.get('title', '')
-        content = f"{title} {body}".strip()
+        templateContent = template_data.get('templateContent', '')
+        templateTitle = template_data.get('templateTitle', '')
+        content = f"{templateTitle} {templateContent}".strip()
         
         # 거래성 키워드
         transaction_keywords = [
@@ -163,9 +157,9 @@ class SemanticValidator:
         errors = []
         warnings = []
         
-        body = template_data.get('body', '')
-        title = template_data.get('title', '')
-        content = f"{title} {body}".strip()
+        templateContent = template_data.get('templateContent', '')
+        templateTitle = template_data.get('templateTitle', '')
+        content = f"{templateTitle} {templateContent}".strip()
         
         # 관련 가이드라인 검색
         relevant_guidelines = self.vector_db.search_similar(
@@ -312,15 +306,15 @@ class SemanticValidator:
         
         try:
             # 템플릿 텍스트와 변수 정보 추출
-            template_text = template_data.get('template_text', '')
-            variables_detected = template_data.get('variables_detected', {})
+            templateContent = template_data.get('templateContent', '')
+            variableList = template_data.get('variableList', [])
             
             # 변수 치환 수행
             rendered_template = self._render_template(template_data)
             
             # 치환 후 길이 검사
-            if 'template_text' in rendered_template:
-                rendered_text = rendered_template['template_text']
+            if 'templateContent' in rendered_template:
+                rendered_text = rendered_template['templateContent']
                 if len(rendered_text) > 1000:
                     errors.append(f"변수 치환 후 본문이 1000자를 초과합니다 (현재: {len(rendered_text)}자)")
                 
@@ -330,7 +324,7 @@ class SemanticValidator:
                     errors.append(f"변수 '{var}'가 치환되지 않았습니다.")
             
             # 변수 값 검증
-            for var_name, var_value in variables_detected.items():
+            for var_name, var_value in variableList:
                 if not var_value or str(var_value).strip() == '':
                     errors.append(f"변수 '{var_name}'의 값이 비어있습니다.")
                 elif len(str(var_value)) > 200:
@@ -361,7 +355,7 @@ class SemanticValidator:
     
     def _render_template(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
         """변수 치환을 통한 템플릿 렌더링"""
-        variables = template_data.get('variables_detected', {})
+        variables = template_data.get('variableList', [])
         rendered = template_data.copy()
         
         # Jinja2 템플릿 방식으로 변경 (#{변수명} -> {{변수명}})
@@ -373,59 +367,35 @@ class SemanticValidator:
             return text
         
         # 템플릿 텍스트 렌더링
-        if 'template_text' in rendered:
-            template_text = convert_variable_syntax(rendered['template_text'])
-            template = Template(template_text)
-            rendered['template_text'] = template.render(**variables)
+        if 'templateContent' in rendered:
+            templateContent = convert_variable_syntax(rendered['templateContent'])
+            template = Template(templateContent)
+            rendered['templateContent'] = template.render(**variables)
         
         # 제목 렌더링
-        if 'template_title' in rendered and rendered['template_title']:
-            template_text = convert_variable_syntax(rendered['template_title'])
-            template = Template(template_text)
-            rendered['template_title'] = template.render(**variables)
+        if 'templateTitle' in rendered and rendered['templateTitle']:
+            templateContent = convert_variable_syntax(rendered['templateTitle'])
+            template = Template(templateContent)
+            rendered['templateTitle'] = template.render(**variables)
         
         # 버튼 URL 렌더링
         if 'buttons' in rendered and rendered['buttons']:
             for button in rendered['buttons']:
                 for url_field in ['url_mobile', 'url_pc']:
                     if url_field in button and button[url_field]:
-                        template_text = convert_variable_syntax(button[url_field])
-                        template = Template(template_text)
+                        templateContent = convert_variable_syntax(button[url_field])
+                        template = Template(templateContent)
                         button[url_field] = template.render(**variables)
         
         return rendered
     
-    def _check_channel_requirements(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
-        """채널 규정에 따른 필수 태그/고지문 확인"""
-        errors = []
-        warnings = []
-        
-        channel = template_data.get('channel')
-        category = template_data.get('category')
-        body = template_data.get('body', '')
-        
-        # 마케팅 알림톡 광고 표기 검사
-        if category == 'marketing' or channel == 'friendtalk':
-            if '(광고)' not in body and '광고' not in body:
-                errors.append("마케팅성 메시지에는 '(광고)' 표기가 필요합니다")
-        
-        # 수신거부 안내 검사 (마케팅의 경우)
-        if category == 'marketing':
-            unsubscribe_patterns = ['수신거부', '거부', '080']
-            if not any(pattern in body for pattern in unsubscribe_patterns):
-                warnings.append("마케팅 메시지에는 수신거부 안내를 포함하는 것을 권장합니다")
-        
-        return {
-            'errors': errors,
-            'warnings': warnings
-        }
-    
+   
     def _check_contextual_violations(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
         """컨텍스트 기반 금지 표현 검출 (최종 GPT 검증)"""
         errors = []
         warnings = []
         
-        content = f"{template_data.get('title', '')} {template_data.get('body', '')}".strip()
+        content = f"{template_data.get('templateTitle', '')} {template_data.get('templateContent', '')}".strip()
         
         # GPT 기반 최종 검증 (API 키가 있는 경우)
         if HAS_OPENAI and self.openai_client:
@@ -486,7 +456,8 @@ class SemanticValidator:
             template_data=template_data or {},
             det_report_summary=det_report_summary,
             rag_guidelines=rag_guidelines or [],
-            template_pk=template_data.get('template_pk') or template_data.get('id') if template_data else None
+            # TODO: id 처리 회의 때 말하기
+            # template_pk=template_data.get('template_pk') or template_data.get('id') if template_data else None
         )
         
         try:
