@@ -10,7 +10,16 @@ const api = axios.create({
   },
 })
 
-// 요청 인터셉터
+// AI 서비스용 API 설정
+const aiApi = axios.create({
+  baseURL: '/ai',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// 백엔드 API 요청 인터셉터
 api.interceptors.request.use(
   (config) => {
     // user store에서 토큰 가져오기
@@ -25,9 +34,24 @@ api.interceptors.request.use(
   }
 )
 
-// 응답 인터셉터
+// AI 서비스 API 요청 인터셉터 (인증 불필요)
+aiApi.interceptors.request.use(
+  (config) => {
+    // AI 서비스는 인증이 필요하지 않음
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// 백엔드 API 응답 인터셉터
 api.interceptors.response.use(
   (response) => {
+    // 카카오 로그인 응답에 대한 디버깅
+    if (response.config.url?.includes('/auth/kakao/login')) {
+      console.log('카카오 로그인 API 응답:', response.data)
+    }
     return response
   },
   async (error) => {
@@ -40,23 +64,53 @@ api.interceptors.response.use(
   }
 )
 
+// AI 서비스 API 응답 인터셉터 (인증 불필요)
+aiApi.interceptors.response.use(
+  (response) => {
+    return response
+  },
+  async (error) => {
+    // AI 서비스는 인증이 필요하지 않으므로 401 에러 처리 불필요
+    return Promise.reject(error)
+  }
+)
+
 // 인증 관련 API
 export const authApi = {
   // 로그인
-  login: (email: string, password: string) => 
+  login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
-  
+
   // 회원가입
-  signup: (username: string, email: string, password: string) => 
+  signup: (username: string, email: string, password: string) =>
     api.post('/auth/signup', { username, email, password }),
-  
+
   // 비밀번호 재설정 요청
-  forgotPassword: (email: string) => 
+  forgotPassword: (email: string) =>
     api.post('/auth/pw/request', { email }),
-  
+
   // 비밀번호 재설정
-  resetPassword: (token: string, newPassword: string) => 
-    api.post('/auth/pw/reset', { token, newPassword })
+  resetPassword: (token: string, newPassword: string) =>
+    api.post('/auth/pw/reset', { token, newPassword }),
+
+  // 카카오 로그인 URL 조회
+  getKakaoLoginUrl: () =>
+    api.get('/auth/kakao/url'),
+
+  // 카카오 로그인 처리
+  kakaoLogin: (authorizationCode: string) =>
+    api.post('/auth/kakao/login', null, { params: { code: authorizationCode } }),
+
+  // 로그아웃
+  logout: (accessToken: string, refreshToken?: string) =>
+    api.post('/auth/logout',
+      refreshToken ? { refreshToken } : null,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    )
 }
 
 // 마이페이지 관련 API
@@ -80,12 +134,12 @@ export const myPageApi = {
 export const templateApi = {
   // AI를 통한 템플릿 생성
   generateTemplate: (userMessage: string) => 
-    api.post('/ai-generation', { userMessage }),
+    aiApi.post('/template/generate', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
-  validateTemplate: (templateContent: string, variables: Record<string, any>, category?: string, userMessage?: string) => {
+  validateTemplate: (templateContent: string, variableList: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
     // 변수 정보를 VariableDto 배열로 변환
-    const variableList = Object.entries(variables).map(([key, value]) => ({
+    const variables = Object.entries(variableList).map(([key, value]) => ({
       variableKey: key,
       variableValue: String(value)
     }))
@@ -93,10 +147,10 @@ export const templateApi = {
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {
       templateContent: templateContent,
-      variables: variables,
+      variableList: variables,
       category: category,
       userMessage: userMessage,
-      variableList: variableList
+      templateTitle: templateTitle
     }
     
     console.log('검증 요청 데이터:', validationRequest)
@@ -105,29 +159,32 @@ export const templateApi = {
   },
   
   // 템플릿 수정 요청 (채팅을 통한)
-  modifyTemplate: (currentTemplate: string, userMessage: string, chatHistory: any[]) => {
-    const aiApi = axios.create({
-      baseURL: '/ai',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+  modifyTemplate: (templateContent: string, templateTitle: string, userMessage: string, variableList: Record<string, any>, category: string, chatHistory: any[]) => {
+    const variableListArray = Object.entries(variableList).map(([key, value]) => ({
+      variableKey: key,
+      variableValue: String(value)
+    }))
     
-    return aiApi.post('/template/modify', {
-      current_template: currentTemplate,
+    const modificationRequest = {
+      templateContent: templateContent, 
+      category: category,  
       userMessage: userMessage,
-      chat_history: chatHistory
-    })
-  }
+      templateTitle: templateTitle,
+      variableList: variableListArray,
+      chatHistory: chatHistory 
+    }
+    
+    return api.post('/template/modify', modificationRequest)
+  },
 }
 
 // AI 서버 직접 호출용 API (템플릿 생성)
-export const aiApi = {
+export const aiApiDirect = {
   // AI 서버에 직접 템플릿 생성 요청
-  generateTemplate: (userMessage: string) => 
-    api.post('/ai-generation', { userMessage: userMessage })
-  
+  generateTemplate: (userMessage: string) =>
+    aiApi.post('/template/generate', { userMessage: userMessage })
 }
 
+export { aiApi }
 export default api
+

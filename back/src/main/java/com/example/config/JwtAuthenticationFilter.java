@@ -40,14 +40,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (!tokenService.isTokenBlacklisted(token)) {
                     // JWT에서 accountId 추출
                     Long accountId = jwtTokenProvider.getAccountId(token);
-                    
+
                     if (accountId != null) {
                         // DB에서 실제 Account 엔티티 조회 (상태 확인)
                         Account account = accountRepository.findById(accountId).orElse(null);
-                        
+
                         if (account != null && "ACTIVE".equals(account.getStatus())) {
                             // Account 엔티티를 SecurityContext에 설정
-                            UsernamePasswordAuthenticationToken auth = 
+                            UsernamePasswordAuthenticationToken auth =
                                 new UsernamePasswordAuthenticationToken(
                                     account, // principal을 Account 엔티티로 설정
                                     null,

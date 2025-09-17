@@ -22,6 +22,9 @@ public class FastAPIResponseDto {
     @JsonProperty("generation_method")
     private String generationMethod;
 
+    @JsonProperty("explanation")
+    private String explanation;
+
     @JsonProperty("reference_template_id")
     private String referenceTemplateId;
 
