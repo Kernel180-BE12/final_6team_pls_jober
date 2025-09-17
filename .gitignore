@@ -47,5 +47,6 @@ front/.env.*
 back/.gradle/
 back/build/
 back/out/
+back/bin/
 back/*.log
 back/.env

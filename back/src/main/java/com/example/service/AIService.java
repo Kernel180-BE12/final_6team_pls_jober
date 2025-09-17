@@ -2,6 +2,7 @@ package com.example.service;
 
 import com.example.dto.FastAPIRequestDto;
 import com.example.dto.FastAPIResponseDto;
+import com.example.dto.TemplateRequestDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -67,13 +68,18 @@ public class AIService {
         
         try {
             // AI 서버에 전송할 요청 형식으로 변환
+            // HashMap을 사용하여 동적으로 필드 추가 가능
+            Map<String, Object> templateMap = new java.util.HashMap<>();
+            templateMap.put("channel", "alimtalk");
+            templateMap.put("body", validationRequest.get("user_input"));
+            templateMap.put("variableList", validationRequest.get("variableList"));
+            templateMap.put("category", "marketing");
+            if (validationRequest.containsKey("title") && validationRequest.get("title") != null) {
+                templateMap.put("title", validationRequest.get("title"));
+            }
+            // 조건부로 title 필드 추가
             Map<String, Object> aiRequest = Map.of(
-                "template", Map.of(
-                    "channel", "alimtalk",
-                    "body", validationRequest.get("user_input"),
-                    "variables", validationRequest.get("variables"),
-                    "category", "marketing" // 기본값
-                ),
+                "template", templateMap,
                 "user_input", validationRequest.get("user_input")
             );
             
@@ -98,6 +104,65 @@ public class AIService {
                 "rejected_variables", java.util.List.of("템플릿 내용"),
                 "alternatives", Map.of("템플릿 내용", java.util.List.of("더 적절한 표현으로 수정해주세요"))
             );
+        }
+    }
+
+    /**
+     * FastAPI 서버에 템플릿 수정을 요청하고 결과를 받아옵니다.
+     *
+     * @param requestDto 템플릿 수정 요청 데이터
+     * @return AI가 수정한 템플릿 데이터 DTO
+     * @throws RuntimeException AI 서버 통신 실패 시
+     */
+    public FastAPIResponseDto modifyTemplateWithFastAPI(TemplateRequestDto requestDto) {
+        log.info("FastAPI 템플릿 수정 요청 시작. 현재 템플릿: '{}', 사용자 메시지: '{}'", 
+                requestDto.getTemplateContent() != null ? requestDto.getTemplateContent().substring(0, Math.min(50, requestDto.getTemplateContent().length())) : "null", 
+                requestDto.getUserMessage());
+        log.info("요청 DTO 전체 정보: {}", requestDto);
+        
+        try {
+            // AI 서버에 전송할 요청 형식으로 변환
+            Map<String, Object> aiRequest = Map.of(
+                "current_template", requestDto.getTemplateContent(),
+                "current_template_title", requestDto.getTemplateTitle(),
+                "userMessage", requestDto.getUserMessage(),
+                "chat_history", requestDto.getChatHistory() != null ? requestDto.getChatHistory() : java.util.List.of()
+            );
+            
+            log.info("AI 서버로 전송할 템플릿 수정 요청: {}", aiRequest);
+            log.info("AI 서버 URL: {}", webClient.mutate().build().toString());
+            
+            // AI 서버 응답을 Map으로 받아서 FastAPIResponseDto로 변환
+            @SuppressWarnings("unchecked")
+            Map<String, Object> aiResponse = webClient.post()
+                    .uri("/ai/template/modify")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(aiRequest)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+            
+            log.info("AI 서버 템플릿 수정 응답: {}", aiResponse);
+            
+            // AI 서버 응답을 FastAPIResponseDto로 변환
+            FastAPIResponseDto response = new FastAPIResponseDto();
+            response.setTemplateText((String) aiResponse.get("modified_template"));
+            response.setTemplateTitle((String) aiResponse.get("template_title"));
+            response.setGenerationMethod("modification");
+            response.setExplanation((String) aiResponse.get("explanation"));
+            
+            log.info("변환된 응답 DTO: {}", response);
+            return response;
+                    
+        } catch (Exception e) {
+            log.error("FastAPI 템플릿 수정 요청 실패", e);
+            log.error("오류 상세 - 클래스: {}, 메시지: {}, 원인: {}", 
+                    e.getClass().getSimpleName(), e.getMessage(), e.getCause());
+            if (e.getCause() != null) {
+                log.error("원인 오류 상세 - 클래스: {}, 메시지: {}", 
+                        e.getCause().getClass().getSimpleName(), e.getCause().getMessage());
+            }
+            throw new RuntimeException("AI 서버 템플릿 수정 요청 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 }

@@ -86,10 +86,18 @@ class ValidationRequest(BaseModel):
         template_data = backend_data.get("template", {})
         
         # 백엔드에서 전송하는 구조에 맞게 템플릿 데이터 변환
+        # variableList를 variables 객체로 변환
+        variables_detected = {}
+        if "variableList" in backend_data:
+            for var in backend_data["variableList"]:
+                variables_detected[var["variableKey"]] = var["variableValue"]
+        elif "variables" in template_data:
+            variables_detected = template_data.get("variables", {})
+        
         alimtalk_template = AlimtalkTemplate(
             template_text=template_data.get("body", ""),
             template_title="알림톡 템플릿",
-            variables_detected=template_data.get("variables", {}),
+            variables_detected=variables_detected,
             channel="alimtalk",
             category=template_data.get("category", "marketing"),
             buttons=[]
