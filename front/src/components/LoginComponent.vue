@@ -114,7 +114,7 @@ const handleLogin = async () => {
     // 랜딩 페이지 showForm 비활성화
     emit('loginSuccess')
 
-    // 전역 유저 상태와 토큰 저장
+    // 전역 유저 상태와 토큰 저장 (이메일 로그인)
     userStore.setUser(
       {
         accountId: response.data.userId,
@@ -123,7 +123,8 @@ const handleLogin = async () => {
       {
         accessToken: response.data.accessToken,
         refreshToken: response.data.refreshToken
-      }
+      },
+      'email' // 일반 이메일 로그인 타입 설정
     )
 
     // 로그인 성공 시 랜딩 페이지로 이동

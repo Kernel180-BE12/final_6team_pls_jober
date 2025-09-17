@@ -175,7 +175,7 @@ onMounted(() => {
   if (accessToken && refreshToken && userId && role) {
     console.log('카카오 로그인 성공, 토큰 저장 중...')
 
-    // 유저 스토어에 토큰과 사용자 정보 저장
+    // 유저 스토어에 토큰과 사용자 정보 저장 (카카오 로그인)
     userStore.setUser(
       {
         accountId: parseInt(userId),
@@ -184,7 +184,8 @@ onMounted(() => {
       {
         accessToken: accessToken,
         refreshToken: refreshToken
-      }
+      },
+      'kakao' // 카카오 로그인 타입 설정
     )
 
     // URL 파라미터 제거하고 랜딩 페이지로 이동
