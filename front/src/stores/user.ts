@@ -82,8 +82,10 @@ export const useUserStore = defineStore('user', {
     },
     
     // 로그아웃
+
     logout() {
       // 로컬 상태 정리
+
       this.clearUser()
       // 로그아웃 후 랜딩 페이지로 이동
       window.location.href = '/'

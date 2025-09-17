@@ -210,7 +210,6 @@ class AlimtalkValidationService:
         return {
             "valid_transaction_template": {
                 "template_pk": "TPL_TRANS_001",
-                "channel": "alimtalk",
                 "title": "주문 배송 완료 안내",
                 "body": "안녕하세요 #{customer_name}님,\n\n주문하신 상품이 배송 완료되었습니다.\n\n감사합니다.",
                 "variables": {
@@ -220,7 +219,6 @@ class AlimtalkValidationService:
             },
             "valid_marketing_template": {
                 "template_pk": "TPL_MARKET_001",
-                "channel": "alimtalk",
                 "title": "(광고) 신상품 특가 이벤트",
                 "body": "(광고) 안녕하세요!\n\n신상품 출시 기념 특별 할인 이벤트를 진행합니다.\n\n* 수신거부: 080-000-0000",
                 "category": "marketing"
