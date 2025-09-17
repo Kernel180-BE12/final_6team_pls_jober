@@ -53,7 +53,7 @@ class IntegratedTemplatePipeline:
     
     def __init__(self):
         self.openai_service = OpenAIService()
-        self.chromadb_service = ChromaDBService(collection_name="whitelist")
+        self.chromadb_service = ChromaDBService()
         self.message_analyzer = MessageAnalyzer(self.openai_service)
         self.template_generator = TemplateGenerator()
         
