@@ -26,16 +26,13 @@ from jinja2 import Template
 class SemanticValidator:
     """의미적 검증기 (RAG 기반)"""
     
-    def __init__(self, 
-                 vector_db_manager = None,
-                 openai_api_key: str = None):
+    def __init__(self, openai_api_key: str = None):
         """
         Args:
-            vector_db_manager: 벡터DB 관리자
             openai_api_key: OpenAI API 키
         """
-        # 2차 검증용 blacklist 컬렉션 사용
-        self.vector_db = vector_db_manager or ChromaDBService(collection_name="blacklist")
+        # 2차 검증용 ChromaDB 서비스
+        self.vector_db = ChromaDBService()
         
         # OpenAI 클라이언트 설정
         if HAS_OPENAI:
@@ -161,9 +158,10 @@ class SemanticValidator:
         templateTitle = template_data.get('templateTitle', '')
         content = f"{templateTitle} {templateContent}".strip()
         
-        # 관련 가이드라인 검색
+        # 관련 가이드라인 검색 (blacklist 컬렉션에서)
         relevant_guidelines = self.vector_db.search_similar(
             query=content,
+            collection_name="blacklist",
             n_results=10
         )
         
@@ -400,9 +398,10 @@ class SemanticValidator:
         # GPT 기반 최종 검증 (API 키가 있는 경우)
         if HAS_OPENAI and self.openai_client:
             try:
-                # RAG에서 관련 가이드라인 검색
+                # RAG에서 관련 가이드라인 검색 (blacklist 컬렉션에서)
                 relevant_guidelines = self.vector_db.search_similar(
                     query=content,
+                    collection_name="blacklist",
                     n_results=5
                 )
                 

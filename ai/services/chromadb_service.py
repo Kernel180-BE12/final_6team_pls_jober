@@ -215,6 +215,7 @@ class ChromaDBService:
     
     def search_similar(self, 
                       query: str, 
+                      collection_name: str = "blacklist",
                       n_results: int = 5,
                       category_filter: Optional[str] = None) -> List[Dict[str, Any]]:
         """
@@ -249,7 +250,12 @@ class ChromaDBService:
             return formatted_results[:n_results]
         
         try:
-            if self.is_mock or self.collection is None:
+            if self.is_mock:
+                return []
+            
+            # 지정된 컬렉션 가져오기
+            collection = self._get_or_create_collection(collection_name)
+            if collection is None:
                 return []
             
             # 메타데이터 필터 설정
@@ -258,7 +264,7 @@ class ChromaDBService:
                 where_filter['category'] = category_filter
             
             # 검색 실행
-            results = self.collection.query(
+            results = collection.query(
                 query_texts=[query],
                 n_results=n_results,
                 where=where_filter if where_filter else None

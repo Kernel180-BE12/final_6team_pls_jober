@@ -29,7 +29,7 @@ class AlimtalkValidationService:
     """알림톡 검증 서비스"""
     
     def __init__(self):
-        self.chromadb_service = ChromaDBService(collection_name="whitelist")
+        self.chromadb_service = ChromaDBService()
         
         if HAS_OPENAI_SERVICE:
             self.openai_service = OpenAIService()
@@ -52,9 +52,7 @@ class AlimtalkValidationService:
             await self._load_initial_guidelines()
             
             # 검증 파이프라인 초기화
-            self.validation_pipeline = ValidationPipeline(
-                vector_db_manager=self.chromadb_service
-            )
+            self.validation_pipeline = ValidationPipeline()
             
             self.is_initialized = True
             print(">>service<<")

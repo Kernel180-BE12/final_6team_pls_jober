@@ -18,14 +18,12 @@ except ImportError:
 class ValidationPipeline:
     """2단계 검증 파이프라인"""
     
-    def __init__(self, vector_db_manager = None):
+    def __init__(self):
         """
-        Args:
-            vector_db_manager: 벡터DB 관리자 (사용되지 않음, 각 검증기가 자체 컬렉션 사용)
+        2단계 검증 파이프라인 초기화
         """
-        # 각 검증기가 자체 컬렉션을 사용하도록 None 전달
-        self.constraint_validator = ConstraintValidator(vector_db_manager=None)  # policy_guidelines 사용
-        self.semantic_validator = SemanticValidator(vector_db_manager=None)      # blacklist 사용
+        self.constraint_validator = ConstraintValidator()  # OpenAI API 사용
+        self.semantic_validator = SemanticValidator()      # ChromaDB blacklist 컬렉션 사용
         
     def validate(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
         """
