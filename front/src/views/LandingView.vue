@@ -21,27 +21,35 @@
             
             <!-- 초기 상태: 로그인/회원가입 버튼 -->
             <div v-if="!userStore.isLoggedIn" class="action-buttons mt-4">
+              <div class="auth-buttons">
+                <button
+                  class="btn-auth btn-login"
+                  @click="openLoginForm"
+                >
+                  로그인
+                </button>
+                <button
+                  class="btn-auth btn-register"
+                  @click="openRegisterForm"
+                >
+                  회원가입
+                </button>
+              </div>
+              <div class="divider">
+                <span>또는</span>
+              </div>
               <button
-                class="btn-action btn-login"
-                @click="openLoginForm"
-              >
-                로그인
-              </button>
-              <button
-                class="btn-action btn-register"
-                @click="openRegisterForm"
-              >
-                회원가입
-              </button>
-              <button
-                class="btn-action btn-kakao"
+                class="btn-kakao"
                 @click="handleKakaoLogin"
                 :disabled="isKakaoLoading"
               >
-                <span v-if="isKakaoLoading">로딩중...</span>
+                <span v-if="isKakaoLoading">
+                  <i class="mdi mdi-loading mdi-spin"></i>
+                  로딩중...
+                </span>
                 <span v-else>
                   <i class="mdi mdi-chat"></i>
-                  카카오 로그인/회원가입
+                  카카오로 시작하기
                 </span>
               </button>
             </div>
@@ -259,24 +267,36 @@ onMounted(() => {
 .action-buttons {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.5rem;
   width: 100%;
+  max-width: 400px;
+  margin-top: 2rem;
 }
 
-.btn-action {
-  width: 100%;
-  padding: 0.8rem 1.6rem;
-  border-radius: 0.4rem;
-  font-weight: 600;
-  font-size: 1.1rem;
+.auth-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-auth {
+  flex: 1;
+  padding: 0.7rem 1.2rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  min-height: 48px;
+  min-height: 44px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-auth:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .btn-login {
@@ -289,33 +309,82 @@ onMounted(() => {
 }
 
 .btn-register {
-  background-color: transparent;
-  border: 0.1rem solid #1976d2;
-  color: #1976d2;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  color: #424242;
 }
 
 .btn-register:hover {
-  background-color: #1976d2;
-  color: white;
+  background-color: #f5f5f5;
+  border-color: #1976d2;
+  color: #1976d2;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.divider span {
+  padding: 0 1rem;
+  color: #999;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #E3F2FD 0%, #F1F8E9 100%);
 }
 
 .btn-kakao {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
   background-color: #FEE500;
-  color: #000;
+  color: #3c1e1e;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-kakao:hover:not(:disabled) {
   background-color: #fdd835;
   transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .btn-kakao:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-kakao i {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
+}
+
+.mdi-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .form-section {
