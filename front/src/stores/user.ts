@@ -82,7 +82,28 @@ export const useUserStore = defineStore('user', {
     },
     
     // 로그아웃
-    logout() {
+    async logout() {
+      try {
+        // 카카오 로그아웃 처리 (카카오 계정으로 로그인한 경우)
+        if (this.accessToken) {
+          // 카카오 로그아웃 URL 요청
+          const { authApi } = await import('@/api')
+          const response = await authApi.getKakaoLogoutUrl()
+
+          if (response.data.logoutUrl) {
+            // 로컬 상태 먼저 정리
+            this.clearUser()
+
+            // 카카오 로그아웃 페이지로 리다이렉트 (카카오 세션 종료)
+            window.location.href = response.data.logoutUrl
+            return
+          }
+        }
+      } catch (error) {
+        console.log('카카오 로그아웃 처리 중 오류 (일반 로그아웃으로 진행):', error)
+      }
+
+      // 일반 로그아웃 또는 카카오 로그아웃 실패 시
       this.clearUser()
       // 로그아웃 후 랜딩 페이지로 이동
       window.location.href = '/'

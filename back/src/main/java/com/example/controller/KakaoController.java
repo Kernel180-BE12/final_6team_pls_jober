@@ -25,6 +25,9 @@ public class KakaoController {
 
     @Value("${KAKAO_REDIRECT_URI}")
     private String kakaoRedirectUri;
+
+    @Value("${FRONTEND_URL}")
+    private String frontendUrl;
     
     /**
      * 카카오 로그인 콜백 처리
@@ -68,6 +71,38 @@ public class KakaoController {
     }
     
     /**
+     * 카카오 로그아웃 처리
+     * 카카오 세션 종료 후 프론트엔드 세션도 정리
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> kakaoLogout() {
+        try {
+            String kakaoLogoutUrl = "https://kauth.kakao.com/oauth/logout" +
+                    "?client_id=" + kakaoClientId +
+                    "&logout_redirect_uri=" + kakaoRedirectUri.replace("/callback", "/logout-callback");
+
+            return ResponseEntity.ok(Map.of("logoutUrl", kakaoLogoutUrl));
+        } catch (Exception e) {
+            log.error("카카오 로그아웃 URL 생성 실패", e);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "카카오 로그아웃 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 카카오 로그아웃 콜백 엔드포인트
+     */
+    @GetMapping("/logout-callback")
+    public ResponseEntity<Void> kakaoLogoutCallback() {
+        log.info("카카오 로그아웃 콜백 수신");
+
+        // 프론트엔드로 리다이렉트 (로그아웃 완료)
+        return ResponseEntity.status(302)
+                .header("Location", frontendUrl + "?logout=success")
+                .build();
+    }
+
+    /**
      * 카카오 OAuth2 콜백 엔드포인트
      * 카카오에서 인가코드를 리다이렉트로 보내주는 엔드포인트
      * 프론트엔드로 리다이렉트하여 토큰 전달
@@ -80,14 +115,14 @@ public class KakaoController {
         if (error != null) {
             log.error("카카오 OAuth2 에러: {}", error);
             return ResponseEntity.status(302)
-                    .header("Location", "http://134.185.106.160?error=" + error)
+                    .header("Location", frontendUrl + "?error=" + error)
                     .build();
         }
 
         if (authorizationCode == null || authorizationCode.trim().isEmpty()) {
             log.error("카카오 콜백에서 인가코드가 누락됨");
             return ResponseEntity.status(302)
-                    .header("Location", "http://134.185.106.160?error=missing_authorization_code")
+                    .header("Location", frontendUrl + "?error=missing_authorization_code")
                     .build();
         }
 
@@ -99,7 +134,8 @@ public class KakaoController {
 
             // 프론트엔드로 토큰 전달하여 리다이렉트
             String redirectUrl = String.format(
-                "http://134.185.106.160?accessToken=%s&refreshToken=%s&userId=%s&role=%s",
+                "%s?accessToken=%s&refreshToken=%s&userId=%s&role=%s",
+                frontendUrl,
                 tokens.get("accessToken"),
                 tokens.get("refreshToken"),
                 tokens.get("userId"),
@@ -112,7 +148,7 @@ public class KakaoController {
         } catch (Exception e) {
             log.error("카카오 콜백 처리 실패", e);
             return ResponseEntity.status(302)
-                    .header("Location", "http://134.185.106.160?error=" + e.getMessage())
+                    .header("Location", frontendUrl + "?error=" + e.getMessage())
                     .build();
         }
     }

@@ -57,24 +57,6 @@
       </v-btn>
     </v-form>
 
-    <!-- 소셜 로그인 구분선 -->
-    <v-divider class="my-4">
-      <span class="text-caption text-medium-emphasis">또는</span>
-    </v-divider>
-
-    <!-- 카카오 회원가입 버튼 -->
-    <v-btn
-      color="#FEE500"
-      size="large"
-      block
-      :loading="isKakaoLoading"
-      @click="handleKakaoSignup"
-      class="mb-4 text-black"
-      style="background-color: #FEE500 !important;"
-    >
-      <v-icon start>mdi-chat</v-icon>
-      카카오로 회원가입
-    </v-btn>
     
     <!-- 성공 메시지 표시 -->
     <v-alert
@@ -130,7 +112,6 @@ const password = ref('')
 const confirmPassword = ref('')
 const isFormValid = ref(false)
 const isLoading = ref(false)
-const isKakaoLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -178,84 +159,6 @@ const handleRegister = async () => {
   }
 }
 
-const handleKakaoSignup = async () => {
-  isKakaoLoading.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
-
-  try {
-    // 카카오 로그인 URL 조회
-    const urlResponse = await authApi.getKakaoLoginUrl()
-    const kakaoAuthUrl = urlResponse.data.url
-
-    // 새 창에서 카카오 로그인 페이지 열기
-    const kakaoWindow = window.open(
-      kakaoAuthUrl,
-      'kakaoSignup',
-      'width=500,height=600,scrollbars=yes,resizable=yes'
-    )
-
-    // 메시지 이벤트 리스너 등록
-    const messageListener = async (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return
-
-      if (event.data.type === 'KAKAO_LOGIN_SUCCESS') {
-        kakaoWindow?.close()
-        window.removeEventListener('message', messageListener)
-
-        try {
-          // 카카오 로그인/회원가입 처리
-          const response = await authApi.kakaoLogin(event.data.code)
-
-          // 토큰 저장
-          localStorage.setItem('accessToken', response.data.accessToken)
-          localStorage.setItem('refreshToken', response.data.refreshToken)
-
-          // 회원가입 성공 메시지 표시
-          successMessage.value = '카카오 회원가입이 완료되었습니다!'
-
-          // 랜딩 페이지 showForm 비활성화
-          emit('loginSuccess')
-
-          // 전역 유저 상태 업데이트
-          userStore.setUser({
-            accountId: response.data.userId,
-            role: response.data.role
-          })
-
-          // 회원가입 성공 시 랜딩 페이지로 이동
-          setTimeout(() => {
-            router.push('/')
-          }, 1500)
-        } catch (error: any) {
-          console.error('카카오 회원가입 처리 실패:', error)
-          errorMessage.value = error.response?.data?.message || '카카오 회원가입에 실패했습니다.'
-        }
-      } else if (event.data.type === 'KAKAO_LOGIN_ERROR') {
-        kakaoWindow?.close()
-        window.removeEventListener('message', messageListener)
-        errorMessage.value = '카카오 회원가입이 취소되었습니다.'
-      }
-    }
-
-    window.addEventListener('message', messageListener)
-
-    // 창이 닫혔는지 주기적으로 확인
-    const checkClosed = setInterval(() => {
-      if (kakaoWindow?.closed) {
-        clearInterval(checkClosed)
-        window.removeEventListener('message', messageListener)
-        isKakaoLoading.value = false
-      }
-    }, 1000)
-
-  } catch (error: any) {
-    console.error('카카오 회원가입 URL 조회 실패:', error)
-    errorMessage.value = '카카오 회원가입을 시작할 수 없습니다.'
-  } finally {
-    isKakaoLoading.value = false
-  }
-}
 </script>
 
 <style scoped>

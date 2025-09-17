@@ -14,11 +14,14 @@ load_dotenv()
 
 class ChromaDBService:
     def __init__(self, 
-                 collection_name: str = "policy_guidelines",
+                 collection_name: str,
                  db_path: str = None):
         """
         ChromaDB 서비스 초기화
         """
+        if not collection_name:
+            raise ValueError("collection_name은 필수입니다.")
+        
         self.collection_name = collection_name
         self.mock_guidelines = []  # Mock 데이터용
         self.is_mock = False  # 기본값 설정

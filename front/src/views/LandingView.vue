@@ -22,16 +22,27 @@
             <!-- 초기 상태: 로그인/회원가입 버튼 -->
             <div v-if="!userStore.isLoggedIn" class="action-buttons mt-4">
               <button
-                class="btn-login"
+                class="btn-action btn-login"
                 @click="openLoginForm"
               >
                 로그인
               </button>
               <button
-                class="btn-register"
+                class="btn-action btn-register"
                 @click="openRegisterForm"
               >
                 회원가입
+              </button>
+              <button
+                class="btn-action btn-kakao"
+                @click="handleKakaoLogin"
+                :disabled="isKakaoLoading"
+              >
+                <span v-if="isKakaoLoading">로딩중...</span>
+                <span v-else>
+                  <i class="mdi mdi-chat"></i>
+                  카카오 로그인/회원가입
+                </span>
               </button>
             </div>
           </div>
@@ -68,6 +79,7 @@ import ForgotPasswordComponent from '@/components/ForgotPasswordComponent.vue'
 import TemplateCreateComponent from '@/components/TemplateCreateComponent.vue'
 import "../assets/styles/btn.css"
 import { useUserStore } from '@/stores/user'
+import { authApi } from '@/api'
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -77,6 +89,7 @@ const router = useRouter()
 const showLoginForm = ref(false)
 const currentFormType = ref('login')
 const showForm = ref(false) // welcome-section 애니메이션용
+const isKakaoLoading = ref(false)
 
 // 현재 표시할 폼 계산
 const currentForm = computed(() => {
@@ -115,7 +128,25 @@ const handleLoginSuccess = () => {
   showForm.value = false
 }
 
-// 카카오 로그인 콜백 처리
+// 카카오 로그인 처리
+const handleKakaoLogin = async () => {
+  isKakaoLoading.value = true
+
+  try {
+    // 백엔드에서 카카오 로그인 URL 가져오기
+    const response = await authApi.getKakaoLoginUrl()
+
+    // 카카오 로그인 페이지로 리다이렉트
+    window.location.href = response.data.url
+  } catch (error: any) {
+    console.error('카카오 로그인 실패:', error)
+    alert('카카오 로그인에 실패했습니다.')
+  } finally {
+    isKakaoLoading.value = false
+  }
+}
+
+// 카카오 로그인/로그아웃 콜백 처리
 onMounted(() => {
   const urlParams = new URLSearchParams(window.location.search)
   const accessToken = urlParams.get('accessToken')
@@ -123,6 +154,15 @@ onMounted(() => {
   const userId = urlParams.get('userId')
   const role = urlParams.get('role')
   const error = urlParams.get('error')
+  const logout = urlParams.get('logout')
+
+  // 카카오 로그아웃 콜백 처리
+  if (logout === 'success') {
+    console.log('카카오 로그아웃 완료')
+    // URL 파라미터 제거
+    router.replace({ path: '/' })
+    return
+  }
 
   if (error) {
     console.error('카카오 로그인 에러:', error)
@@ -217,12 +257,13 @@ onMounted(() => {
 
 .action-buttons {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.8rem;
+  width: 100%;
 }
 
-.btn-login,
-.btn-register {
+.btn-action {
+  width: 100%;
   padding: 0.8rem 1.6rem;
   border-radius: 0.4rem;
   font-weight: 600;
@@ -230,6 +271,11 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
 }
 
 .btn-login {
@@ -252,10 +298,30 @@ onMounted(() => {
   color: white;
 }
 
+.btn-kakao {
+  background-color: #FEE500;
+  color: #000;
+}
+
+.btn-kakao:hover:not(:disabled) {
+  background-color: #fdd835;
+  transform: translateY(-1px);
+}
+
+.btn-kakao:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-kakao i {
+  font-size: 1.2rem;
+}
+
 .form-section {
   flex: 0 0 450px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 </style>
