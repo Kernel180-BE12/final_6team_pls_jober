@@ -13,10 +13,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class ChromaDBService:
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str = None, collection_name: str = "default"):
         """
         ChromaDB 서비스 초기화 (컬렉션별 동적 접근)
         """
+        self.collection_name = collection_name
         self.mock_guidelines = []  # Mock 데이터용
         self.is_mock = False  # 기본값 설정
         
