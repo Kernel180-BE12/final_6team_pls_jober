@@ -44,7 +44,7 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null; then
+if ! command -v docker-compose version &> /dev/null; then
     log_error "Docker Compose가 설치되어 있지 않습니다."
     exit 1
 fi
