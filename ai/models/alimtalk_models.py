@@ -48,7 +48,7 @@ class Button(BaseModel):
 
 class AlimtalkTemplate(BaseModel):
     """알림톡 템플릿 모델"""
-    template_pk: Optional[int] = Field(None, description="템플릿 Primary Key")
+    # template_pk: Optional[int] = Field(None, description="템플릿 Primary Key")
     template_text : Optional[str] = Field(None, description="생성된 카카오톡 알림톡 템플릿 전체 내용")
     template_title: Optional[str] = Field(None, max_length=50, description="제목")
     variables_detected: Optional[Dict[str, str]] = Field(None, description="변수 목록")
