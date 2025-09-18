@@ -55,7 +55,7 @@ docker-compose down --remove-orphans || true
 
 # 사용하지 않는 이미지 정리
 log_info "사용하지 않는 Docker 이미지 정리 중..."
-docker image prune -f
+docker system prune -a --volumes
 
 # Docker BuildKit 활성화 (빌드 성능 향상)
 export DOCKER_BUILDKIT=1
