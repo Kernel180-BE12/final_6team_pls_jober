@@ -19,9 +19,35 @@ except ImportError:
     HAS_OPENAI = False
     print("Warning: OpenAI 패키지가 설치되지 않았습니다. GPT 기반 검증은 제한됩니다.")
 
-import os
-from jinja2 import Template
+# 전역 변수 선언
+REJECT = 0.6        # RISK 가 0.6 이상 이면 REJECT
+REVIEW = 0.4        # RISK 가 0.4 이상, REJECT 미만 이면 REVIEW
+WB, WD = 1.0, 1.0   # 표시/튜닝용 종합 위험도: 가중 평균 계산용 (blacklist와 denied_templates 동등하게 처리)
+DMAX = 1.0          # distance 상한(코사인 거리 0~1이면 1.0, 0~2 라이브러리면 2.0)
 
+# =============================================================================
+# 유틸: raw(hit) → risk[0..1], 라벨링
+# =============================================================================
+def _risk_from_hit(hit: Dict[str, Any], dmax: float = DMAX) -> float:
+    """
+    hit에 'similarity'나 'distance'가 무엇이 오든 risk ∈ [0,1](클수록 위험)로 통일
+    - similarity: [-1,1] 또는 [0,1] → 0~1 매핑
+    - distance  : [0,dmax] (작을수록 유사) → risk = 1 - (distance/dmax)
+    """
+    if "similarity" in hit and hit["similarity"] is not None:
+        sim = float(hit["similarity"])
+        if sim < 0:  # [-1,1] → [0,1]
+            sim = (sim + 1.0) / 2.0
+        return max(0.0, min(1.0, sim))
+    if "distance" in hit and hit["distance"] is not None:
+        d = float(hit["distance"])
+        return max(0.0, min(1.0, 1.0 - (d / dmax)))
+    return 0.0
+
+def _label_from_risk(r: float) -> str:
+    if r >= REJECT: return "fail"
+    if r >= REVIEW: return "review"
+    return "pass"
 
 class SemanticValidator:
     """의미적 검증기 (RAG 기반)"""
@@ -34,8 +60,10 @@ class SemanticValidator:
             vector_db_manager: 벡터DB 관리자
             openai_api_key: OpenAI API 키
         """
-        # 2차 검증용 blacklist 컬렉션 사용
-        self.vector_db = vector_db_manager or ChromaDBService(collection_name="blacklist")
+        # 2차 검증용 blacklist, denied_templates  컬렉션 병렬 사용
+        self.vdb = vector_db_manager
+        self.bl = ChromaDBService(collection_name="blacklist")
+        self.dn = ChromaDBService(collection_name="denied_templates")
         
         # OpenAI 클라이언트 설정
         if HAS_OPENAI:
@@ -53,509 +81,204 @@ class SemanticValidator:
         else:
             self.openai_client = None
     
-    def validate(self, template_data: Dict[str, Any]) -> ValidationResult:
+    def validate(self, template: Dict[str, Any]) -> ValidationResult:
         """
-        템플릿 데이터의 의미적 검증을 수행합니다.
-        
-        Args:
-            template_data: 검증할 템플릿 데이터
-            
-        Returns:
-            ValidationResult: 검증 결과
+        최상위 엔트리: 두 단계 RAG → 라벨링 → 취합 → (review면 LLM 판정) / (fail이면 LLM 사유 요약)
+        항상 동일 스키마의 ValidationResult를 반환.
         """
-        errors = []
-        warnings = []
-        details = {}
-        
-        try:
-            # 1. 분류 판별
-            classification_result = self._classify_content(template_data)
-            details['classification'] = classification_result
-            
-            # 2. 정책 정렬 검증 (RAG 기반)
-            policy_result = self._check_policy_alignment(template_data)
-            errors.extend(policy_result['errors'])
-            warnings.extend(policy_result['warnings'])
-            details['policy_alignment'] = policy_result
-            
-            # 3. 렌더링 체크 (변수 치환 후 검증)
-            rendering_result = self._check_rendering(template_data)
-            errors.extend(rendering_result['errors'])
-            warnings.extend(rendering_result['warnings'])
-            details['rendering_check'] = rendering_result
-            
-            # 4. 컨텍스트 기반 금지 표현 검출
-            contextual_result = self._check_contextual_violations(template_data)
-            errors.extend(contextual_result['errors'])
-            warnings.extend(contextual_result['warnings'])
-            details['contextual_check'] = contextual_result
-            
-            is_valid = len(errors) == 0
-            
-            return ValidationResult(
-                is_valid=is_valid,
-                stage="semantic",
-                errors=errors,
-                warnings=warnings,
-                details=details
-            )
-            
-        except Exception as e:
-            return ValidationResult(
-                is_valid=False,
-                stage="semantic",
-                errors=[f"의미적 검증 중 오류 발생: {str(e)}"],
-                warnings=[],
-                details={"exception": str(e)}
-            )
-    
-    def _classify_content(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
-        """내용 분류 판별"""
-        templateContent = template_data.get('templateContent', '')
-        templateTitle = template_data.get('templateTitle', '')
-        content = f"{templateTitle} {templateContent}".strip()
-        
-        # 거래성 키워드
-        transaction_keywords = [
-            '주문', '결제', '배송', '구매', '거래', '승인', '완료', '확인',
-            '발송', '도착', '픽업', '예약', '취소', '환불', '교환'
-        ]
-        
-        # 마케팅 키워드
-        marketing_keywords = [
-            '할인', '이벤트', '프로모션', '특가', '세일', '쿠폰', 
-            '무료', '혜택', '선착순', '당첨', '기회', '마지막'
-        ]
-        
-        transaction_score = sum(1 for keyword in transaction_keywords if keyword in content)
-        marketing_score = sum(1 for keyword in marketing_keywords if keyword in content)
-        
-        # 분류 결정
-        if transaction_score > marketing_score and transaction_score > 0:
-            predicted_category = CategoryType.TRANSACTION
-            confidence = transaction_score / (transaction_score + marketing_score + 1)
-        elif marketing_score > transaction_score and marketing_score > 0:
-            predicted_category = CategoryType.MARKETING
-            confidence = marketing_score / (transaction_score + marketing_score + 1)
-        elif transaction_score == marketing_score and transaction_score > 0:
-            predicted_category = CategoryType.MIXED
-            confidence = 0.5
-        else:
-            predicted_category = CategoryType.REVIEW
-            confidence = 0.0
-        
-        return {
-            'predicted_category': predicted_category.value,
-            'confidence': confidence,
-            'transaction_score': transaction_score,
-            'marketing_score': marketing_score,
-            'needs_manual_review': confidence < 0.7
-        }
-    
-    def _check_policy_alignment(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
-        """정책 정렬 검증 (RAG 기반)"""
-        errors = []
-        warnings = []
-        
-        templateContent = template_data.get('templateContent', '')
-        templateTitle = template_data.get('templateTitle', '')
-        content = f"{templateTitle} {templateContent}".strip()
-        
-        # 관련 가이드라인 검색
-        relevant_guidelines = self.vector_db.search_similar(
-            query=content,
-            n_results=10
-        )
-        
-        alignment_score = 0
-        violated_guidelines = []
-        
-        for guideline in relevant_guidelines:
-            if guideline['similarity'] > 0.7:  # 높은 유사도
-                # 가이드라인 위반 검사
-                violation_check = self._check_guideline_violation(
-                    content, 
-                    guideline['content'],
-                    guideline['metadata']
-                )
-                
-                if violation_check['violated']:
-                    violated_guidelines.append({
-                        'guideline': guideline['content'],
-                        'reason': violation_check['reason'],
-                        'severity': guideline['metadata'].get('priority', 'medium')
-                    })
-                else:
-                    alignment_score += guideline['similarity']
-        
-        # 위반 사항을 오류/경고로 분류
-        for violation in violated_guidelines:
-            severity = violation['severity']
-            message = f"가이드라인 위반: {violation['reason']}"
-            
-            if severity in ['critical', 'high']:
-                errors.append(message)
+        text = f"{template.get('templateTitle','')} {template.get('templateContent','')}".strip()
+        category = template.get("category")
+
+        # 1) 두 컬렉션 RAG (병렬 개념, 구현은 순차 호출)
+        s_bl = self._rag_stage("blacklist", text, k=6)
+        s_dn = self._rag_stage("denied_templates", text, k=5, where={"category": category} if category else None)
+
+        # 2) 최종 취합
+        final_label, final_risk, violations = _aggregate([s_bl, s_dn])
+
+        decision_source = "heuristic"
+        needs_review: bool = False
+        warnings: List[str] = []
+
+        # 3) 분기
+        if final_label == "review":
+            if self.openai_client:
+                llm_out = self._llm_judge(template, [s_bl, s_dn])
+                final_label = "pass" if llm_out.get("is_valid", True) else "fail"
+                if llm_out.get("violations"):
+                    violations = llm_out["violations"]
+                decision_source = "llm"
             else:
-                warnings.append(message)
-        
-        return {
-            'errors': errors,
-            'warnings': warnings,
-            'alignment_score': alignment_score / len(relevant_guidelines) if relevant_guidelines else 0,
-            'relevant_guidelines_count': len(relevant_guidelines),
-            'violated_guidelines': violated_guidelines
+                needs_review = True
+                warnings.append("LLM 미구성: 사람 검토 필요")
+        elif final_label == "fail":
+            # 판정은 이미 확정. 선택적으로 LLM에게 '사유 요약/메시지'만 요청
+            if self.openai_client:
+                llm_reason = self._llm_fail_reason(template, [s_bl, s_dn])
+                if llm_reason:
+                    violations = llm_reason  # 요약을 violations에 덮어쓰기(또는 extend)
+
+        is_valid = (final_label == "pass")
+
+        details = {
+            "final_label": final_label,             # pass | review | fail
+            "final_risk": final_risk,               # 표시/튜닝용
+            "decision_source": decision_source,     # heuristic | llm | human
+            "needs_review": needs_review,           # true면 운영 큐로 라우팅
+            "stage_details": [s_bl, s_dn],          # 각 단계 스코어/라벨/근거
+            "violations": violations,               # fail/review 근거
         }
-    
-    def _check_guideline_violation(self, 
-                                  content: str, 
-                                  guideline: str, 
-                                  metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """개별 가이드라인 위반 검사"""
-        category = metadata.get('category', 'general')
-        
-        # 카테고리별 특화 검사
-        if category == 'length':
-            return self._check_length_violation(content, guideline)
-        elif category == 'content':
-            return self._check_content_violation(content, guideline)
-        elif category == 'marketing':
-            return self._check_marketing_violation(content, guideline)
-        elif category == 'privacy':
-            return self._check_privacy_violation(content, guideline)
-        elif category == 'financial':
-            return self._check_financial_violation(content, guideline)
-        elif category == 'medical':
-            return self._check_medical_violation(content, guideline)
-        else:
-            return {'violated': False, 'reason': ''}
-    
-    def _check_length_violation(self, content: str, guideline: str) -> Dict[str, Any]:
-        """길이 관련 가이드라인 검사"""
-        if '1000자' in guideline and len(content) > 1000:
-            return {
-                'violated': True,
-                'reason': f'본문이 1000자를 초과했습니다 (현재: {len(content)}자)'
-            }
-        return {'violated': False, 'reason': ''}
-    
-    def _check_content_violation(self, content: str, guideline: str) -> Dict[str, Any]:
-        """내용 관련 가이드라인 검사"""
-        if '거래성' in guideline and '마케팅 용어' in guideline:
-            marketing_terms = ['할인', '이벤트', '프로모션', '특가']
-            found_terms = [term for term in marketing_terms if term in content]
-            if found_terms:
-                return {
-                    'violated': True,
-                    'reason': f'거래성 알림톡에 마케팅 용어가 포함되어 있습니다: {", ".join(found_terms)}'
-                }
-        return {'violated': False, 'reason': ''}
-    
-    def _check_marketing_violation(self, content: str, guideline: str) -> Dict[str, Any]:
-        """마케팅 관련 가이드라인 검사"""
-        if '광고' in guideline:
-            if '(광고)' not in content and '광고' not in content:
-                return {
-                    'violated': True,
-                    'reason': '마케팅 알림톡에 광고 표기가 없습니다'
-                }
-        return {'violated': False, 'reason': ''}
-    
-    def _check_privacy_violation(self, content: str, guideline: str) -> Dict[str, Any]:
-        """개인정보 관련 가이드라인 검사"""
-        # 개인정보 패턴 검사
-        privacy_patterns = [
-            r'\d{6}-\d{7}',  # 주민번호
-            r'\d{4}-\d{4}-\d{4}-\d{4}',  # 카드번호
-            r'\d{3}-\d{2,3}-\d{6}',  # 계좌번호
-        ]
-        
-        for pattern in privacy_patterns:
-            if re.search(pattern, content):
-                return {
-                    'violated': True,
-                    'reason': '개인정보가 포함된 것으로 의심됩니다'
-                }
-        return {'violated': False, 'reason': ''}
-    
-    def _check_financial_violation(self, content: str, guideline: str) -> Dict[str, Any]:
-        """금융 관련 가이드라인 검사"""
-        risky_terms = ['100% 보장', '무조건', '반드시', '확실한 수익']
-        found_terms = [term for term in risky_terms if term in content]
-        if found_terms:
-            return {
-                'violated': True,
-                'reason': f'금융 관련 과장 표현이 포함되어 있습니다: {", ".join(found_terms)}'
-            }
-        return {'violated': False, 'reason': ''}
-    
-    def _check_medical_violation(self, content: str, guideline: str) -> Dict[str, Any]:
-        """의료 관련 가이드라인 검사"""
-        medical_claims = ['치료', '완치', '100% 효과', '즉시 개선']
-        found_claims = [claim for claim in medical_claims if claim in content]
-        if found_claims:
-            return {
-                'violated': True,
-                'reason': f'의료 관련 단정적 표현이 포함되어 있습니다: {", ".join(found_claims)}'
-            }
-        return {'violated': False, 'reason': ''}
-    
-    def _check_rendering(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
-        """렌더링 체크 (변수 치환 후 검증)"""
-        errors = []
-        warnings = []
-        
-        try:
-            # 템플릿 텍스트와 변수 정보 추출
-            templateContent = template_data.get('templateContent', '')
-            variableList = template_data.get('variableList', [])
-            
-            # 변수 치환 수행
-            rendered_template = self._render_template(template_data)
-            
-            # 치환 후 길이 검사
-            if 'templateContent' in rendered_template:
-                rendered_text = rendered_template['templateContent']
-                if len(rendered_text) > 1000:
-                    errors.append(f"변수 치환 후 본문이 1000자를 초과합니다 (현재: {len(rendered_text)}자)")
-                
-                # 치환되지 않은 변수 확인
-                unresolved_vars = self._find_unresolved_variables(rendered_text)
-                for var in unresolved_vars:
-                    errors.append(f"변수 '{var}'가 치환되지 않았습니다.")
-            
-            # 변수 값 검증
-            for var_name, var_value in variableList:
-                if not var_value or str(var_value).strip() == '':
-                    errors.append(f"변수 '{var_name}'의 값이 비어있습니다.")
-                elif len(str(var_value)) > 200:
-                    warnings.append(f"변수 '{var_name}'의 값이 너무 깁니다 (200자 초과).")
-                elif self._contains_sensitive_info(str(var_value)):
-                    errors.append(f"변수 '{var_name}'에 민감한 정보가 포함되어 있습니다.")
-            
-            # 치환 후 URL 유효성 검사
-            if 'buttons' in rendered_template and rendered_template['buttons']:
-                for i, button in enumerate(rendered_template['buttons']):
-                    for url_field in ['url_mobile', 'url_pc']:
-                        if url_field in button and button[url_field]:
-                            if not self._is_valid_url(button[url_field]):
-                                errors.append(f"버튼 {i+1}의 {url_field}이 유효하지 않습니다: {button[url_field]}")
-            
-            return {
-                'errors': errors,
-                'warnings': warnings,
-                'rendered_template': rendered_template
-            }
-            
-        except Exception as e:
-            return {
-                'errors': [f"템플릿 렌더링 중 오류: {str(e)}"],
-                'warnings': [],
-                'rendered_template': None
-            }
-    
-    def _render_template(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
-        """변수 치환을 통한 템플릿 렌더링"""
-        variables = template_data.get('variableList', [])
-        rendered = template_data.copy()
-        
-        # Jinja2 템플릿 방식으로 변경 (#{변수명} -> {{변수명}})
-        def convert_variable_syntax(text: str) -> str:
-            # #{변수명} -> {{변수명}} (먼저 처리)
-            text = re.sub(r'#\{([^}]+)\}', r'{{\1}}', text)
-            # {변수명} -> {{변수명}} (이미 {{변수명}} 형태가 아닌 경우만)
-            text = re.sub(r'(?<!\{)\{([^}]+)\}(?!\})', r'{{\1}}', text)
-            return text
-        
-        # 템플릿 텍스트 렌더링
-        if 'templateContent' in rendered:
-            templateContent = convert_variable_syntax(rendered['templateContent'])
-            template = Template(templateContent)
-            rendered['templateContent'] = template.render(**variables)
-        
-        # 제목 렌더링
-        if 'templateTitle' in rendered and rendered['templateTitle']:
-            templateContent = convert_variable_syntax(rendered['templateTitle'])
-            template = Template(templateContent)
-            rendered['templateTitle'] = template.render(**variables)
-        
-        # 버튼 URL 렌더링
-        if 'buttons' in rendered and rendered['buttons']:
-            for button in rendered['buttons']:
-                for url_field in ['url_mobile', 'url_pc']:
-                    if url_field in button and button[url_field]:
-                        templateContent = convert_variable_syntax(button[url_field])
-                        template = Template(templateContent)
-                        button[url_field] = template.render(**variables)
-        
-        return rendered
-    
-   
-    def _check_contextual_violations(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
-        """컨텍스트 기반 금지 표현 검출 (최종 GPT 검증)"""
-        errors = []
-        warnings = []
-        
-        content = f"{template_data.get('templateTitle', '')} {template_data.get('templateContent', '')}".strip()
-        
-        # GPT 기반 최종 검증 (API 키가 있는 경우)
-        if HAS_OPENAI and self.openai_client:
-            try:
-                # RAG에서 관련 가이드라인 검색
-                relevant_guidelines = self.vector_db.search_similar(
-                    query=content,
-                    n_results=5
-                )
-                
-                # 새로운 프롬프트 구조로 GPT 분석 실행
-                final_analysis = self._analyze_with_gpt(
-                    content, 
-                    template_data=template_data, 
-                    rag_guidelines=relevant_guidelines
-                )
-                
-                # 결과 파싱하여 errors/warnings로 변환
-                if not final_analysis.get('passed', True):
-                    for violation in final_analysis.get('violations', []):
-                        severity = violation.get('severity', 'MINOR')
-                        message = f"정책 위반 [{violation.get('rule_id', 'unknown')}]: {violation.get('evidence', '')}"
-                        
-                        if severity == 'CRITICAL':
-                            errors.append(message)
-                        elif severity == 'MAJOR':
-                            errors.append(message)
-                        else:  # MINOR
-                            warnings.append(message)
-                
-                # autofix 제안이 있는 경우 경고로 추가
-                if final_analysis.get('autofix', {}).get('enabled'):
-                    autofix_note = final_analysis['autofix'].get('notes', '')
-                    suggested_body = final_analysis['autofix'].get('patch_body', '')
-                    if suggested_body:
-                        warnings.append(f"자동 수정 제안: {autofix_note}")
-                        
-            except Exception as e:
-                warnings.append(f"AI 기반 최종 검증 중 오류: {str(e)}")
-        
-        return {
-            'errors': errors,
-            'warnings': warnings
-        }
-    
-    def _analyze_with_gpt(self, content: str, template_data: Dict[str, Any] = None, rag_guidelines: List[Dict] = None) -> Dict[str, Any]:
-        """GPT를 사용한 최종 검증 분석"""
-        
-        # 2차 검증 결과 (간단한 통과/실패 정보)
-        det_report_summary = {
-            "constraint_passed": True,  # 이전 단계에서 여기까지 온 경우
-            "issues_found": [],
-            "warnings": []
-        }
-        
-        # 새로운 프롬프트 템플릿 사용
-        prompt = create_final_validation_prompt(
-            template_data=template_data or {},
-            det_report_summary=det_report_summary,
-            rag_guidelines=rag_guidelines or [],
-            # TODO: id 처리 회의 때 말하기
-            # template_pk=template_data.get('template_pk') or template_data.get('id') if template_data else None
+
+        return ValidationResult(
+            is_valid=is_valid,
+            stage="semantic",
+            errors=[] if is_valid else [v.get("reason") or "정책 위반 의심" for v in violations] or ["검토 필요"],
+            warnings=warnings,
+            details=details,
         )
-        
+
+    # ----------------------------- RAG 단계 -----------------------------------
+    def _rag_stage(self, collection: str, text: str, k: int = 5, where: Dict[str, Any] | None = None) -> Dict[str, Any]:
+        hits = self._search(collection, text, n_results=k, where=where) or []
+        scores = [ _risk_from_hit(h) for h in hits ]
+        top = max(scores) if scores else 0.0
+        label = _label_from_risk(top)
+
+        evidence: List[Dict[str, Any]] = []
+        for h, s in list(zip(hits, scores))[:3]:
+            md = (h.get("metadata") or {})
+            evidence.append({
+                "source": collection,
+                "policy_ref": md.get("policy_ref") or md.get("reason_code"),
+                "reason": md.get("reason") or f"Similar {collection}",
+                "evidence": h.get("content") or md.get("chunk") or "",
+                "score": round(s, 4),
+            })
+
+        return {
+            "stage": f"{collection}_rag",
+            "label": label,                              # pass | review | fail
+            "score": round(top, 4),                      # 위험도(0~1)
+            "thresholds": {"reject": REJECT, "review": REVIEW},
+            "evidence": evidence,
+        }
+
+    def _search(self, collection: str, text: str, n_results: int = 5, where: Dict[str, Any] | None = None) -> List[Dict]:
+        # vector_db_manager가 있으면 우선 사용
+        if self.vdb:
+            try:
+                return self.vdb.search_similar(query=text, n_results=n_results, collection=collection, where=where)
+            except Exception:
+                pass
+        # fallback: 컬렉션별 ChromaDBService
+        svc = self.bl if collection == "blacklist" else self.dn
+        # ChromaDBService는 category_filter 파라미터를 사용
+        category_filter = where.get("category") if where else None
+        return svc.search_similar(query=text, n_results=n_results, category_filter=category_filter)
+
+    # ----------------------------- LLM 보조 ------------------------------------
+    def _llm_judge(self, template: Dict[str, Any], stages: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """review 구간: LLM으로 최종 판정(JSON)"""
+        if not (HAS_OPENAI and self.openai_client):
+            return {"is_valid": False, "violations": [], "rationale": "no LLM configured"}
+
+        # 컨텍스트 구성(두 단계 evidence 합침)
+        ctx = []
+        for s in stages:
+            for e in s.get("evidence", []):
+                ctx.append({"content": e["evidence"], "metadata": {"policy_ref": e.get("policy_ref"),
+                                                                   "source": e.get("source"),
+                                                                   "score": e.get("score")}})
+        prompt = create_final_validation_prompt(
+            template_data=template,
+            det_report_summary={"constraint_passed": True, "issues_found": [], "warnings": []},
+            rag_guidelines=ctx
+        )
         try:
-            if not HAS_OPENAI:
-                return {
-                    "passed": True,
-                    "summary": "OpenAI 패키지가 없어 Mock 검증을 수행했습니다.",
-                    "violations": [],
-                    "autofix": {"enabled": False, "patch_body": "", "notes": ""},
-                    "policy_refs": []
-                }
-            
-            response = self.openai_client.chat.completions.create(
+            resp = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                max_completion_tokens=1500
+                max_completion_tokens=1000,
             )
-            
-            result_text = response.choices[0].message.content.strip()
-            
-            # JSON 추출 (마크다운 코드블록 제거)
-            if result_text.startswith('```'):
-                lines = result_text.split('\n')
-                start_idx = 1 if lines[0].startswith('```') else 0
-                end_idx = len(lines)
-                for i in range(len(lines) - 1, -1, -1):
-                    if lines[i].strip() == '```':
-                        end_idx = i
-                        break
-                result_text = '\n'.join(lines[start_idx:end_idx])
-            
-            return json.loads(result_text)
-            
+            txt = resp.choices[0].message.content.strip()
+            if txt.startswith("```"):
+                txt = "\n".join(line for line in txt.splitlines() if not line.startswith("```"))
+            out = json.loads(txt)
+            return out
         except Exception as e:
-            # 기본 응답 구조
-            return {
-                "passed": False,
-                "summary": f"AI 분석 중 오류 발생: {str(e)}",
-                "violations": [{
-                    "rule_id": "system_error",
-                    "severity": "MAJOR",
-                    "evidence": str(e),
-                    "policy_ref": "system",
-                    "span": [0, len(content)]
-                }],
-                "autofix": {
-                    "enabled": False,
-                    "patch_body": "",
-                    "notes": "시스템 오류로 인해 자동 수정 불가"
-                },
-                "policy_refs": []
-            }
-    
-    def _is_valid_url(self, url: str) -> bool:
-        """URL 유효성 검사"""
-        url_pattern = re.compile(
-            r'^https?://'  # http:// or https://
-            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain...
-            r'localhost|'  # localhost...
-            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
-            r'(?::\d+)?'  # optional port
-            r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-        return url_pattern.match(url) is not None
+            return {"is_valid": False, "violations": [{"reason": f"LLM error: {e}"}]}
 
-    def _find_unresolved_variables(self, text: str) -> List[str]:
-        """치환되지 않은 변수 찾기"""
-        unresolved = []
-        
-        # {변수명} 패턴 찾기
-        pattern = r'\{([^}]+)\}'
-        matches = re.findall(pattern, text)
-        unresolved.extend(matches)
-        
-        # #{변수명} 패턴 찾기
-        pattern = r'#\{([^}]+)\}'
-        matches = re.findall(pattern, text)
-        unresolved.extend(matches)
-        
-        # {{변수명}} 패턴 찾기
-        pattern = r'\{\{([^}]+)\}\}'
-        matches = re.findall(pattern, text)
-        unresolved.extend(matches)
-        
-        return list(set(unresolved))  # 중복 제거
+    def _llm_fail_reason(self, template: Dict[str, Any], stages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """fail 구간: LLM에게 '왜 실패인지' 근거 요약만 받아오고 붙임(판정은 바꾸지 않음)"""
+        if not (HAS_OPENAI and self.openai_client):
+            # LLM이 없으면 stage evidence를 그대로 반환
+            viols: List[Dict[str, Any]] = []
+            for s in stages:
+                if s["label"] == "fail":
+                    viols.extend(s.get("evidence", []))
+            return viols[:5]
 
-    def _contains_sensitive_info(self, text: str) -> bool:
-        """민감한 정보 포함 여부 검사"""
-        sensitive_patterns = [
-            r'\d{3}-\d{4}-\d{4}',  # 전화번호
-            r'\d{6}-\d{7}',        # 주민등록번호
-            r'\d{4}-\d{2}-\d{2}',  # 생년월일
-            r'[가-힣]{2,4}님',     # 개인명
-            r'[가-힣]{2,4}고객',   # 고객명
-        ]
-        
-        for pattern in sensitive_patterns:
-            if re.search(pattern, text):
-                return True
-        
-        return False
+        snippets = []
+        for s in stages:
+            if s["label"] == "fail":
+                for e in s.get("evidence", []):
+                    snippets.append(f"- [{e.get('source')}] {e.get('policy_ref') or ''} :: {e['evidence'][:300]}")
+
+        if not snippets:
+            return []
+
+        user_prompt = (
+                "아래 근거를 바탕으로 왜 정책 위반(Fail)인지 최대 3가지 이유로 한국어 JSON을 만들어줘. "
+                'JSON 스키마: {"violations":[{"policy_ref":"...", "reason":"...", "evidence":"..."}]}.\n\n'
+                "근거 스니펫:\n" + "\n".join(snippets)
+        )
+        try:
+            resp = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": user_prompt}],
+                temperature=0.2,
+                max_completion_tokens=600,
+            )
+            txt = resp.choices[0].message.content.strip()
+            if txt.startswith("```"):
+                txt = "\n".join(line for line in txt.splitlines() if not line.startswith("```"))
+            out = json.loads(txt)
+            return out.get("violations", [])
+        except Exception:
+            # 실패 시에도 최소한의 근거는 반환
+            viols: List[Dict[str, Any]] = []
+            for s in stages:
+                if s["label"] == "fail":
+                    viols.extend(s.get("evidence", []))
+            return viols[:5]
+
+# =============================================================================
+# 최종 취합 함수(클래스 밖으로 분리: 테스트 용이)
+# =============================================================================
+def _aggregate(stages: List[Dict[str, Any]]) -> tuple[str, float, List[Dict[str, Any]]]:
+    """
+    라벨 우선 규칙으로 최종 라벨을 정하고, 표시/튜닝용 final_risk와 violations를 만든다.
+    - 하나라도 fail → fail
+    - fail 없고 하나라도 review → review
+    - 둘 다 pass → pass
+    """
+    labels = {s["label"] for s in stages}
+    if "fail" in labels:
+        final = "fail"
+    elif "review" in labels:
+        final = "review"
+    else:
+        final = "pass"
+
+    risk_bl = next((s["score"] for s in stages if s["stage"] == "blacklist_rag"), 0.0)
+    risk_dn = next((s["score"] for s in stages if s["stage"] == "denied_templates_rag"), 0.0)
+    final_risk = round(max(WB * risk_bl, WD * risk_dn), 4)
+
+    violations: List[Dict[str, Any]] = []
+    if final in ("review", "fail"):
+        for s in stages:
+            if s["label"] in ("review", "fail"):
+                violations.extend(s.get("evidence", []))
+
+    return final, final_risk, violations
