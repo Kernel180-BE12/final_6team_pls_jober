@@ -58,7 +58,6 @@ class SemanticValidator:
             openai_api_key: OpenAI API 키
         """
         # 2차 검증용 blacklist, denied_templates  컬렉션 병렬 사용
-        self.vdb = vector_db_manager
         self.bl = ChromaDBService(collection_name="blacklist")
         self.dn = ChromaDBService(collection_name="denied_templates")
 
@@ -161,13 +160,7 @@ class SemanticValidator:
         }
 
     def _search(self, collection: str, text: str, n_results: int = 5, where: Dict[str, Any] | None = None) -> List[Dict]:
-        # vector_db_manager가 있으면 우선 사용
-        if self.vdb:
-            try:
-                return self.vdb.search_similar(query=text, n_results=n_results, collection=collection, where=where)
-            except Exception:
-                pass
-        # fallback: 컬렉션별 ChromaDBService
+        # 컬렉션별 ChromaDBService 사용
         svc = self.bl if collection == "blacklist" else self.dn
         # ChromaDBService는 category_filter 파라미터를 사용
         category_filter = where.get("category") if where else None
