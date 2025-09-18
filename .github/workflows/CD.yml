@@ -19,7 +19,7 @@ jobs:
       - name: Deploy to Oracle Cloud VM
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 134.185.106.160
+          host: 144.24.69.36
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE }}
           port: 22

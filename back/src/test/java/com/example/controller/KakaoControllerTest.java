@@ -38,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "KAKAO_CLIENT_ID=test_client_id",
 
-        "KAKAO_REDIRECT_URI=http://test.134.185.106.160:8080/api/auth/kakao/callback"
+        "KAKAO_REDIRECT_URI=http://test.144.24.69.36:8080/api/auth/kakao/callback"
 
 })
 @Disabled("카카오 컨트롤러 테스트 임시 비활성화 - 의존성 문제")
@@ -176,7 +176,7 @@ class KakaoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isFound()) // 302 리다이렉트 상태 확인
-                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("134.185.106.160")))
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("144.24.69.36")))
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("accessToken=mock_access_token")))
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("userId=12345")));
 
@@ -195,7 +195,7 @@ class KakaoControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isFound()) // 302 리다이렉트 상태 확인
-                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("134.185.106.160")))
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("144.24.69.36")))
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("error=" + errorCode)));
 
         // 에러가 있으면 서비스 호출하지 않음
