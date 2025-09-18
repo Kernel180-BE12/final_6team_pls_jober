@@ -1,62 +1,119 @@
 """
-1차 검증: 제약 검증 (ChromaDB 기반 스키마 제약)
-ChromaDB에서 제약사항을 검색하여 정확한 스키마 매칭 검증
+1차 검증: 제약 검증 (알림톡 승인 규칙 기반)
+LLM을 활용한 동적 규칙 검증 시스템
+
+이 모듈은 템플릿 검증 파이프라인의 첫 번째 단계로, 다음과 같은 검증을 수행합니다:
+1. 정보성 메시지 요건 검증
+2. 정형화된 템플릿 요건 검증
+3. 변수 사용 규칙 검증
+4. 기타 템플릿 작성 규칙 검증
 """
 import re
 from typing import Dict, Any, List
+import json
+import logging
 
+# 상대 임포트 시도 (패키지 내부에서 실행될 때) / main.py
 try:
     from ..models.alimtalk_models import ValidationResult
-    from ..services.chromadb_service import ChromaDBService
+    from ..services.openai_service import OpenAIService
+    from .prompts.informational_message_prompt import get_informational_message_validation_prompt
+    from .prompts.standardized_template_prompt import get_standardized_template_validation_prompt
+    from .prompts.variable_usage_prompt import get_variable_usage_validation_prompt
+    from .prompts.template_writing_prompt import get_template_writing_validation_prompt
 except ImportError:
+    # 절대 임포트 (단독 실행될 때) / validators/constraint_validator.py
     import sys
     import os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from models.alimtalk_models import ValidationResult
-    from services.chromadb_service import ChromaDBService
-
-import logging
+    from services.openai_service import OpenAIService
+    from validators.prompts.informational_message_prompt import get_informational_message_validation_prompt
+    from validators.prompts.standardized_template_prompt import get_standardized_template_validation_prompt
+    from validators.prompts.variable_usage_prompt import get_variable_usage_validation_prompt
+    from validators.prompts.template_writing_prompt import get_template_writing_validation_prompt
 
 logger = logging.getLogger(__name__)
 
 class ConstraintValidator:
-    def __init__(self, vector_db_manager: ChromaDBService = None, rules_path: str = None):
+    """
+    템플릿 제약사항 검증을 담당하는 클래스
+    
+    알림톡 승인 규칙을 기반으로 LLM을 활용한 동적 검증을 수행합니다.
+    """
+    
+    def __init__(self):
         """
-        Args:
-            vector_db_manager: 벡터DB 관리자 (ChromaDB 기반 제약 검색)
-            rules_path: 기본 규칙 파일 경로 (백업용, 현재 미사용)
+        ConstraintValidator 초기화
         """
         try:
-            self.vector_db = vector_db_manager or ChromaDBService(collection_name="review_guidelines")
-            logger.info("✅ ConstraintValidator 초기화 완료 (collection=review_guidelines)")
+            self.openai_service = OpenAIService()
+            logger.info("✅ ConstraintValidator 초기화 완료 (LLM 기반)")
         except Exception as e:
             logger.exception("❌ ConstraintValidator 초기화 실패")
             raise
 
     def validate(self, template_data: Dict[str, Any]) -> ValidationResult:
-        """ChromaDB 기반 제약 검증을 수행합니다."""
-        logger.info("🔍 제약 검증 시작")
-        logger.debug(f"입력 데이터 keys: {list(template_data.keys())}")  # 전체 데이터 말고 key만 출력
+        """
+        1차 검증: 알림톡 승인 규칙 기반 검증
+        
+        검증 규칙:
+        1. 정보성 메시지 요건
+        2. 정형화된 템플릿 요건  
+        3. 변수 사용 규칙
+        4. 기타 템플릿 작성 규칙
+        
+        Args:
+            template_data: 검증할 템플릿 데이터
+                - templateContent: 템플릿 텍스트 내용
+                - templateTitle: 템플릿 제목
+                - variableList: 변수 정의 딕셔너리
+                - category: 템플릿 카테고리
+        
+        Returns:
+            ValidationResult: 검증 결과 객체
+        """
+        logger.info("🔍 1차 검증 시작: 알림톡 승인 규칙 검증")
+        logger.debug(f"입력 데이터 keys: {list(template_data.keys())}")
 
         errors = []
         warnings = []
+        rejected_variables = []
+        validation_details = []
 
         try:
-            # 1. ChromaDB 제약사항 검증
-            logger.info("📌 [1단계] ChromaDB 제약사항 검증 실행")
-            chromadb_errors, chromadb_warnings = self._check_chromadb_constraints(template_data)
-            errors.extend(chromadb_errors)
-            warnings.extend(chromadb_warnings)
+            # 1. 정보성 메시지 요건 검증
+            logger.info("📌 [1단계] 정보성 메시지 요건 검증")
+            info_errors, info_warnings, info_details = self._check_informational_message_requirements(template_data)
+            errors.extend(info_errors)
+            warnings.extend(info_warnings)
+            validation_details.extend(info_details)
 
-            # 2. 백업 규칙 검증
-            logger.info("📌 [2단계] 백업 규칙 검증 실행")
-            backup_errors, backup_warnings = self._check_backup_constraints(template_data)
-            errors.extend(backup_errors)
-            warnings.extend(backup_warnings)
+            # 2. 정형화된 템플릿 요건 검증
+            logger.info("📌 [2단계] 정형화된 템플릿 요건 검증")
+            standard_errors, standard_warnings, standard_details = self._check_standardized_template_requirements(template_data)
+            errors.extend(standard_errors)
+            warnings.extend(standard_warnings)
+            validation_details.extend(standard_details)
+
+            # 3. 변수 사용 규칙 검증
+            logger.info("📌 [3단계] 변수 사용 규칙 검증")
+            var_errors, var_warnings, var_details, var_rejected = self._check_variable_usage_rules(template_data)
+            errors.extend(var_errors)
+            warnings.extend(var_warnings)
+            validation_details.extend(var_details)
+            rejected_variables.extend(var_rejected)
+
+            # 4. 기타 템플릿 작성 규칙 검증
+            logger.info("📌 [4단계] 기타 템플릿 작성 규칙 검증")
+            other_errors, other_warnings, other_details = self._check_other_template_rules(template_data)
+            errors.extend(other_errors)
+            warnings.extend(other_warnings)
+            validation_details.extend(other_details)
 
             # 최종 결과
             is_valid = len(errors) == 0
-            logger.info(f"✅ 제약 검증 완료 → valid={is_valid}, 총 오류={len(errors)}, 총 경고={len(warnings)}")
+            logger.info(f"✅ 1차 검증 완료 → valid={is_valid}, 총 오류={len(errors)}, 총 경고={len(warnings)}")
 
             return ValidationResult(
                 is_valid=is_valid,
@@ -64,229 +121,229 @@ class ConstraintValidator:
                 errors=errors,
                 warnings=warnings,
                 details={
-                    "chromadb_constraints_checked": True,
-                    "backup_constraints_checked": True,
+                    "validation_type": "alimtalk_approval_rules",
                     "total_errors": len(errors),
-                    "total_warnings": len(warnings)
+                    "total_warnings": len(warnings),
+                    "rejected_variables": rejected_variables,
+                    "validation_details": validation_details,
+                    "rules_checked": [
+                        "informational_message_requirements",
+                        "standardized_template_requirements", 
+                        "variable_usage_rules",
+                        "other_template_rules"
+                    ]
                 }
             )
 
         except Exception as e:
-            logger.exception("❌ 제약 검증 중 예외 발생")  # stack trace까지 로깅
+            logger.exception("❌ 1차 검증 중 예외 발생")
             return ValidationResult(
                 is_valid=False,
                 stage="constraint",
-                errors=[f"제약 검증 중 오류 발생: {str(e)}"],
+                errors=[f"1차 검증 중 오류 발생: {str(e)}"],
                 warnings=[],
                 details={"exception": str(e)}
             )
 
-    def _check_chromadb_constraints(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str]]:
-        """ChromaDB에서 모든 제약사항을 가져와서 스키마 검증"""
-        logger.info("🔍 ChromaDB 제약사항 검증 시작")
-        errors = []
-        warnings = []
-
+    def _check_informational_message_requirements(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
+        """정보성 메시지 요건 검증 (LLM 기반)"""
+        errors, warnings, details = [], [], []
+        
+        # 검증 대상 데이터 추출 (카테고리, 제목, 내용)
+        templateContent = template_data.get('templateContent', '')
+        templateTitle = template_data.get('templateTitle', '')
+        category = template_data.get('category', '')
+        
         try:
-            # 템플릿 텍스트 변수 추출
-            templateContent = template_data.get('templateContent', '')
-            logger.debug(f"템플릿 텍스트 길이: {len(templateContent)}")
-            detected_variables = self._extract_variables_from_template(templateContent)
-            logger.debug(f"추출된 변수: {detected_variables}")
-
-            # 변수 검증
-            variable_errors, variable_warnings = self._validate_variables(template_data, detected_variables)
-            errors.extend(variable_errors)
-            warnings.extend(variable_warnings)
-            if variable_errors or variable_warnings:
-                logger.info(f"📌 변수 검증 결과 → 오류 {len(variable_errors)}개, 경고 {len(variable_warnings)}개")
-
-            # 제약사항 전체 조회
-            all_constraints = self._get_all_constraints_from_db()
-            logger.info(f"📥 제약사항 {len(all_constraints)}개 로드됨")
-
-            # 각 제약사항 검증
-            for idx, constraint in enumerate(all_constraints, start=1):
-                content = constraint.get('content', '')
-                metadata = constraint.get('metadata', {})
-                logger.debug(f"➡️ 제약[{idx}] 검사 시작: section={metadata.get('section', 'N/A')}")
-
-                violation = self._check_schema_constraint(template_data, content, metadata)
-
-                if violation:
-                    priority = metadata.get('priority', 'medium')
-                    enforcement = metadata.get('enforcement', 'flexible')
-                    msg = f"[제약:{idx}] {violation}"
-
-                    if priority in ['critical', 'high'] and enforcement == 'strict':
-                        logger.error(f"❌ 치명적 위반: {msg}")
-                        errors.append(msg)
-                    else:
-                        logger.warning(f"⚠️ 경고성 위반: {msg}")
-                        warnings.append(msg)
-                else:
-                    logger.debug(f"✅ 제약[{idx}] 통과")
-
-            logger.info(f"✅ ChromaDB 제약사항 검증 완료 → 오류 {len(errors)}개, 경고 {len(warnings)}개")
-
+            prompt = get_informational_message_validation_prompt(category, templateTitle, templateContent)
+            
+            response = self.openai_service.chat_completion([
+                {"role": "system", "content": "알림톡 템플릿 검증 전문가입니다. JSON 형식으로만 응답하세요."},
+                {"role": "user", "content": prompt}
+            ])
+            
+            try:
+                result = json.loads(response)
+                if not result.get('is_valid', True):
+                    for violation in result.get('violations', []):
+                        message = f"정보성 메시지 요건 위반: {violation.get('reason', '알 수 없는 사유')}"
+                        if violation.get('severity') == 'error':
+                            errors.append(message)
+                        else:
+                            warnings.append(message)
+                        details.append({
+                            "rule_type": "informational_message",
+                            "rule": violation.get('rule', '알 수 없는 규칙'),
+                            "reason": violation.get('reason', '알 수 없는 사유'),
+                            "suggestion": violation.get('suggestion', '수정이 필요합니다'),
+                            "severity": violation.get('severity', 'error')
+                        })
+            except json.JSONDecodeError:
+                warnings.append("정보성 메시지 검증 중 오류가 발생했습니다.")
+                
         except Exception as e:
-            msg = f"ChromaDB 제약사항 검증 중 오류: {str(e)}"
-            logger.error(f"❌ {msg}")
-            warnings.append(msg)
+            warnings.append("정보성 메시지 검증 중 오류가 발생했습니다.")
+        
+        return errors, warnings, details
 
-        return errors, warnings
+    def _check_standardized_template_requirements(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
+        """정형화된 템플릿 요건 검증 (LLM 기반)"""
+        errors, warnings, details = [], [], []
+        
+        # 검증 대상 데이터 추출 (제목, 내용)
+        templateContent = template_data.get('templateContent', '')
+        templateTitle = template_data.get('templateTitle', '')
+        
+        try:
+            prompt = get_standardized_template_validation_prompt(templateTitle, templateContent)
+            
+            response = self.openai_service.chat_completion([
+                {"role": "system", "content": "알림톡 템플릿 검증 전문가입니다. JSON 형식으로만 응답하세요."},
+                {"role": "user", "content": prompt}
+            ])
+            
+            try:
+                result = json.loads(response)
+                if not result.get('is_valid', True):
+                    for violation in result.get('violations', []):
+                        message = f"정형화된 템플릿 요건 위반: {violation.get('reason', '알 수 없는 사유')}"
+                        if violation.get('severity') == 'error':
+                            errors.append(message)
+                        else:
+                            warnings.append(message)
+                        details.append({
+                            "rule_type": "standardized_template",
+                            "rule": violation.get('rule', '알 수 없는 규칙'),
+                            "reason": violation.get('reason', '알 수 없는 사유'),
+                            "suggestion": violation.get('suggestion', '수정이 필요합니다'),
+                            "severity": violation.get('severity', 'error')
+                        })
+            except json.JSONDecodeError:
+                warnings.append("정형화된 템플릿 검증 중 오류가 발생했습니다.")
+                
+        except Exception as e:
+            warnings.append("정형화된 템플릿 검증 중 오류가 발생했습니다.")
+        
+        return errors, warnings, details
+
+    def _check_variable_usage_rules(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]], List[str]]:
+        """변수 사용 규칙 검증 (LLM 기반)"""
+        errors, warnings, details = [], [], []
+        rejected_variables = []
+        
+        templateContent = template_data.get('templateContent', '')
+        variableList = template_data.get('variableList', {})
+        detected_variables = self._extract_variables_from_template(templateContent)
+        
+        try:
+            prompt = get_variable_usage_validation_prompt(templateContent, detected_variables, variableList)
+            
+            response = self.openai_service.chat_completion([
+                {"role": "system", "content": "알림톡 템플릿 변수 사용 검증 전문가입니다. JSON 형식으로만 응답하세요."},
+                {"role": "user", "content": prompt}
+            ])
+            
+            try:
+                result = json.loads(response)
+                if not result.get('is_valid', True):
+                    for violation in result.get('violations', []):
+                        message = f"변수 사용 규칙 위반: {violation.get('reason', '알 수 없는 사유')}"
+                        if violation.get('severity') == 'error':
+                            errors.append(message)
+                        else:
+                            warnings.append(message)
+                        
+                        # 변수 관련 오류인 경우 반려 변수 목록에 추가
+                        if violation.get('variable_name'):
+                            rejected_variables.append(violation.get('variable_name'))
+                        
+                        details.append({
+                            "rule_type": "variable_usage",
+                            "rule": violation.get('rule', '알 수 없는 규칙'),
+                            "reason": violation.get('reason', '알 수 없는 사유'),
+                            "suggestion": violation.get('suggestion', '수정이 필요합니다'),
+                            "severity": violation.get('severity', 'error'),
+                            "variable_name": violation.get('variable_name')
+                        })
+            except json.JSONDecodeError:
+                warnings.append("변수 사용 규칙 검증 중 오류가 발생했습니다.")
+                
+        except Exception as e:
+            warnings.append("변수 사용 규칙 검증 중 오류가 발생했습니다.")
+        
+        return errors, warnings, details, rejected_variables
+
+    def _check_other_template_rules(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
+        """기타 템플릿 작성 규칙 검증 (LLM 기반)"""
+        errors, warnings, details = [], [], []
+        
+        # 검증 대상 데이터 추출 (제목, 내용)
+        templateContent = template_data.get('templateContent', '')
+        templateTitle = template_data.get('templateTitle', '')
+        
+        try:
+            prompt = get_template_writing_validation_prompt(templateTitle, templateContent)
+            
+            response = self.openai_service.chat_completion([
+                {"role": "system", "content": "알림톡 템플릿 작성 규칙 검증 전문가입니다. JSON 형식으로만 응답하세요."},
+                {"role": "user", "content": prompt}
+            ])
+            
+            try:
+                result = json.loads(response)
+                if not result.get('is_valid', True):
+                    for violation in result.get('violations', []):
+                        message = f"템플릿 작성 규칙 위반: {violation.get('reason', '알 수 없는 사유')}"
+                        if violation.get('severity') == 'error':
+                            errors.append(message)
+                        else:
+                            warnings.append(message)
+                        details.append({
+                            "rule_type": "template_writing",
+                            "rule": violation.get('rule', '알 수 없는 규칙'),
+                            "reason": violation.get('reason', '알 수 없는 사유'),
+                            "suggestion": violation.get('suggestion', '수정이 필요합니다'),
+                            "severity": violation.get('severity', 'error')
+                        })
+            except json.JSONDecodeError:
+                warnings.append("기타 템플릿 작성 규칙 검증 중 오류가 발생했습니다.")
+        except Exception as e:
+            warnings.append("기타 템플릿 작성 규칙 검증 중 오류가 발생했습니다.")
+        
+        return errors, warnings, details
 
     def _extract_variables_from_template(self, templateContent: str) -> List[str]:
-        """템플릿 텍스트에서 변수 추출"""
+        """
+        템플릿 텍스트에서 변수 추출
+        
+        지원하는 변수 패턴:
+        1. {변수명} - 기본 패턴
+        2. #{변수명} - 해시 접두사 패턴
+        3. {{변수명}} - 이중 중괄호 패턴
+        
+        Args:
+            templateContent: 템플릿 텍스트 내용
+        
+        Returns:
+            List[str]: 중복 제거된 변수명 리스트
+        """
         import re
         logger.debug("변수 추출 시작")
         variables = []
 
-        # {변수명} 패턴
+        # 1. {변수명} 패턴 - 기본 변수 형식
         matches = re.findall(r'\{([^}]+)\}', templateContent)
         variables.extend(matches)
 
-        # #{변수명} 패턴
+        # 2. #{변수명} 패턴 - 해시 접두사가 있는 변수
         matches = re.findall(r'#\{([^}]+)\}', templateContent)
         variables.extend(matches)
 
-        # {{변수명}} 패턴
+        # 3. {{변수명}} 패턴 - 이중 중괄호 변수 (일부 템플릿 엔진 지원)
         matches = re.findall(r'\{\{([^}]+)\}\}', templateContent)
         variables.extend(matches)
 
+        # 중복 제거 후 반환
         unique_vars = list(set(variables))
         logger.debug(f"추출된 변수 최종 목록: {unique_vars}")
         return unique_vars
-
-    def _validate_variables(self, template_data: Dict[str, Any], detected_variables: List[str]) -> tuple[List[str], List[str]]:
-        """변수 검증"""
-        logger.info("🔍 변수 검증 시작")
-        errors = []
-        warnings = []
-        
-        variableList = template_data.get('variableList', {})
-        logger.debug(f"템플릿 감지 변수: {detected_variables}")
-        logger.debug(f"입력된 변수 정의: {variableList}")
-
-        # 템플릿에 변수가 있는데 정의가 없는 경우
-        if detected_variables and not variableList:
-            msg = "템플릿에 변수가 포함되어 있지만 변수 정의가 없습니다."
-            errors.append(msg)
-            for var in detected_variables:
-                errors.append(f"변수 '{var}'에 대한 정의가 필요합니다.")
-            logger.error(f"❌ {msg} (총 {len(detected_variables)}개)")
-
-        # 정의는 있는데 사용되지 않은 변수
-        unused_vars = [var for var in variableList.keys() if var not in detected_variables]
-        for var in unused_vars:
-            warnings.append(f"변수 '{var}'가 정의되었지만 템플릿에서 사용되지 않습니다.")
-        if unused_vars:
-            logger.warning(f"⚠️ 사용되지 않은 변수 {len(unused_vars)}개 발견: {unused_vars}")
-
-        # 사용됐지만 정의되지 않은 변수
-        undefined_vars = [var for var in detected_variables if var not in variableList]
-        for var in undefined_vars:
-            errors.append(f"변수 '{var}'가 템플릿에서 사용되지만 정의되지 않았습니다.")
-        if undefined_vars:
-            logger.error(f"❌ 정의되지 않은 변수 {len(undefined_vars)}개 발견: {undefined_vars}")
-
-        # 변수 값 검증
-        for var_name, var_value in variableList.items():
-            if not var_value or str(var_value).strip() == '':
-                errors.append(f"변수 '{var_name}'의 값이 비어있습니다.")
-            elif len(str(var_value)) > 100:
-                warnings.append(f"변수 '{var_name}'의 값이 너무 깁니다 (100자 초과).")
-        logger.debug("변수 값 검증 완료")
-
-        logger.info(f"✅ 변수 검증 완료 (errors={len(errors)}, warnings={len(warnings)})")
-        return errors, warnings
-
-    def _get_all_constraints_from_db(self) -> List[Dict[str, Any]]:
-        """ChromaDB에서 모든 제약사항 가져오기"""
-        logger.debug("📥 ChromaDB 제약사항 전체 조회 시작")
-        try:
-            results = self.vector_db.get_all_documents()
-            constraints = [
-                doc for doc in results
-                if doc.get("metadata", {}).get("guideline_type") == "review_guideline"
-            ]
-            logger.info(f"✅ 제약사항 {len(constraints)}개 로드됨")
-            return constraints
-        except Exception as e:
-            logger.error("❌ ChromaDB에서 제약사항 조회 중 오류 발생", exc_info=True)
-            logger.warning("⚠️ 제약사항을 불러오지 못해 빈 리스트 반환 → 모든 검증이 통과될 수 있음")
-            return []
-
-    def _check_schema_constraint(self, template_data: Dict[str, Any], constraint_content: str, metadata: Dict[str, Any]) -> str:
-        """스키마 제약사항 검증"""
-        logger.debug(f"🔍 스키마 제약사항 검증 실행 (content={constraint_content}, metadata={metadata})")
-        try:
-            templateContent = template_data.get('templateContent', '')
-            userMessage = template_data.get('userMessage', '')
-
-            # 길이 제한 검증
-            if 'max_length' in constraint_content.lower():
-                if len(userMessage.strip()) > 1000:
-                    return "템플릿 길이가 제한을 초과했습니다 (1000자 초과)"
-
-            # 변수 개수 제한 검증
-            if 'max_variables' in constraint_content.lower():
-                variables = template_data.get('variableList', {})
-                if len(variables) > 10:
-                    return "변수 개수가 제한을 초과했습니다 (10개 초과)"
-
-            logger.debug("✅ 스키마 제약 위반 없음")
-            return None
-        except Exception as e:
-            msg = f"스키마 검증 중 오류: {str(e)}"
-            logger.error(msg)
-            return msg
-
-    def _check_backup_constraints(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str]]:
-        """백업 제약사항 검증 (기본적인 크리티컬 규칙)"""
-        errors = []
-        warnings = []
-        
-        logger.info("📌 백업 제약사항 검증 시작")
-        
-        try:
-            templateContent = template_data.get('templateContent', '')
-            logger.debug(f"템플릿 내용 길이: {len(templateContent)}")
-            
-            # 기본 제약사항 검증
-            if not templateContent or not templateContent.strip():
-                errors.append("템플릿 내용이 비어있습니다.")
-                return errors, warnings
-            
-            # 길이 제한 검증
-            if len(templateContent) > 1000:
-                warnings.append("템플릿 내용이 너무 깁니다 (1000자 초과).")
-            
-            # 필수 키워드 검증
-            if '안녕하세요' not in templateContent and '안녕' not in templateContent:
-                warnings.append("인사말이 포함되지 않았습니다.")
-            
-            # 금지어 검증
-            forbidden_words = ['광고', '홍보', '마케팅']
-            for word in forbidden_words:
-                if word in templateContent and 'transaction' not in template_data.get('category', ''):
-                    warnings.append(f"금지어 '{word}'가 포함되어 있습니다.")
-            
-            # 변수 형식 검증
-            import re
-            valid_patterns = [
-                r'#?\{[가-힣a-zA-Z0-9_]+\}',  # #{변수명} 또는 {변수명}
-            ]
-            
-            all_vars = re.findall(r'#?\{[^}]+\}', templateContent)
-            logger.debug(f"탐지된 변수 패턴: {all_vars}")
-            
-            for var in all_vars:
-                if not any(re.match(pattern, var) for pattern in valid_patterns):
-                    errors.append(f"잘못된 변수 형식: {var}")
-        
-        except Exception as e:
-            warnings.append(f"백업 제약사항 검증 중 오류: {str(e)}")
-        
-        logger.info(f"✅ 백업 제약사항 검증 완료 (errors={len(errors)}, warnings={len(warnings)})")
-        return errors, warnings

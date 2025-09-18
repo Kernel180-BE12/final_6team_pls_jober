@@ -42,6 +42,7 @@ class TemplateRequest(BaseModel):
     category_main: str
     category_sub: str
     type: str
+    user_text: str  # 사용자 입력 텍스트 추가
     has_channel_link: bool = False
     has_extra_info: bool = False
     label: Optional[str] = None
@@ -59,6 +60,7 @@ class TemplateResponse(BaseModel):
     template_text: str
     template_title: str
     generation_method: str  # "reference_based", "new_creation"
+    variables_detected: List[str] = []  # 감지된 변수 목록 추가
     reference_template_id: Optional[str] = None
     metadata: Dict[str, Any]
 
@@ -408,12 +410,12 @@ class TemplateGenerator:
                 template_text=template_text,
                 template_title=template_title,
                 generation_method=generation_method,
+                variables_detected=variables_detected,  # 변수를 직접 필드로 포함
                 reference_template_id=reference_template_ids[0] if reference_template_ids else None,
                 metadata={
                     "request_info": request.dict(),
                     "reference_templates": similar_templates,
-                    "generation_flow": "4단계 파이프라인 완료",
-                    "variables_detected": variables_detected  # 메타데이터에 포함
+                    "generation_flow": "4단계 파이프라인 완료"
                 }
             )
             

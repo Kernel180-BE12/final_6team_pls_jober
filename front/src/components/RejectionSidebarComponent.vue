@@ -12,10 +12,25 @@
     <div class="rejection-reason" v-if="currentVariable">
       <h4>• 반려 사유</h4>
       <div v-if="validationErrors" class="error-details">
-        <p><strong>검증기:</strong> {{ validationErrors.errorType }}</p>
-        <p v-if="validationErrors.validationStage"><strong>검증 단계:</strong> {{ validationErrors.validationStage }}</p>
-        <p><strong>오류 메시지:</strong> {{ validationErrors.errorMessage }}</p>
-        <p>변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
+        <div class="rule-info">
+          <p><strong>위반 규칙:</strong> {{ validationErrors.rule || '알 수 없는 규칙' }}</p>
+          <p><strong>규칙 유형:</strong> {{ getRuleTypeDisplay(validationErrors.errorType) }}</p>
+          <p v-if="validationErrors.validationStage"><strong>검증 단계:</strong> {{ validationErrors.validationStage }}</p>
+          <p><strong>심각도:</strong> 
+            <span :class="getSeverityClass(validationErrors.severity)">
+              {{ getSeverityDisplay(validationErrors.severity) }}
+            </span>
+          </p>
+        </div>
+        <div class="error-message">
+          <p><strong>상세 사유:</strong></p>
+          <p class="reason-text">{{ validationErrors.errorMessage }}</p>
+        </div>
+        <div class="suggestion-box" v-if="validationErrors.suggestion">
+          <p><strong>개선 방안:</strong></p>
+          <p class="suggestion-text">{{ validationErrors.suggestion }}</p>
+        </div>
+        <p class="variable-instruction">변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
       </div>
       <div v-else>
         <p>변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
@@ -50,17 +65,46 @@
     
     <!-- 반려된 모든 항목 요약 -->
     <div class="rejected-summary" v-if="!currentVariable">
-      <h4>반려된 항목들</h4>
-      <div class="rejected-items">
-        <div 
-          v-for="variable in rejectedVariables" 
-          :key="variable"
-          class="rejected-item"
-          @click="$emit('variableClick', variable)"
-        >
-          <div class="variable-info">
-            <span class="variable-name">{{ variable }}</span>
-            <span class="click-hint">클릭하여 대안 확인</span>
+      <h4>반려 사유 목록</h4>
+      
+      <!-- 변수 관련 반려 항목 -->
+      <div v-if="rejectedVariables.length > 0" class="rejected-variables-section">
+        <h5>• 반려된 변수들</h5>
+        <div class="rejected-items">
+          <div 
+            v-for="variable in rejectedVariables" 
+            :key="variable"
+            class="rejected-item variable-item"
+            @click="$emit('variableClick', variable)"
+          >
+            <div class="variable-info">
+              <span class="variable-name">{{ variable }}</span>
+              <span class="click-hint">클릭하여 상세 확인</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 전체 반려 사유 목록 -->
+      <div v-if="getAllValidationErrors().length > 0" class="all-errors-section">
+        <h5>• 모든 반려 사유</h5>
+        <div class="error-list">
+          <div 
+            v-for="(error, index) in getAllValidationErrors()" 
+            :key="index"
+            class="error-item"
+            :class="getSeverityClass(error.severity)"
+          >
+            <div class="error-header">
+              <span class="rule-type-badge">{{ getRuleTypeDisplay(error.rule_type) }}</span>
+              <span class="severity-badge" :class="getSeverityClass(error.severity)">
+                {{ getSeverityDisplay(error.severity) }}
+              </span>
+            </div>
+            <div class="error-content">
+              <p class="error-reason">{{ error.reason }}</p>
+              <p v-if="error.suggestion" class="error-suggestion">💡 {{ error.suggestion }}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -77,10 +121,23 @@ interface Alternative {
 }
 
 interface ValidationError {
-  variableName: string
+  variableName?: string
   errorMessage: string
   errorType: string
   validationStage?: string
+  rule?: string
+  suggestion?: string
+  severity?: string
+}
+
+interface DetailedValidationError {
+  rule_type: string
+  rule: string
+  reason: string
+  suggestion: string
+  severity: string
+  variable_name?: string
+  stage: string
 }
 
 interface RejectionSidebarProps {
@@ -88,7 +145,7 @@ interface RejectionSidebarProps {
   currentVariable: string
   alternatives: Alternative[]
   rejectedVariables: string[]
-  validationErrors?: ValidationError | null
+  validationErrors?: ValidationError | DetailedValidationError[] | null
   validationStage?: string
 }
 
@@ -124,20 +181,71 @@ const applySelectedAlternative = () => {
     emit('applyAlternative', selectedAlternative)
   }
 }
+
+// 규칙 유형 표시명 변환
+const getRuleTypeDisplay = (ruleType: string) => {
+  const typeMap: Record<string, string> = {
+    'informational_message': '정보성 메시지 요건',
+    'standardized_template': '정형화된 템플릿 요건',
+    'variable_count': '변수 개수 제한',
+    'variable_example': '변수 예시값',
+    'variable_structure': '변수 구조',
+    'template_writing': '템플릿 작성 규칙'
+  }
+  return typeMap[ruleType] || ruleType
+}
+
+// 심각도 표시명 변환
+const getSeverityDisplay = (severity: string) => {
+  const severityMap: Record<string, string> = {
+    'error': '오류',
+    'warning': '경고'
+  }
+  return severityMap[severity] || severity
+}
+
+// 심각도 CSS 클래스
+const getSeverityClass = (severity: string) => {
+  return severity === 'error' ? 'severity-error' : 'severity-warning'
+}
+
+// 모든 검증 오류 가져오기
+const getAllValidationErrors = () => {
+  if (!props.validationErrors) return []
+  
+  // TemplateResultView에서 전달된 상세한 검증 오류 배열
+  if (Array.isArray(props.validationErrors)) {
+    return props.validationErrors as DetailedValidationError[]
+  }
+  
+  // 기존 형식의 단일 오류 객체
+  const singleError = props.validationErrors as ValidationError
+  return [{
+    rule_type: singleError.errorType || 'unknown',
+    rule: singleError.rule || '알 수 없는 규칙',
+    reason: singleError.errorMessage || '알 수 없는 오류',
+    suggestion: singleError.suggestion || '수정이 필요합니다',
+    severity: singleError.severity || 'error',
+    variable_name: singleError.variableName,
+    stage: singleError.validationStage || '1차 검증'
+  }] as DetailedValidationError[]
+}
 </script>
 
 <style scoped>
 .rejection-sidebar {
   width: 20rem;
   min-width: 20rem;
+  max-width: 20rem;
   height: auto;
+  max-height: 80vh; /* 카카오 미리보기와 동일한 최대 높이 */
   background: white;
   border-radius: 0.6rem;
   padding: 1rem;
   box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
   border: 0.05rem solid #e0e0e0;
   overflow-y: auto;
-  align-self: center;
+  align-self: flex-start; /* 상단 정렬로 변경 */
   flex-shrink: 0;
 }
 
@@ -219,9 +327,61 @@ const applySelectedAlternative = () => {
   font-size: 0.8rem;
 }
 
-.error-details p:last-child {
-  margin-top: 0.4rem;
+.rule-info {
+  background: #f8f9fa;
+  padding: 0.6rem;
+  border-radius: 0.3rem;
+  margin-bottom: 0.6rem;
+  border-left: 0.2rem solid #6c757d;
+}
+
+.error-message {
+  margin-bottom: 0.6rem;
+}
+
+.reason-text {
+  background: #fff3e0;
+  padding: 0.4rem;
+  border-radius: 0.3rem;
+  color: #e65100;
   font-weight: 500;
+  margin-top: 0.2rem;
+}
+
+.suggestion-box {
+  background: #e8f5e8;
+  padding: 0.6rem;
+  border-radius: 0.3rem;
+  border-left: 0.2rem solid #4caf50;
+  margin-bottom: 0.6rem;
+}
+
+.suggestion-text {
+  color: #2e7d32;
+  font-weight: 500;
+  margin-top: 0.2rem;
+}
+
+.variable-instruction {
+  margin-top: 0.6rem;
+  font-weight: 500;
+  color: #1976d2;
+}
+
+.severity-error {
+  color: #d32f2f;
+  font-weight: bold;
+  background: #ffebee;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.2rem;
+}
+
+.severity-warning {
+  color: #f57c00;
+  font-weight: bold;
+  background: #fff3e0;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.2rem;
 }
 
 .alternatives-section {
@@ -312,7 +472,87 @@ const applySelectedAlternative = () => {
 .rejected-summary h4 {
   margin: 0 0 0.6rem 0;
   color: #333;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.rejected-summary h5 {
+  margin: 0.8rem 0 0.4rem 0;
+  color: #555;
   font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.rejected-variables-section {
+  margin-bottom: 1rem;
+}
+
+.all-errors-section {
+  margin-bottom: 0.8rem;
+}
+
+.error-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.error-item {
+  padding: 0.6rem;
+  border-radius: 0.4rem;
+  border: 0.1rem solid #e0e0e0;
+  background: #fafafa;
+}
+
+.error-item.severity-error {
+  border-color: #ffcdd2;
+  background: #ffeaee;
+}
+
+.error-item.severity-warning {
+  border-color: #ffe0b2;
+  background: #fff8e1;
+}
+
+.error-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.rule-type-badge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.severity-badge {
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.2rem;
+}
+
+.error-content {
+  margin-top: 0.4rem;
+}
+
+.error-reason {
+  margin: 0 0 0.3rem 0;
+  font-size: 0.85rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.error-suggestion {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #4caf50;
+  font-style: italic;
 }
 
 .rejected-items {

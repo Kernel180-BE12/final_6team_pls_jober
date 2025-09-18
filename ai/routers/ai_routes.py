@@ -4,7 +4,6 @@ from typing import List, Optional, Dict, Any
 import re
 from services.openai_service import OpenAIService
 from services.chromadb_service import ChromaDBService
-from services.huggingface_service import HuggingFaceService
 from templateEngine.prompts.message_analyzer_prompts import TemplateGenerationPromptBuilder, TemplateModificationPromptBuilder
 from middleware.auth_middleware import get_current_user, get_current_user_id
 from templateEngine.integrated_template_pipeline import IntegratedTemplatePipeline, IntegratedGenerationRequest, IntegratedGenerationResult, clean_template_content, extract_variables_from_template
@@ -24,12 +23,6 @@ try:
     print("✅ ChromaDB 서비스 초기화 완료")
 except Exception as e:
     print(f"❌ ChromaDB 서비스 초기화 실패: {e}")
-
-try:
-    huggingface_service = HuggingFaceService()
-    print("✅ HuggingFace 서비스 초기화 완료")
-except Exception as e:
-    print(f"❌ HuggingFace 서비스 초기화 실패: {e}")
 
 try:
     integrated_pipeline = IntegratedTemplatePipeline()
@@ -56,19 +49,6 @@ class SearchRequest(BaseModel):
     query: str
     n_results: Optional[int] = 5
 
-class TextGenerationRequest(BaseModel):
-    prompt: str
-    model: Optional[str] = "gpt2"
-    max_length: Optional[int] = 100
-
-class SentimentRequest(BaseModel):
-    text: str
-    model: Optional[str] = "cardiffnlp/twitter-roberta-base-sentiment"
-
-class QuestionAnswerRequest(BaseModel):
-    question: str
-    context: str
-    model: Optional[str] = "deepset/roberta-base-squad2"
 
 class TemplateGenerationRequest(BaseModel):
     userMessage: str
@@ -86,6 +66,7 @@ class TemplateModificationRequest(BaseModel):
     current_template_title: str
     userMessage: str
     chat_history: List[Dict[str, Any]] = []
+    variableList: List[str] = []
 
 class TemplateModificationResponse(BaseModel):
     modified_template: str
@@ -160,64 +141,10 @@ async def get_document(document_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Hugging Face 라우트
-@router.post("/huggingface/generate")
-async def generate_text(request: TextGenerationRequest):
-    """Hugging Face 텍스트 생성"""
-    try:
-        result = await huggingface_service.generate_text(
-            request.prompt, 
-            request.model, 
-            request.max_length
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/huggingface/sentiment")
-async def analyze_sentiment(request: SentimentRequest):
-    """Hugging Face 감정 분석"""
-    try:
-        result = await huggingface_service.analyze_sentiment(request.text, request.model)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/huggingface/embeddings")
-async def get_embeddings(texts: List[str], model: str = "sentence-transformers/all-MiniLM-L6-v2"):
-    """Hugging Face 임베딩"""
-    try:
-        result = await huggingface_service.get_embeddings(texts, model)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/huggingface/qa")
-async def question_answering(request: QuestionAnswerRequest):
-    """Hugging Face 질문-답변"""
-    try:
-        result = await huggingface_service.answer_question(
-            request.question, 
-            request.context, 
-            request.model
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/huggingface/models")
-async def get_available_models():
-    """사용 가능한 모델 목록"""
-    try:
-        result = await huggingface_service.get_available_models()
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 # 템플릿 생성 라우트
 @router.post("/template/generate", response_model=TemplateGenerationResponse)
 async def generate_template(request: TemplateGenerationRequest):
-    category = "구매취소"
+    category = "예약취소"
     """알림톡 템플릿 생성"""
     try:
         print(f"템플릿 생성 요청 받음: {request.userMessage}")
@@ -299,13 +226,13 @@ async def modify_template(request: TemplateModificationRequest):
         if request.chat_history:
             chat_context = "\n".join([
                 f"{msg.get('type', 'user')}: {msg.get('content', '')}" 
-                for msg in request.chat_history[-5:]  # 최근 5개 메시지만 사용
+                for msg in request.chat_history[-6:]  # 최근 6개 메시지만 사용
             ])
         
         # 프롬프트 빌더 사용
         prompt_builder = TemplateModificationPromptBuilder(
             current_template=request.current_template,
-            userMessage=request.userMessage,
+            user_message=request.userMessage,
             chat_context=chat_context
         )
         prompt = prompt_builder.build()

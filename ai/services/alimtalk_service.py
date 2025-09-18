@@ -52,9 +52,7 @@ class AlimtalkValidationService:
             await self._load_initial_guidelines()
             
             # 검증 파이프라인 초기화
-            self.validation_pipeline = ValidationPipeline(
-                vector_db_manager=self.chromadb_service
-            )
+            self.validation_pipeline = ValidationPipeline()
             
             self.is_initialized = True
             print(">>service<<")

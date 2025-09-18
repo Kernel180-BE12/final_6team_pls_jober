@@ -52,18 +52,16 @@ def _label_from_risk(r: float) -> str:
 class SemanticValidator:
     """의미적 검증기 (RAG 기반)"""
     
-    def __init__(self, 
-                 vector_db_manager = None,
-                 openai_api_key: str = None):
+    def __init__(self, openai_api_key: str = None):
         """
         Args:
-            vector_db_manager: 벡터DB 관리자
             openai_api_key: OpenAI API 키
         """
         # 2차 검증용 blacklist, denied_templates  컬렉션 병렬 사용
         self.vdb = vector_db_manager
         self.bl = ChromaDBService(collection_name="blacklist")
         self.dn = ChromaDBService(collection_name="denied_templates")
+
         
         # OpenAI 클라이언트 설정
         if HAS_OPENAI:
@@ -128,7 +126,6 @@ class SemanticValidator:
             "stage_details": [s_bl, s_dn],          # 각 단계 스코어/라벨/근거
             "violations": violations,               # fail/review 근거
         }
-
         return ValidationResult(
             is_valid=is_valid,
             stage="semantic",
@@ -189,6 +186,7 @@ class SemanticValidator:
                 ctx.append({"content": e["evidence"], "metadata": {"policy_ref": e.get("policy_ref"),
                                                                    "source": e.get("source"),
                                                                    "score": e.get("score")}})
+          
         prompt = create_final_validation_prompt(
             template_data=template,
             det_report_summary={"constraint_passed": True, "issues_found": [], "warnings": []},

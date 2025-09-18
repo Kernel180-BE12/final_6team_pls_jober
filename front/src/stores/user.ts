@@ -14,6 +14,7 @@ export const useUserStore = defineStore('user', {
     email: null as string | null,     // 이메일
     accessToken: null as string | null, // 액세스 토큰
     refreshToken: null as string | null, // 리프레시 토큰
+    loginType: null as string | null,  // 로그인 타입 ('email' | 'kakao')
   }),
   getters: {
     isLoggedIn: (state) => !!state.accessToken && !!state.accountId,
@@ -22,23 +23,24 @@ export const useUserStore = defineStore('user', {
   },
   actions: {
     // 로그인 시 사용자 정보와 토큰 저장
-    setUser(user: { 
-      accountId: number; 
-      role: string; 
-      userName?: string; 
-      email?: string 
-    }, tokens: { accessToken: string; refreshToken: string }) {
+    setUser(user: {
+      accountId: number;
+      role: string;
+      userName?: string;
+      email?: string
+    }, tokens: { accessToken: string; refreshToken: string }, loginType: string = 'email') {
       this.accountId = user.accountId
       this.role = user.role
       this.userName = user.userName || null
       this.email = user.email || null
       this.accessToken = tokens.accessToken
       this.refreshToken = tokens.refreshToken
-      
+      this.loginType = loginType
+
       // localStorage에 저장
       localStorage.setItem(TOKEN_KEY, tokens.accessToken)
       localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
-      localStorage.setItem(USER_INFO_KEY, JSON.stringify(user))
+      localStorage.setItem(USER_INFO_KEY, JSON.stringify({...user, loginType}))
     },
     
     // 사용자 정보만 업데이트 (토큰은 그대로 유지)
@@ -74,7 +76,8 @@ export const useUserStore = defineStore('user', {
       this.email = null
       this.accessToken = null
       this.refreshToken = null
-      
+      this.loginType = null
+
       // localStorage에서 제거
       localStorage.removeItem(TOKEN_KEY)
       localStorage.removeItem(REFRESH_TOKEN_KEY)
@@ -84,8 +87,8 @@ export const useUserStore = defineStore('user', {
     // 로그아웃
     async logout() {
       try {
-        // 카카오 로그아웃 처리 (카카오 계정으로 로그인한 경우)
-        if (this.accessToken) {
+        // 카카오 로그인 사용자인 경우 카카오 로그아웃 처리
+        if (this.loginType === 'kakao') {
           // 카카오 로그아웃 URL 요청
           const { authApi } = await import('@/api')
           const response = await authApi.getKakaoLogoutUrl()
@@ -103,7 +106,7 @@ export const useUserStore = defineStore('user', {
         console.log('카카오 로그아웃 처리 중 오류 (일반 로그아웃으로 진행):', error)
       }
 
-      // 일반 로그아웃 또는 카카오 로그아웃 실패 시
+      // 일반 로그아웃 (이메일 로그인) 또는 카카오 로그아웃 실패 시
       this.clearUser()
       // 로그아웃 후 랜딩 페이지로 이동
       window.location.href = '/'
@@ -124,6 +127,7 @@ export const useUserStore = defineStore('user', {
           this.email = userInfo.email || null
           this.accessToken = accessToken
           this.refreshToken = refreshToken
+          this.loginType = userInfo.loginType || 'email' // 기본값은 email
         } catch (error) {
           console.error('사용자 정보 복원 실패:', error)
           this.clearUser()

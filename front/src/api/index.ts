@@ -142,16 +142,13 @@ export const templateApi = {
   
   // 템플릿 검증 (백엔드 API를 통해)
   validateTemplate: (templateContent: string, variableList: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
-    // 변수 정보를 VariableDto 배열로 변환
-    const variables = Object.entries(variableList).map(([key, value]) => ({
-      variableKey: key,
-      variableValue: String(value)
-    }))
+    // 변수명만 배열로 변환 (백엔드에서 List<String>을 기대함)
+    const variableNames = Object.keys(variableList)
     
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {
       templateContent: templateContent,
-      variableList: variables,
+      variableList: variableNames,
       category: category,
       userMessage: userMessage,
       templateTitle: templateTitle
@@ -163,18 +160,13 @@ export const templateApi = {
   },
   
   // 템플릿 수정 요청 (채팅을 통한)
-  modifyTemplate: (templateContent: string, templateTitle: string, userMessage: string, variableList: Record<string, any>, category: string, chatHistory: any[]) => {
-    const variableListArray = Object.entries(variableList).map(([key, value]) => ({
-      variableKey: key,
-      variableValue: String(value)
-    }))
-    
+  modifyTemplate: (templateContent: string, templateTitle: string, userMessage: string, variableList: string[], category: string, chatHistory: any[]) => {
     const modificationRequest = {
       templateContent: templateContent, 
-      category: category,  
-      userMessage: userMessage,
       templateTitle: templateTitle,
-      variableList: variableListArray,
+      userMessage: userMessage,
+      variableList: variableList,
+      category: category,
       chatHistory: chatHistory 
     }
     

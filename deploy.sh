@@ -44,7 +44,7 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null; then
+if ! command -v docker-compose version &> /dev/null; then
     log_error "Docker Compose가 설치되어 있지 않습니다."
     exit 1
 fi
@@ -55,9 +55,9 @@ docker-compose down --remove-orphans || true
 
 # 사용하지 않는 이미지 정리
 log_info "사용하지 않는 Docker 이미지 정리 중..."
-docker image prune -f
+docker system prune -a --volumes
 
-# Docker BuildKit 활성화 (빌드 성능 향상)
+# Docker BuildKit 활성화 (빌드 성능 향상) 
 export DOCKER_BUILDKIT=1
 export BUILDKIT_PROGRESS=plain
 
@@ -153,9 +153,9 @@ docker-compose ps
 log_success "배포가 완료되었습니다!"
 echo ""
 echo "서비스 접속 정보:"
-echo "  프론트엔드: http://134.185.106.160"
-echo "  백엔드 API: http://134.185.106.160/api"
-echo "  AI 서비스: http://134.185.106.160/ai"
+echo "  프론트엔드: http://144.24.69.36"
+echo "  백엔드 API: http://144.24.69.36/api"
+echo "  AI 서비스: http://144.24.69.36/ai"
 echo ""
 echo "서비스 관리 명령어:"
 echo "  Docker 서비스 상태 확인: docker-compose ps"

@@ -50,12 +50,26 @@ public class TemplateController {
             @AuthenticationPrincipal Account currentUser
     ) {
         try {
+            log.info("템플릿 검증 요청 받음");
+            log.info("요청 데이터 - 템플릿 내용: {}, 변수 개수: {}, 카테고리: {}", 
+                    requestDto.getTemplateContent() != null ? requestDto.getTemplateContent().substring(0, Math.min(50, requestDto.getTemplateContent().length())) : "null",
+                    requestDto.getVariableList() != null ? requestDto.getVariableList().size() : "null",
+                    requestDto.getCategory());
+            
+            if (currentUser == null) {
+                log.error("현재 사용자가 null입니다");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "인증되지 않은 사용자입니다"));
+            }
+            
             UserDto userDto = userService.convertToUserDto(currentUser);
-            // 사용자 정보를 로그에 출력 (UserDto에서 가져온 정보)
-            System.out.println("사용자 " + userDto.getUserName() + "(" + userDto.getEmail() + ")가 템플릿 검증을 요청했습니다.");
+            log.info("사용자 {}({})가 템플릿 검증을 요청했습니다.", userDto.getUserName(), userDto.getEmail());
+            
             TemplateValidationResponseDto response = templateService.validateTemplate(requestDto, userDto);
+            log.info("템플릿 검증 완료");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            log.error("템플릿 검증 중 오류 발생", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "템플릿 검증 중 오류가 발생했습니다: " + e.getMessage()));
         }

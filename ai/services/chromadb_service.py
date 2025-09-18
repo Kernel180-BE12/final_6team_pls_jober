@@ -13,16 +13,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class ChromaDBService:
-    def __init__(self, 
-                 collection_name: str,
-                 db_path: str = None):
+    def __init__(self, db_path: str = None):
         """
-        ChromaDB 서비스 초기화
+        ChromaDB 서비스 초기화 (컬렉션별 동적 접근)
         """
-        if not collection_name:
-            raise ValueError("collection_name은 필수입니다.")
-        
-        self.collection_name = collection_name
         self.mock_guidelines = []  # Mock 데이터용
         self.is_mock = False  # 기본값 설정
         
@@ -34,7 +28,6 @@ class ChromaDBService:
         # db_path 설정
         self.db_path = db_path or persist_dir
         self.client = None
-        self.collection = None
         
         if HAS_CHROMADB:
             try:
@@ -51,14 +44,12 @@ class ChromaDBService:
                         path=persist_dir,
                         settings=Settings(anonymized_telemetry=False)
                     )
-                self.collection = self._get_or_create_collection()
             except Exception:
                 self.client = None
-                self.collection = None
         
-        self.is_mock = not HAS_CHROMADB or self.client is None or self.collection is None
+        self.is_mock = not HAS_CHROMADB or self.client is None
     
-    def _get_or_create_collection(self):
+    def _get_or_create_collection(self, collection_name: str):
         """
         컬렉션 가져오기 또는 생성
         """
@@ -66,16 +57,20 @@ class ChromaDBService:
             return None
         
         try:
-            return self.client.get_or_create_collection(name=self.collection_name)
+            return self.client.get_or_create_collection(name=collection_name)
         except Exception:
             return None
     
-    async def add_documents(self, documents: List[str], metadatas: Optional[List[Dict[str, Any]]] = None, ids: Optional[List[str]] = None):
+    async def add_documents(self, collection_name: str, documents: List[str], metadatas: Optional[List[Dict[str, Any]]] = None, ids: Optional[List[str]] = None):
         """
-        문서들을 ChromaDB에 추가
+        특정 컬렉션에 문서들을 추가
         """
         try:
-            if self.is_mock or self.collection is None:
+            if self.is_mock:
+                return {"message": f"{len(documents)}개의 문서가 Mock 모드에서 추가되었습니다.", "ids": ids or []}
+            
+            collection = self._get_or_create_collection(collection_name)
+            if collection is None:
                 return {"message": f"{len(documents)}개의 문서가 Mock 모드에서 추가되었습니다.", "ids": ids or []}
             
             if ids is None:
@@ -91,7 +86,7 @@ class ChromaDBService:
                     normalized.append(md or {"source": "user_input"})
                 metadatas = normalized
             
-            self.collection.add(
+            collection.add(
                 documents=documents,
                 metadatas=metadatas,
                 ids=ids
@@ -100,12 +95,12 @@ class ChromaDBService:
         except Exception as e:
             raise Exception(f"문서 추가 실패: {str(e)}")
     
-    async def search_documents(self, query: str, n_results: int = 5, where: Optional[Dict[str, Any]] = None):
+    async def search_documents(self, collection_name: str, query: str, n_results: int = 5, where: Optional[Dict[str, Any]] = None):
         """
-        문서 검색
+        특정 컬렉션에서 문서 검색
         """
         try:
-            if self.is_mock or self.collection is None:
+            if self.is_mock:
                 return {
                     "query": query,
                     "documents": [],
@@ -114,7 +109,17 @@ class ChromaDBService:
                     "distances": []
                 }
             
-            results = self.collection.query(
+            collection = self._get_or_create_collection(collection_name)
+            if collection is None:
+                return {
+                    "query": query,
+                    "documents": [],
+                    "results": [],
+                    "metadatas": [],
+                    "distances": []
+                }
+            
+            results = collection.query(
                 query_texts=[query],
                 n_results=n_results,
                 where=where
@@ -210,6 +215,7 @@ class ChromaDBService:
     
     def search_similar(self, 
                       query: str, 
+                      collection_name: str = "blacklist",
                       n_results: int = 5,
                       category_filter: Optional[str] = None) -> List[Dict[str, Any]]:
         """
@@ -244,7 +250,12 @@ class ChromaDBService:
             return formatted_results[:n_results]
         
         try:
-            if self.is_mock or self.collection is None:
+            if self.is_mock:
+                return []
+            
+            # 지정된 컬렉션 가져오기
+            collection = self._get_or_create_collection(collection_name)
+            if collection is None:
                 return []
             
             # 메타데이터 필터 설정
@@ -253,7 +264,7 @@ class ChromaDBService:
                 where_filter['category'] = category_filter
             
             # 검색 실행
-            results = self.collection.query(
+            results = collection.query(
                 query_texts=[query],
                 n_results=n_results,
                 where=where_filter if where_filter else None
@@ -303,12 +314,14 @@ class ChromaDBService:
         except Exception:
             return
     
-    def get_collection(self, collection_name: str):
+    def get_collection(self, collection_name: str = None):
         """특정 컬렉션 가져오기"""
         if not HAS_CHROMADB or self.is_mock:
             return None
         try:
-            return self.client.get_or_create_collection(name=collection_name)
+            # collection_name이 없으면 기본 컬렉션 이름 사용
+            name = collection_name or self.collection_name
+            return self.client.get_or_create_collection(name=name)
         except Exception:
             return None
     

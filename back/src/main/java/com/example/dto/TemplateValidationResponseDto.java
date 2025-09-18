@@ -15,6 +15,7 @@ public class TemplateValidationResponseDto {
     private String templateId;
     private List<ValidationError> validationErrors;
     private String validationStage; // 검증 단계 정보 추가 (1차, 2차 등)
+    private List<Object> validation_results; // AI 서비스의 상세 검증 결과
     
     @Getter
     @Setter

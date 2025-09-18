@@ -13,5 +13,7 @@ public class TemplateRequestDto {
     
     private String templateContent;
     private String templateTitle;
+    private String category;
     private List<Object> chatHistory;
+    private List<String> variableList;
 }
