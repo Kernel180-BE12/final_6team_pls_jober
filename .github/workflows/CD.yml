@@ -19,7 +19,7 @@ jobs:
       - name: Deploy to Oracle Cloud VM
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 144.24.69.36
+          host: 158.179.169.48
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE }}
           port: 22
@@ -58,9 +58,9 @@ jobs:
 
           if [[ "${{ needs.deploy.result }}" == "success" ]]; then
             echo "Deployment completed successfully!"
-            echo "Frontend: http://134.185.106.160"
-            echo "Backend API: http://134.185.106.160/api"
-            echo "AI Service: http://134.185.106.160/ai"
+            echo "Frontend: http://158.179.169.48"
+            echo "Backend API: http://158.179.169.48/api"
+            echo "AI Service: http://158.179.169.48/ai"
           else
             echo "Deployment failed"
           fi

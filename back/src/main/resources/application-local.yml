@@ -31,7 +31,7 @@ spring:
   # Redis 설정
   data:
     redis:
-      host: 144.24.69.36
+      host: 158.179.169.48
       port: 6379
       password: ${REDIS_PASSWORD:}
       database: 0
