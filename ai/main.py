@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
-# 환경 변수 로드
-load_dotenv()
+import os
+# 환경 변수 로드 - root 폴더의 .env 파일 참조
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
