@@ -61,27 +61,20 @@ def create_final_validation_prompt(
 {rag_context}
 
 # 평가 기준
-- CRITICAL 0건 AND MAJOR ≤ 1건이면 passed=true, 그 외 false.
+- 정책 위반이나 문제가 발견되지 않으면 is_valid=true, 그 외 false.
+- 위반 사항이 있으면 violations 배열에 상세 정보 포함.
 
 # 출력 스키마(JSON만 출력)
 {{
-"passed": boolean,
-"summary": "string", 
+"is_valid": boolean,
 "violations": [
   {{
-    "rule_id": "string",
-    "severity": "CRITICAL|MAJOR|MINOR",
-    "evidence": "string",
     "policy_ref": "string",
-    "span": [startIndex, endIndex]
+    "reason": "string",
+    "evidence": "string"
   }}
 ],
-"autofix": {{
-  "enabled": boolean,
-  "patch_body": "string", 
-  "notes": "string"
-}},
-"policy_refs": ["string"]
+"rationale": "string"
 }}"""
 
     return prompt

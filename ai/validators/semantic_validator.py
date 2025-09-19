@@ -60,6 +60,10 @@ class SemanticValidator:
         # 2차 검증용 blacklist, denied_templates  컬렉션 병렬 사용
         self.bl = ChromaDBService(collection_name="blacklist")
         self.dn = ChromaDBService(collection_name="denied_templates")
+        
+        # 디버깅용 로그 추가
+        print("🔍 SemanticValidator 초기화 중...")
+        self._debug_collections()
 
         
         # OpenAI 클라이언트 설정
@@ -78,20 +82,97 @@ class SemanticValidator:
         else:
             self.openai_client = None
     
+    def _debug_collections(self):
+        """컬렉션 상태 디버깅"""
+        try:
+            print("🔍 컬렉션 디버깅 시작...")
+            
+            # blacklist 컬렉션 확인
+            if self.bl.client:
+                bl_collection = self.bl._get_or_create_collection("blacklist")
+                if bl_collection:
+                    bl_count = bl_collection.count()
+                    print(f"📊 blacklist 컬렉션: {bl_count}개 문서")
+                    
+                    # 샘플 데이터 확인
+                    if bl_count > 0:
+                        sample = bl_collection.get(limit=2)
+                        print(f"📝 blacklist 샘플: {sample['documents'][:2] if sample['documents'] else '없음'}")
+                else:
+                    print("❌ blacklist 컬렉션을 가져올 수 없음")
+            else:
+                print("⚠️ blacklist 서비스가 Mock 모드")
+            
+            # denied_templates 컬렉션 확인
+            if self.dn.client:
+                dn_collection = self.dn._get_or_create_collection("denied_templates")
+                if dn_collection:
+                    dn_count = dn_collection.count()
+                    print(f"📊 denied_templates 컬렉션: {dn_count}개 문서")
+                    
+                    # 샘플 데이터 확인
+                    if dn_count > 0:
+                        sample = dn_collection.get(limit=2)
+                        print(f"📝 denied_templates 샘플: {sample['documents'][:2] if sample['documents'] else '없음'}")
+                    else:
+                        print("⚠️ denied_templates 컬렉션이 비어있음!")
+                else:
+                    print("❌ denied_templates 컬렉션을 가져올 수 없음")
+            else:
+                print("⚠️ denied_templates 서비스가 Mock 모드")
+                
+            # 전체 컬렉션 목록 확인
+            if self.bl.client:
+                try:
+                    collections = self.bl.client.list_collections()
+                    collection_names = [col.name for col in collections]
+                    print(f"📋 전체 컬렉션 목록: {collection_names}")
+                except Exception as e:
+                    print(f"❌ 컬렉션 목록 조회 실패: {e}")
+                    
+        except Exception as e:
+            print(f"❌ 컬렉션 디버깅 중 오류: {e}")
+    
     def validate(self, template: Dict[str, Any]) -> ValidationResult:
         """
         최상위 엔트리: 두 단계 RAG → 라벨링 → 취합 → (review면 LLM 판정) / (fail이면 LLM 사유 요약)
         항상 동일 스키마의 ValidationResult를 반환.
         """
+        print("🔍 SemanticValidator.validate() 시작")
         text = f"{template.get('templateTitle','')} {template.get('templateContent','')}".strip()
         category = template.get("category")
+        print(f"검증 대상 텍스트: {text[:100]}...")
+        print(f"카테고리: {category}")
 
         # 1) 두 컬렉션 RAG (병렬 개념, 구현은 순차 호출)
+        print("🔍 blacklist 컬렉션 검색 시작...")
         s_bl = self._rag_stage("blacklist", text, k=6)
-        s_dn = self._rag_stage("denied_templates", text, k=5, where={"category": category} if category else None)
+        print(f"blacklist 결과: {s_bl}")
+        
+        print("🔍 denied_templates 컬렉션 검색 시작...")
+        # 카테고리 필터 없이 검색 (더 많은 결과를 얻기 위해)
+        s_dn = self._rag_stage("denied_templates", text, k=5, where=None)
+        print(f"denied_templates 결과: {s_dn}")
+        
+        # 만약 결과가 없다면 카테고리 필터 때문일 수 있으니 로그 출력
+        if s_dn.get('score', 0) == 0:
+            print(f"⚠️ denied_templates에서 결과 없음. 카테고리: {category}")
+            # 디버깅을 위해 컬렉션 상태 확인
+            try:
+                dn_collection = self.dn._get_or_create_collection("denied_templates")
+                if dn_collection:
+                    sample_docs = dn_collection.get(limit=3)
+                    print(f"📝 denied_templates 샘플 문서: {sample_docs.get('documents', [])[:3]}")
+                    print(f"📝 denied_templates 샘플 메타데이터: {sample_docs.get('metadatas', [])[:3]}")
+            except Exception as e:
+                print(f"❌ denied_templates 디버깅 실패: {e}")
 
         # 2) 최종 취합
         final_label, final_risk, violations = _aggregate([s_bl, s_dn])
+        print(f"\n📋 2차 검증 취합 결과:")
+        print(f"   🏷️ 최종 라벨: {final_label}")
+        print(f"   📊 위험도 점수: {final_risk}")
+        print(f"   🚫 위반 사항: {len(violations)}개")
 
         decision_source = "heuristic"
         needs_review: bool = False
@@ -116,6 +197,17 @@ class SemanticValidator:
                     violations = llm_reason  # 요약을 violations에 덮어쓰기(또는 extend)
 
         is_valid = (final_label == "pass")
+        
+        print(f"\n📋 2차 검증 최종 결과:")
+        print(f"   ✅ 통과 여부: {'통과' if is_valid else '실패'}")
+        print(f"   🏷️ 최종 라벨: {final_label}")
+        print(f"   📊 위험도: {final_risk}")
+        print(f"   🤖 판정 방식: {decision_source}")
+        print(f"   👥 사람 검토 필요: {'예' if needs_review else '아니오'}")
+        if violations:
+            print(f"   🚫 위반 사항 상세:")
+            for i, v in enumerate(violations[:3], 1):  # 최대 3개만 표시
+                print(f"      {i}. {v.get('reason', '알 수 없는 사유')} (출처: {v.get('source', '알 수 없음')})")
 
         details = {
             "final_label": final_label,             # pass | review | fail
@@ -162,9 +254,15 @@ class SemanticValidator:
     def _search(self, collection: str, text: str, n_results: int = 5, where: Dict[str, Any] | None = None) -> List[Dict]:
         # 컬렉션별 ChromaDBService 사용
         svc = self.bl if collection == "blacklist" else self.dn
+        print(f"🔍 {collection} 컬렉션에서 검색 중...")
+        
         # ChromaDBService는 category_filter 파라미터를 사용
         category_filter = where.get("category") if where else None
-        return svc.search_similar(query=text, n_results=n_results, category_filter=category_filter)
+        # ✅ collection_name 파라미터를 올바르게 전달
+        results = svc.search_similar(query=text, collection_name=collection, n_results=n_results, category_filter=category_filter)
+        print(f"🔍 {collection} 검색 결과 개수: {len(results)}")
+        
+        return results
 
     # ----------------------------- LLM 보조 ------------------------------------
     def _llm_judge(self, template: Dict[str, Any], stages: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -193,12 +291,46 @@ class SemanticValidator:
                 max_completion_tokens=1000,
             )
             txt = resp.choices[0].message.content.strip()
-            if txt.startswith("```"):
+            
+            # JSON 마크다운 블록 제거
+            if txt.startswith("```json"):
+                txt = txt.replace("```json", "").replace("```", "").strip()
+            elif txt.startswith("```"):
                 txt = "\n".join(line for line in txt.splitlines() if not line.startswith("```"))
-            out = json.loads(txt)
-            return out
+            
+            # JSON 파싱 시도
+            try:
+                out = json.loads(txt)
+                
+                # 필수 필드 검증 및 기본값 설정
+                if "is_valid" not in out:
+                    out["is_valid"] = False
+                if "violations" not in out:
+                    out["violations"] = []
+                if "rationale" not in out:
+                    out["rationale"] = "LLM 응답에서 근거를 찾을 수 없음"
+                    
+                return out
+                
+            except json.JSONDecodeError as json_err:
+                print(f"JSON 파싱 실패: {json_err}")
+                print(f"응답 내용: {txt[:200]}...")
+                
+                # JSON 파싱 실패 시 텍스트에서 정보 추출 시도
+                is_valid = "true" in txt.lower() or "통과" in txt or "valid" in txt.lower()
+                return {
+                    "is_valid": is_valid,
+                    "violations": [{"policy_ref": "PARSE_ERROR", "reason": f"JSON 파싱 실패: {str(json_err)}", "evidence": txt[:100]}],
+                    "rationale": f"LLM 응답 파싱 중 오류 발생: {str(json_err)}"
+                }
+                
         except Exception as e:
-            return {"is_valid": False, "violations": [{"reason": f"LLM error: {e}"}]}
+            print(f"LLM 호출 실패: {e}")
+            return {
+                "is_valid": False, 
+                "violations": [{"policy_ref": "LLM_ERROR", "reason": f"LLM 호출 실패: {str(e)}", "evidence": ""}],
+                "rationale": f"LLM 서비스 오류: {str(e)}"
+            }
 
     def _llm_fail_reason(self, template: Dict[str, Any], stages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """fail 구간: LLM에게 '왜 실패인지' 근거 요약만 받아오고 붙임(판정은 바꾸지 않음)"""
@@ -232,11 +364,29 @@ class SemanticValidator:
                 max_completion_tokens=600,
             )
             txt = resp.choices[0].message.content.strip()
-            if txt.startswith("```"):
+            
+            # JSON 마크다운 블록 제거
+            if txt.startswith("```json"):
+                txt = txt.replace("```json", "").replace("```", "").strip()
+            elif txt.startswith("```"):
                 txt = "\n".join(line for line in txt.splitlines() if not line.startswith("```"))
-            out = json.loads(txt)
-            return out.get("violations", [])
-        except Exception:
+            
+            try:
+                out = json.loads(txt)
+                return out.get("violations", [])
+            except json.JSONDecodeError as json_err:
+                print(f"_llm_fail_reason JSON 파싱 실패: {json_err}")
+                print(f"응답 내용: {txt[:200]}...")
+                
+                # 파싱 실패 시 기본 근거 반환
+                viols: List[Dict[str, Any]] = []
+                for s in stages:
+                    if s["label"] == "fail":
+                        viols.extend(s.get("evidence", []))
+                return viols[:5]
+                
+        except Exception as e:
+            print(f"_llm_fail_reason LLM 호출 실패: {e}")
             # 실패 시에도 최소한의 근거는 반환
             viols: List[Dict[str, Any]] = []
             for s in stages:

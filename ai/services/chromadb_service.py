@@ -18,8 +18,6 @@ class ChromaDBService:
         ChromaDB 서비스 초기화 (컬렉션별 동적 접근)
         """
         self.collection_name = collection_name
-        self.mock_guidelines = []  # Mock 데이터용
-        self.is_mock = False  # 기본값 설정
         
         # 환경 변수에서 ChromaDB 설정 읽기
         persist_dir = os.getenv('CHROMA_PERSIST_DIR', './chroma_db')
@@ -47,14 +45,12 @@ class ChromaDBService:
                     )
             except Exception:
                 self.client = None
-        
-        self.is_mock = not HAS_CHROMADB or self.client is None
     
     def _get_or_create_collection(self, collection_name: str):
         """
         컬렉션 가져오기 또는 생성
         """
-        if not HAS_CHROMADB or self.is_mock:
+        if not HAS_CHROMADB or self.client is None:
             return None
         
         try:
@@ -67,12 +63,9 @@ class ChromaDBService:
         특정 컬렉션에 문서들을 추가
         """
         try:
-            if self.is_mock:
-                return {"message": f"{len(documents)}개의 문서가 Mock 모드에서 추가되었습니다.", "ids": ids or []}
-            
             collection = self._get_or_create_collection(collection_name)
             if collection is None:
-                return {"message": f"{len(documents)}개의 문서가 Mock 모드에서 추가되었습니다.", "ids": ids or []}
+                return {"message": f"컬렉션을 생성할 수 없어 {len(documents)}개 문서 추가 실패", "ids": []}
             
             if ids is None:
                 import uuid
@@ -101,15 +94,6 @@ class ChromaDBService:
         특정 컬렉션에서 문서 검색
         """
         try:
-            if self.is_mock:
-                return {
-                    "query": query,
-                    "documents": [],
-                    "results": [],
-                    "metadatas": [],
-                    "distances": []
-                }
-            
             collection = self._get_or_create_collection(collection_name)
             if collection is None:
                 return {
@@ -180,9 +164,6 @@ class ChromaDBService:
         모든 문서 조회 (ConstraintValidator에서 사용)
         """
         try:
-            if self.is_mock:
-                return self.mock_guidelines
-            
             if self.collection is None:
                 return []
             results = self.collection.get()
@@ -222,37 +203,7 @@ class ChromaDBService:
         """
         유사한 가이드라인 검색 (VectorDBManager 호환)
         """
-        if self.is_mock:
-            # Mock 모드: 간단한 키워드 매칭으로 시뮬레이션
-            formatted_results = []
-            query_lower = query.lower()
-            
-            for guideline in self.mock_guidelines:
-                # 간단한 키워드 매칭 점수 계산
-                content_lower = guideline['content'].lower()
-                common_words = set(query_lower.split()) & set(content_lower.split())
-                similarity = len(common_words) / max(len(query_lower.split()), 1) * 0.7
-                
-                # 카테고리 필터 적용
-                if category_filter and guideline['metadata'].get('category') != category_filter:
-                    continue
-                
-                if similarity > 0.1:  # 최소 임계값
-                    formatted_results.append({
-                        'id': guideline['id'],
-                        'content': guideline['content'],
-                        'metadata': guideline['metadata'],
-                        'distance': 1 - similarity,
-                        'similarity': similarity
-                    })
-            
-            # 유사도 순으로 정렬하고 n_results 개수만큼 반환
-            formatted_results.sort(key=lambda x: x['similarity'], reverse=True)
-            return formatted_results[:n_results]
-        
         try:
-            if self.is_mock:
-                return []
             
             # 지정된 컬렉션 가져오기
             collection = self._get_or_create_collection(collection_name)
@@ -264,6 +215,17 @@ class ChromaDBService:
             if category_filter:
                 where_filter['category'] = category_filter
             
+            # 컬렉션 문서 개수 확인
+            collection_count = collection.count()
+            print(f"🔍 {collection_name} 컬렉션 총 문서 수: {collection_count}")
+            
+            # 카테고리 필터 디버깅
+            if where_filter:
+                print(f"🔍 카테고리 필터 적용: {where_filter}")
+                # 필터 없이 검색해서 전체 문서 확인
+                all_results = collection.query(query_texts=[query], n_results=n_results)
+                print(f"🔍 필터 없이 검색 시 결과 수: {len(all_results['documents'][0]) if all_results['documents'] and all_results['documents'][0] else 0}")
+            
             # 검색 실행
             results = collection.query(
                 query_texts=[query],
@@ -271,17 +233,28 @@ class ChromaDBService:
                 where=where_filter if where_filter else None
             )
             
+            print(f"🔍 검색 결과 원본: documents={len(results['documents'][0]) if results['documents'] and results['documents'][0] else 0}개")
+            
             # 결과 포맷팅
             formatted_results = []
             if results['documents'] and results['documents'][0]:
                 for i in range(len(results['documents'][0])):
+                    distance = results['distances'][0][i]
+                    # 코사인 거리(0~2)를 정규화된 유사도(0~1)로 변환
+                    # distance가 0이면 similarity=1 (완전 유사)
+                    # distance가 2이면 similarity=0 (완전 반대)
+                    similarity = max(0.0, 1.0 - (distance / 2.0))
+                    print(f"   결과 {i+1}: distance={distance:.4f}, similarity={similarity:.4f}")
+                    
                     formatted_results.append({
                         'id': results['ids'][0][i],
                         'content': results['documents'][0][i],
                         'metadata': results['metadatas'][0][i],
-                        'distance': results['distances'][0][i],
-                        'similarity': 1 - results['distances'][0][i]  # 유사도 계산
+                        'distance': distance,
+                        'similarity': similarity  # 올바른 유사도 계산
                     })
+            else:
+                print("⚠️ 검색 결과가 비어있음 - 컬렉션에 문서가 없거나 필터 조건에 맞는 문서가 없음")
             
             return formatted_results
             
@@ -291,12 +264,13 @@ class ChromaDBService:
     def get_collection_stats(self) -> Dict[str, Any]:
         """컬렉션 통계 정보 반환 (VectorDBManager 호환)"""
         try:
-            if self.is_mock or self.collection is None:
+            if self.collection is None:
                 return {
-                    "total_documents": len(self.mock_guidelines),
+                    "total_documents": 0,
                     "collection_name": self.collection_name,
-                    "mode": "mock",
-                    "db_path": self.db_path
+                    "mode": "chromadb",
+                    "db_path": self.db_path,
+                    "error": "collection not initialized"
                 }
             count = self.collection.count()
             return {
@@ -317,7 +291,7 @@ class ChromaDBService:
     
     def get_collection(self, collection_name: str = None):
         """특정 컬렉션 가져오기"""
-        if not HAS_CHROMADB or self.is_mock:
+        if not HAS_CHROMADB or self.client is None:
             return None
         try:
             # collection_name이 없으면 기본 컬렉션 이름 사용
@@ -329,9 +303,6 @@ class ChromaDBService:
     def get_blacklist_templates(self) -> List[Dict[str, Any]]:
         """블랙리스트 템플릿 조회"""
         try:
-            if self.is_mock:
-                return []
-            
             blacklist_collection = self.get_collection("blacklist")
             if blacklist_collection is None:
                 return []
@@ -354,9 +325,6 @@ class ChromaDBService:
     def get_whitelist_templates(self) -> List[Dict[str, Any]]:
         """화이트리스트 템플릿 조회"""
         try:
-            if self.is_mock:
-                return []
-            
             whitelist_collection = self.get_collection("whitelist")
             if whitelist_collection is None:
                 return []
@@ -379,9 +347,6 @@ class ChromaDBService:
     def get_approved_templates(self) -> List[Dict[str, Any]]:
         """승인된 템플릿 조회"""
         try:
-            if self.is_mock:
-                return []
-            
             approved_collection = self.get_collection("approved")
             if approved_collection is None:
                 return []
@@ -404,9 +369,6 @@ class ChromaDBService:
     def add_template_to_collection(self, collection_name: str, template_data: Dict[str, Any]):
         """특정 컬렉션에 템플릿 추가"""
         try:
-            if self.is_mock:
-                return
-            
             collection = self.get_collection(collection_name)
             if collection is None:
                 return
@@ -422,9 +384,6 @@ class ChromaDBService:
     def search_templates_in_collection(self, collection_name: str, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
         """특정 컬렉션에서 템플릿 검색"""
         try:
-            if self.is_mock:
-                return []
-            
             collection = self.get_collection(collection_name)
             if collection is None:
                 return []

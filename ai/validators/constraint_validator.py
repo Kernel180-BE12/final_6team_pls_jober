@@ -88,6 +88,18 @@ class ConstraintValidator:
             errors.extend(info_errors)
             warnings.extend(info_warnings)
             validation_details.extend(info_details)
+            
+            # 1단계 결과 로그
+            if info_errors:
+                print(f"❌ [1단계] 정보성 메시지 오류 {len(info_errors)}개:")
+                for i, error in enumerate(info_errors, 1):
+                    print(f"   {i}. {error}")
+            if info_warnings:
+                print(f"⚠️ [1단계] 정보성 메시지 경고 {len(info_warnings)}개:")
+                for i, warning in enumerate(info_warnings, 1):
+                    print(f"   {i}. {warning}")
+            if not info_errors and not info_warnings:
+                print("✅ [1단계] 정보성 메시지 검증 통과")
 
             # 2. 정형화된 템플릿 요건 검증
             logger.info("📌 [2단계] 정형화된 템플릿 요건 검증")
@@ -95,6 +107,18 @@ class ConstraintValidator:
             errors.extend(standard_errors)
             warnings.extend(standard_warnings)
             validation_details.extend(standard_details)
+            
+            # 2단계 결과 로그
+            if standard_errors:
+                print(f"❌ [2단계] 정형화된 템플릿 오류 {len(standard_errors)}개:")
+                for i, error in enumerate(standard_errors, 1):
+                    print(f"   {i}. {error}")
+            if standard_warnings:
+                print(f"⚠️ [2단계] 정형화된 템플릿 경고 {len(standard_warnings)}개:")
+                for i, warning in enumerate(standard_warnings, 1):
+                    print(f"   {i}. {warning}")
+            if not standard_errors and not standard_warnings:
+                print("✅ [2단계] 정형화된 템플릿 검증 통과")
 
             # 3. 변수 사용 규칙 검증
             logger.info("📌 [3단계] 변수 사용 규칙 검증")
@@ -103,6 +127,20 @@ class ConstraintValidator:
             warnings.extend(var_warnings)
             validation_details.extend(var_details)
             rejected_variables.extend(var_rejected)
+            
+            # 3단계 결과 로그
+            if var_errors:
+                print(f"❌ [3단계] 변수 사용 오류 {len(var_errors)}개:")
+                for i, error in enumerate(var_errors, 1):
+                    print(f"   {i}. {error}")
+            if var_warnings:
+                print(f"⚠️ [3단계] 변수 사용 경고 {len(var_warnings)}개:")
+                for i, warning in enumerate(var_warnings, 1):
+                    print(f"   {i}. {warning}")
+            if var_rejected:
+                print(f"🚫 [3단계] 반려된 변수 {len(var_rejected)}개: {var_rejected}")
+            if not var_errors and not var_warnings:
+                print("✅ [3단계] 변수 사용 규칙 검증 통과")
 
             # 4. 기타 템플릿 작성 규칙 검증
             logger.info("📌 [4단계] 기타 템플릿 작성 규칙 검증")
@@ -110,9 +148,27 @@ class ConstraintValidator:
             errors.extend(other_errors)
             warnings.extend(other_warnings)
             validation_details.extend(other_details)
+            
+            # 4단계 결과 로그
+            if other_errors:
+                print(f"❌ [4단계] 기타 규칙 오류 {len(other_errors)}개:")
+                for i, error in enumerate(other_errors, 1):
+                    print(f"   {i}. {error}")
+            if other_warnings:
+                print(f"⚠️ [4단계] 기타 규칙 경고 {len(other_warnings)}개:")
+                for i, warning in enumerate(other_warnings, 1):
+                    print(f"   {i}. {warning}")
+            if not other_errors and not other_warnings:
+                print("✅ [4단계] 기타 템플릿 작성 규칙 검증 통과")
 
             # 최종 결과
             is_valid = len(errors) == 0
+            print(f"\n📋 1차 검증 최종 결과:")
+            print(f"   ✅ 통과 여부: {'통과' if is_valid else '실패'}")
+            print(f"   ❌ 총 오류: {len(errors)}개")
+            print(f"   ⚠️ 총 경고: {len(warnings)}개")
+            print(f"   🚫 반려된 변수: {len(rejected_variables)}개")
+            
             logger.info(f"✅ 1차 검증 완료 → valid={is_valid}, 총 오류={len(errors)}, 총 경고={len(warnings)}")
 
             return ValidationResult(
@@ -157,10 +213,11 @@ class ConstraintValidator:
         try:
             prompt = get_informational_message_validation_prompt(category, templateTitle, templateContent)
             
-            response = self.openai_service.chat_completion([
+            import asyncio
+            response = asyncio.run(self.openai_service.chat_completion([
                 {"role": "system", "content": "알림톡 템플릿 검증 전문가입니다. JSON 형식으로만 응답하세요."},
                 {"role": "user", "content": prompt}
-            ])
+            ]))
             
             try:
                 result = json.loads(response)
@@ -197,10 +254,11 @@ class ConstraintValidator:
         try:
             prompt = get_standardized_template_validation_prompt(templateTitle, templateContent)
             
-            response = self.openai_service.chat_completion([
+            import asyncio
+            response = asyncio.run(self.openai_service.chat_completion([
                 {"role": "system", "content": "알림톡 템플릿 검증 전문가입니다. JSON 형식으로만 응답하세요."},
                 {"role": "user", "content": prompt}
-            ])
+            ]))
             
             try:
                 result = json.loads(response)
@@ -238,10 +296,11 @@ class ConstraintValidator:
         try:
             prompt = get_variable_usage_validation_prompt(templateContent, detected_variables, variableList)
             
-            response = self.openai_service.chat_completion([
+            import asyncio
+            response = asyncio.run(self.openai_service.chat_completion([
                 {"role": "system", "content": "알림톡 템플릿 변수 사용 검증 전문가입니다. JSON 형식으로만 응답하세요."},
                 {"role": "user", "content": prompt}
-            ])
+            ]))
             
             try:
                 result = json.loads(response)
@@ -284,10 +343,11 @@ class ConstraintValidator:
         try:
             prompt = get_template_writing_validation_prompt(templateTitle, templateContent)
             
-            response = self.openai_service.chat_completion([
+            import asyncio
+            response = asyncio.run(self.openai_service.chat_completion([
                 {"role": "system", "content": "알림톡 템플릿 작성 규칙 검증 전문가입니다. JSON 형식으로만 응답하세요."},
                 {"role": "user", "content": prompt}
-            ])
+            ]))
             
             try:
                 result = json.loads(response)
