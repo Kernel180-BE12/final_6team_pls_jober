@@ -7,15 +7,12 @@ services:
       context: ./back
       dockerfile: Dockerfile
     container_name: pls-jober-backend
-    ports:
-      - "8080:8080"
+    network_mode: "host"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
     env_file:
       - .env
     # MySQL은 호스트에 설치된 것을 사용하므로 depends_on 제거
-    networks:
-      - app-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
@@ -31,15 +28,12 @@ services:
       context: ./ai
       dockerfile: Dockerfile
     container_name: pls-jober-ai
-    ports:
-      - "8000:8000"
+    network_mode: "host"
     environment:
       - PYTHONPATH=/app
     env_file:
       - .env
     # ChromaDB는 호스트에 설치된 것을 사용하므로 volumes 제거
-    networks:
-      - app-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -55,18 +49,13 @@ services:
   nginx:
     image: nginx:alpine
     container_name: pls-jober-nginx
-    ports:
-      - "80:80"
-      - "443:443"
+    network_mode: "host"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./front/dist:/usr/share/nginx/html:ro
     depends_on:
-      - backend
       - ai-service
-    networks:
-      - app-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
@@ -74,6 +63,3 @@ services:
       timeout: 10s
       retries: 3
 
-networks:
-  app-network:
-    driver: bridge
