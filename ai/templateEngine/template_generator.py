@@ -31,7 +31,7 @@ from templateEngine.prompts.message_analyzer_prompts import (
     TemplateTitlePromptBuilder
 )
 
-# 환경 변수 로드
+# 현재 폴더의 .env 파일 로드
 load_dotenv()
 
 # OpenAI API 설정

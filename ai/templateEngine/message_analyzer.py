@@ -8,6 +8,7 @@ from services.openai_service import OpenAIService
 from templateEngine.prompts.message_analyzer_prompts import TypePromptBuilder, CategoryPromptBuilder, FieldsPromptBuilder
 from dotenv import load_dotenv
 
+# 현재 폴더의 .env 파일 로드
 load_dotenv()
 logger = logging.getLogger(__name__)
 

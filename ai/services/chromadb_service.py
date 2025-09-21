@@ -10,6 +10,7 @@ import os
 
 from dotenv import load_dotenv
 
+# 현재 폴더의 .env 파일 로드
 load_dotenv()
 
 class ChromaDBService:
