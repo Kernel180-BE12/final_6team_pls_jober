@@ -3,7 +3,6 @@ package com.example.controller;
 import com.example.service.KakaoService;
 import com.example.service.TokenService;
 import com.example.repository.AccountRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 카카오 컨트롤러 테스트
  * - @WebMvcTest: 웹 레이어만 테스트 (컨트롤러 계층 단위 테스트)
  * - @MockBean: 스프링 컨텍스트에 Mock 객체 등록
- * - MockMvc: HTTP 요청/응답을 시뮬레이션
+ * - MockMvc: HTTP 요청/응답을 시뮬레이션 
  */
 @WebMvcTest(KakaoController.class)
 @Import(KakaoControllerTestConfig.class)
@@ -46,9 +45,6 @@ class KakaoControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     /**
      * @MockBean: 실제 KakaoService 대신 Mock 객체를 스프링 컨텍스트에 등록
