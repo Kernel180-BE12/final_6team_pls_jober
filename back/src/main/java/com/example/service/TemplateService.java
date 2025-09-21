@@ -4,15 +4,10 @@ import com.example.dto.*;
 import com.example.entity.*;
 import com.example.exception.ResourceNotFoundException;
 import com.example.repository.*;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.*;
 
@@ -78,7 +73,9 @@ public class TemplateService {
             // AI 서비스의 상세 검증 결과 전달
             Object validationResults = aiValidationResult.get("validation_results");
             if (validationResults instanceof List) {
-                response.setValidation_results((List<Object>) validationResults);
+                @SuppressWarnings("unchecked")
+                List<Object> validationResultsList = (List<Object>) validationResults;
+                response.setValidation_results(validationResultsList);
             }
             
             return response;
