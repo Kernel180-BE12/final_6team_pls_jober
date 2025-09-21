@@ -295,7 +295,14 @@ class ConstraintValidator:
         rejected_variables = []
         
         templateContent = template_data.get('templateContent', '')
-        variableList = template_data.get('variableList', {})
+        variableList = template_data.get('variableList', [])
+        # variableList가 배열 형태인 경우 딕셔너리로 변환
+        if isinstance(variableList, list):
+            variable_dict = {}
+            for var in variableList:
+                if isinstance(var, dict) and 'variableKey' in var and 'variableValue' in var:
+                    variable_dict[var['variableKey']] = var['variableValue']
+            variableList = variable_dict
         detected_variables = self._extract_variables_from_template(templateContent)
         
         try:

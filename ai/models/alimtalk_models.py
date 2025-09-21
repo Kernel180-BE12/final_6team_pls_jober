@@ -81,15 +81,17 @@ class ValidationRequest(BaseModel):
         # 백엔드에서 전송하는 구조에 맞게 템플릿 데이터 변환
         # variableList를 variables 객체로 변환
         variables_detected = {}
-        if "variableList" in backend_data:
-            for var in backend_data["variableList"]:
-                variables_detected[var["variableKey"]] = var["variableValue"]
-        elif "variables" in template_data:
-            variables_detected = template_data.get("variables", {})
+        variable_list = template_data.get("variableList", [])
+        if isinstance(variable_list, list):
+            for var in variable_list:
+                if isinstance(var, dict) and "variableKey" in var and "variableValue" in var:
+                    variables_detected[var["variableKey"]] = var["variableValue"]
+        elif isinstance(variable_list, dict):
+            variables_detected = variable_list
         
         alimtalk_template = AlimtalkTemplate(
-            template_text=template_data.get("body", ""),
-            template_title="알림톡 템플릿",
+            template_text=template_data.get("templateContent", ""),
+            template_title=template_data.get("templateTitle", "알림톡 템플릿"),
             variables_detected=variables_detected,
             category=template_data.get("category", "marketing"),
             buttons=[]
