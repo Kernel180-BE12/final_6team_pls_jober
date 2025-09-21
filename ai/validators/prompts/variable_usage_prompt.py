@@ -2,7 +2,7 @@
 변수 사용 규칙 검증 프롬프트
 """
 
-def get_variable_usage_validation_prompt(template_content: str, detected_variables: list, variable_list: dict) -> str:
+def get_variable_usage_validation_prompt(template_content: str, detected_variables: list, variable_list: list) -> str:
     """변수 사용 규칙 검증 프롬프트 생성"""
     return f"""다음 알림톡 템플릿의 변수 사용이 적절한지 검증해주세요.
 

@@ -296,17 +296,15 @@ class ConstraintValidator:
         
         templateContent = template_data.get('templateContent', '')
         variableList = template_data.get('variableList', [])
-        # variableList가 배열 형태인 경우 딕셔너리로 변환
-        if isinstance(variableList, list):
-            variable_dict = {}
-            for var in variableList:
-                if isinstance(var, dict) and 'variableKey' in var and 'variableValue' in var:
-                    variable_dict[var['variableKey']] = var['variableValue']
-            variableList = variable_dict
+        # variableList에서 변수명만 추출
+        if variableList and isinstance(variableList[0], dict):
+            variable_names = [var.get("variableKey", "") for var in variableList if isinstance(var, dict)]
+        else:
+            variable_names = variableList
         detected_variables = self._extract_variables_from_template(templateContent)
         
         try:
-            prompt = get_variable_usage_validation_prompt(templateContent, detected_variables, variableList)
+            prompt = get_variable_usage_validation_prompt(templateContent, detected_variables, variable_names)
             
             # 비동기 함수 호출
             response = await self.openai_service.chat_completion([

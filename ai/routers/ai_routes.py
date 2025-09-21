@@ -57,7 +57,7 @@ class TemplateGenerationRequest(BaseModel):
 class TemplateGenerationResponse(BaseModel):
     template_content: str
     template_title: str
-    variables: List[Dict[str, Any]]
+    variables: List[str]
     category: str
     model: str
 
@@ -71,7 +71,7 @@ class TemplateModificationRequest(BaseModel):
 class TemplateModificationResponse(BaseModel):
     modified_template: str
     template_title: str
-    variables: List[Dict[str, Any]]
+    variables: List[str]
     explanation: str
     model: str
 
@@ -191,11 +191,7 @@ async def generate_template(request: TemplateGenerationRequest):
         found_variables = re.findall(variable_pattern, response)
         
         for var in set(found_variables):
-            variables.append({
-                "name": var.strip(),
-                "type": "string",
-                "description": f"{var} 관련 정보"
-            })
+            variables.append(var.strip())
         
         # 템플릿 제목 생성 (사용자 메시지 기반)
         template_title = f"{category} 템플릿 - {request.userMessage[:30]}..."
@@ -266,11 +262,7 @@ async def modify_template(request: TemplateModificationRequest):
         found_variables = re.findall(variable_pattern, modified_template)
 
         for var in set(found_variables):
-            variables.append({
-                "name": var.strip(),
-                "type": "string",
-                "description": f"{var} 관련 정보"
-            })
+            variables.append(var.strip())
         
         # 수정 설명 생성
         explanation = f"사용자 요청 '{request.userMessage}'에 따라 템플릿을 수정했습니다."

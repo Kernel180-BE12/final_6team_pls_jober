@@ -51,7 +51,7 @@ class AlimtalkTemplate(BaseModel):
     # template_pk: Optional[int] = Field(None, description="템플릿 Primary Key")
     template_text : Optional[str] = Field(None, description="생성된 카카오톡 알림톡 템플릿 전체 내용")
     template_title: Optional[str] = Field(None, max_length=50, description="제목")
-    variables_detected: Optional[Dict[str, str]] = Field(None, description="변수 목록")
+    variables_detected: Optional[List[str]] = Field(None, description="변수 목록")
     buttons: Optional[List[Button]] = Field(None, max_items=5, description="버튼 목록")
     category: Optional[CategoryType] = Field(None, description="분류")
 
@@ -79,20 +79,19 @@ class ValidationRequest(BaseModel):
         template_data = backend_data.get("template", {})
         
         # 백엔드에서 전송하는 구조에 맞게 템플릿 데이터 변환
-        # variableList를 variables 객체로 변환
-        variables_detected = {}
+        # variableList에서 변수명만 추출
         variable_list = template_data.get("variableList", [])
-        if isinstance(variable_list, list):
-            for var in variable_list:
-                if isinstance(var, dict) and "variableKey" in var and "variableValue" in var:
-                    variables_detected[var["variableKey"]] = var["variableValue"]
-        elif isinstance(variable_list, dict):
-            variables_detected = variable_list
+        if variable_list and isinstance(variable_list[0], dict):
+            # 딕셔너리 형태라면 변수명만 추출
+            variable_names = [var.get("variableKey", "") for var in variable_list if isinstance(var, dict)]
+        else:
+            # 이미 문자열 리스트라면 그대로 사용
+            variable_names = variable_list
         
         alimtalk_template = AlimtalkTemplate(
             template_text=template_data.get("templateContent", ""),
             template_title=template_data.get("templateTitle", "알림톡 템플릿"),
-            variables_detected=variables_detected,
+            variables_detected=variable_names,
             category=template_data.get("category", "marketing"),
             buttons=[]
         )
