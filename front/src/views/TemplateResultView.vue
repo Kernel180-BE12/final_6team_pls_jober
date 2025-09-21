@@ -87,7 +87,6 @@
                   :rejected-variables="rejectedVariables"
                   @variable-click="handleVariableClick"
                   @update-variables="updateVariables"
-                  @reject-template="rejectTemplate"
                   @submit-template="submitTemplate"
                 />
               </div>
@@ -112,8 +111,17 @@
             <div class="action-buttons-container">
               <div class="correction-count">남은 정정 횟수: {{ remainingCorrections }}/{{ maxCorrections }}</div>
               <div class="action-buttons">
-                <button class="btn-reject" @click="rejectTemplate">반려하기</button>
-                <button class="btn-submit" @click="submitTemplate">제출하기</button>
+                <button 
+                  class="btn-submit" 
+                  @click="submitTemplate"
+                  :disabled="isValidating"
+                >
+                  <span v-if="!isValidating">제출하기</span>
+                  <span v-else class="loading-content">
+                    <span class="spinner"></span>
+                    검증 중...
+                  </span>
+                </button>
               </div>
             </div>
           </div>
@@ -163,6 +171,7 @@ const chatInput = ref('')
 const currentVersion = ref(1)
 const chatHistory = ref<any[]>([])
 const isGenerating = ref(false)
+const isValidating = ref(false) // 검증 중 상태 추가
 
 // 정정 횟수 관리 - 세션 기반
 const maxCorrections = 3
@@ -313,42 +322,7 @@ onMounted(() => {
   }
 })
  
-// 변수별 대안 데이터
-const variableAlternatives = {
-  '수신자': [
-    { text: '고객', selected: false },
-    { text: '회원', selected: false },
-    { text: '사용자', selected: false }
-  ],
-  '발신 스페이스': [
-    { text: '저희 회사', selected: false },
-    { text: '저희 팀', selected: false },
-    { text: '저희', selected: false }
-  ],
-  '쿠폰명': [
-    { text: '할인 쿠폰', selected: false },
-    { text: '특별 혜택', selected: false },
-    { text: '프로모션 쿠폰', selected: false }
-  ],
-  '사용기한': [
-    { text: '유효기간', selected: false },
-    { text: '사용 가능 기간', selected: false },
-    { text: '만료일', selected: false }
-  ],
-  '추가 메시지': [
-    { text: '문의사항이 있으시면 언제든 연락주세요.', selected: false },
-    { text: '궁금한 점이 있으시면 편하게 문의해주세요.', selected: false },
-    { text: '도움이 필요하시면 언제든 연락주세요.', selected: false }
-  ]
-}
 
-// 반려하기
-const rejectTemplate = () => {
-  isRejected.value = true
-  showRejectionSidebar.value = true
-  // 모든 변수를 반려된 것으로 설정 (테스트용)
-  rejectedVariables.value = ['수신자', '발신 스페이스', '쿠폰명', '사용기한', '추가 메시지']
-}
 
 // 변수 클릭 처리
 const handleVariableClick = (variableName: string) => {
@@ -377,28 +351,17 @@ const handleVariableClick = (variableName: string) => {
       currentValidationError.value = null
     }
     
-    // 대안 정보 설정 (기본값 또는 백엔드에서 받은 대안)
-    currentAlternatives.value = JSON.parse(JSON.stringify(variableAlternatives[variableName as keyof typeof variableAlternatives] || []))
+    // 대안 정보 설정 (백엔드에서 받은 대안)
+    currentAlternatives.value = []
     showRejectionSidebar.value = true
   }
 }
 
-// 대안 선택
-const selectAlternative = (alternative: any) => {
-  // 다른 대안들의 선택 해제
-  currentAlternatives.value.forEach(alt => {
-    if (alt !== alternative) {
-      alt.selected = false
-    }
-  })
-  // 현재 대안 선택/해제
-  alternative.selected = !alternative.selected
-}
+
 
 // 선택한 대안 적용
 const applySelectedAlternative = (alternative: any) => {
-  // 여기서 실제 텍스트를 대체하는 로직을 구현할 수 있습니다
-  console.log(`${currentVariable.value}를 "${alternative.text}"로 대체`)
+  console.log(`대안 적용: ${currentVariable.value}를 "${alternative.text}"로 대체`)
   
   // 반려된 변수 목록에서 제거
   const index = rejectedVariables.value.indexOf(currentVariable.value)
@@ -410,10 +373,11 @@ const applySelectedAlternative = (alternative: any) => {
   if (rejectedVariables.value.length === 0) {
     isRejected.value = false
     showRejectionSidebar.value = false
+  } else {
+    // 다른 반려된 변수가 있으면 첫 번째로 이동
+    currentVariable.value = ''
+    currentAlternatives.value = []
   }
-  
-  currentVariable.value = ''
-  currentAlternatives.value = []
 }
 
 // 반려 사이드바 닫기
@@ -457,6 +421,9 @@ watch(chatHistory, () => {
 
 // 템플릿 제출
 const submitTemplate = async () => {
+  if (isValidating.value) return // 이미 검증 중이면 중복 실행 방지
+  
+  isValidating.value = true // 검증 시작
   try {
     console.log('템플릿 검증 요청 시작')
     
@@ -553,6 +520,8 @@ const submitTemplate = async () => {
   } catch (error) {
     console.error('템플릿 검증 실패:', error)
     alert('템플릿 검증 중 오류가 발생했습니다. 다시 시도해주세요.')
+  } finally {
+    isValidating.value = false // 검증 완료
   }
 }
 
@@ -1240,8 +1209,7 @@ const scrollToBottom = () => {
 }
 
 /* 공통 버튼 스타일 */
-.btn-submit,
-.btn-reject {
+.btn-submit {
   background-color: #6c757d;
   color: white;
   border: none;
@@ -1250,6 +1218,8 @@ const scrollToBottom = () => {
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.2s ease;
+  position: relative;
+  min-width: 6rem;
 }
 
 /* 제출 버튼 스타일 */
@@ -1258,19 +1228,39 @@ const scrollToBottom = () => {
 }
 
 /* 제출 버튼 호버 효과 */
-.btn-submit:hover {
+.btn-submit:hover:not(:disabled) {
   background-color: #218838;
 }
 
-/* 반려 버튼 스타일 */
-.btn-reject {
-  background-color: #dc3545;
+/* 제출 버튼 비활성화 상태 */
+.btn-submit:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
-/* 반려 버튼 호버 효과 */
-.btn-reject:hover {
-  background-color: #c82333;
+/* 로딩 컨텐츠 */
+.loading-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
+
+/* 스피너 애니메이션 */
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 0.1rem solid #ffffff40;
+  border-left: 0.1rem solid #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 
 /* 수정 버튼 스타일 제거됨 */
 
