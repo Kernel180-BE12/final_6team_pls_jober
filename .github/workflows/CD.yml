@@ -56,7 +56,7 @@ jobs:
           echo "Deploy: ${{ needs.deploy.result }}"
           echo "Environment: ${{ github.base_ref == 'main' && 'production' || 'staging' }}"
 
-          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+          if [[ "${{ needs.deploy.result }}" == "success" ]]; then 
             echo "Deployment completed successfully!"
             echo "Frontend: http://158.179.169.48"
             echo "Backend API: http://158.179.169.48/api"
