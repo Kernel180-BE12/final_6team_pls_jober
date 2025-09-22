@@ -124,63 +124,40 @@ async def get_document(document_id: str):
 # 템플릿 생성 라우트
 @router.post("/template/generate", response_model=TemplateGenerationResponse)
 async def generate_template(request: TemplateGenerationRequest):
-    category = "예약취소"
     """알림톡 템플릿 생성"""
     try:
         print(f"템플릿 생성 요청 받음: {request.userMessage}")
 
-        # 가이드라인 검색을 통한 컨텍스트 생성
-        try:
-            print("ChromaDB 검색 시작...")
-            guidelines = await chromadb_service.search_documents(
-                f"{category} {request.userMessage}",
-                3
-            )
-            print(f"ChromaDB 검색 완료: {len(guidelines.get('documents', []))}개 문서")
-        except Exception as e:
-            print(f"가이드라인 검색 실패: {e}")
-            guidelines = {"documents": []}
-
-        # 프롬프트 구성
-        context = ""
-        if guidelines and 'documents' in guidelines:
-            context = "\n".join(guidelines['documents'][:3])
-
-        # 프롬프트 빌더 사용
-        print("프롬프트 빌더 초기화 중...")
-        prompt_builder = TemplateGenerationPromptBuilder(
-            category=category,
-            user_message=request.userMessage,
-            context=context
+        # 기존 파이프라인을 사용하여 템플릿 생성
+        from templateEngine.pipeline import run_template_generation_pipeline
+        from core.constants import APPROVED_SUB_CATEGORIES
+        
+        print("템플릿 생성 파이프라인 실행 시작...")
+        result = await run_template_generation_pipeline(
+            userMessage=request.userMessage,
+            category_sub_list=APPROVED_SUB_CATEGORIES,
+            openai_service=openai_service,
+            chromadb_service=chromadb_service
         )
-        prompt = prompt_builder.build()
-        print(f"프롬프트 생성 완료 (길이: {len(prompt)}자)")
+        print("템플릿 생성 파이프라인 실행 완료")
 
-        # OpenAI를 통한 템플릿 생성
-        print("OpenAI API 호출 시작...")
-        messages = [{"role": "user", "content": prompt}]
-        response = await openai_service.chat_completion(messages, request.model)
-        print(f"OpenAI API 호출 완료 (응답 길이: {len(response)}자)")
-
-        # 응답에서 템플릿과 변수 추출 (간단한 파싱)
-        template_content = response
+        # 파이프라인 결과에서 데이터 추출
+        template_content = result.get("template_text", "")
+        category = result.get("category_sub", "기타")
+        template_title = result.get("template_title", f"{category} 템플릿")
+        
+        # 변수 추출 및 변환
         variables = []
-
-        # 변수 추출 ({{변수명}} 형태)
-        variable_pattern = r'\{\{([^}]+)\}\}'
-        found_variables = re.findall(variable_pattern, response)
-
-        for var in set(found_variables):
+        raw_variables = result.get("variables", [])
+        
+        for var in raw_variables:
             variables.append({
                 "name": var.strip(),
                 "type": "string",
                 "description": f"{var} 관련 정보"
             })
 
-        # 템플릿 제목 생성 (사용자 메시지 기반)
-        template_title = f"{category} 템플릿 - {request.userMessage[:30]}..."
-
-        print(f"템플릿 생성 완료: {len(variables)}개 변수 추출")
+        print(f"템플릿 생성 완료: {len(variables)}개 변수, 카테고리: {category}")
         return TemplateGenerationResponse(
             template_content=template_content,
             template_title=template_title,
