@@ -114,8 +114,6 @@ class SearchRequest(BaseModel):
     query: str
     n_results: Optional[int] = 5
 
-# 사용하지 않는 startup 이벤트 제거됨
-
 
 # 기본 라우트
 @app.get("/")
