@@ -11,24 +11,24 @@
     <!-- 반려 사유 -->
     <div class="rejection-reason" v-if="currentVariable">
       <h4>• 반려 사유</h4>
-      <div v-if="validationErrors" class="error-details">
+      <div v-if="validationErrors && !Array.isArray(validationErrors)" class="error-details">
         <div class="rule-info">
-          <p><strong>위반 규칙:</strong> {{ validationErrors.rule || '알 수 없는 규칙' }}</p>
-          <p><strong>규칙 유형:</strong> {{ getRuleTypeDisplay(validationErrors.errorType) }}</p>
-          <p v-if="validationErrors.validationStage"><strong>검증 단계:</strong> {{ validationErrors.validationStage }}</p>
+          <p><strong>위반 규칙:</strong> {{ (validationErrors as ValidationError).rule || '알 수 없는 규칙' }}</p>
+          <p><strong>규칙 유형:</strong> {{ getRuleTypeDisplay((validationErrors as ValidationError).errorType) }}</p>
+          <p v-if="(validationErrors as ValidationError).validationStage"><strong>검증 단계:</strong> {{ (validationErrors as ValidationError).validationStage }}</p>
           <p><strong>심각도:</strong> 
-            <span :class="getSeverityClass(validationErrors.severity)">
-              {{ getSeverityDisplay(validationErrors.severity) }}
+            <span :class="getSeverityClass((validationErrors as ValidationError).severity || 'error')">
+              {{ getSeverityDisplay((validationErrors as ValidationError).severity || 'error') }}
             </span>
           </p>
         </div>
         <div class="error-message">
           <p><strong>상세 사유:</strong></p>
-          <p class="reason-text">{{ validationErrors.errorMessage }}</p>
+          <p class="reason-text">{{ (validationErrors as ValidationError).errorMessage }}</p>
         </div>
-        <div class="suggestion-box" v-if="validationErrors.suggestion">
+        <div class="suggestion-box" v-if="(validationErrors as ValidationError).suggestion">
           <p><strong>개선 방안:</strong></p>
-          <p class="suggestion-text">{{ validationErrors.suggestion }}</p>
+          <p class="suggestion-text">{{ (validationErrors as ValidationError).suggestion }}</p>
         </div>
         <p class="variable-instruction">변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
       </div>
