@@ -1,9 +1,15 @@
-import chromadb
+try:
+    import chromadb
+    HAS_CHROMADB = True
+except ImportError:
+    HAS_CHROMADB = False
+    print("Warning: ChromaDB 패키지가 설치되지 않았습니다. 테스트를 건너뜁니다.")
 
 # 현재 메타데이터 파악하는 코드 입니다.
 # ChromaDB 클라이언트 연결
 
-client = chromadb.HttpClient(host='144.24.69.36', port=8001)
+if HAS_CHROMADB:
+    client = chromadb.HttpClient(host='144.24.69.36', port=8001)
 
 """
 # **컬렉션 명**
@@ -12,17 +18,20 @@ client = chromadb.HttpClient(host='144.24.69.36', port=8001)
 # 공용 템플릿: pulblic_templates
 """
 
-collection_name = "pulblic_templates"
-collection = client.get_collection(collection_name)
+if HAS_CHROMADB:
+    collection_name = "pulblic_templates"
+    collection = client.get_collection(collection_name)
 
-# 컬렉션에서 데이터 1개 조회
-# documents
-# metadatas
-sample_data = collection.get(limit=1, include=["documents"])
+    # 컬렉션에서 데이터 1개 조회
+    # documents
+    # metadatas
+    sample_data = collection.get(limit=1, include=["documents"])
 
-# 메타데이터 구조 출력
-print("ChromaDB에 저장된 메타데이터 샘플:")
-print(sample_data['documents'][0])
+    # 메타데이터 구조 출력
+    print("ChromaDB에 저장된 메타데이터 샘플:")
+    print(sample_data['documents'][0])
+else:
+    print("ChromaDB가 설치되지 않아 메타데이터 조회를 건너뜁니다.")
 
 # approved_templates
 # 'priority': 'high',
