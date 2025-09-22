@@ -80,6 +80,7 @@
               <div class="kakao-preview-wrapper">
                 <KakaoPreviewComponent
                   :template-content="templateContent"
+                  :template-title="templateTitle"
                   :show-variables="showVariables"
                   :variables="editedVariables"
                   :is-modifying="false"

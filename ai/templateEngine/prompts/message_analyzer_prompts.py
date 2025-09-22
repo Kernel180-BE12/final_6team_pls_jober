@@ -34,7 +34,7 @@ class TypePromptBuilder(BasePromptBuilder):
 
     def build(self) -> list[dict]:
         prompt = [
-            {   
+            {
                 "role": "system",
                 "content": """
         너는 카카오 알림 메세지의 유형을 판정하는 분류기다.
@@ -166,7 +166,7 @@ class FieldsPromptBuilder(BasePromptBuilder):
     def __init__(self, user_text: str):
         super().__init__(user_text)
         self.hints: list[dict] = []
-    
+
     def build(self) -> list:
         prompt = [
             {
@@ -274,7 +274,7 @@ class CategoryPromptBuilder(BasePromptBuilder):
         self.hints: list[dict] = []
         self.category_main = category_main
         self.category_sub_list = category_sub_list
-    
+
     def build(self) -> list:
         prompt = [
             {
@@ -313,7 +313,7 @@ class TemplateGenerationPromptBuilder:
         self.category = category
         self.user_message = user_message
         self.context = context
-    
+
     def build(self) -> str:
         """템플릿 생성 프롬프트 생성"""
         return f"""
@@ -340,7 +340,7 @@ class TemplateModificationPromptBuilder:
         self.current_template = current_template
         self.user_message = user_message
         self.chat_context = chat_context
-    
+
     def build(self) -> str:
         """템플릿 수정 프롬프트 생성"""
         return f"""
@@ -375,7 +375,7 @@ class ReferenceBasedTemplatePromptBuilder:
     def __init__(self, request, reference_template):
         self.request = request
         self.reference_template = reference_template
-    
+
     def build(self) -> str:
         """참고 템플릿 기반 생성 프롬프트"""
         return f"""
@@ -419,7 +419,7 @@ class PolicyGuidedTemplatePromptBuilder:
     def __init__(self, request, guidelines_text):
         self.request = request
         self.guidelines_text = guidelines_text
-    
+
     def build(self) -> str:
         """정책 가이드라인 기반 생성 프롬프트"""
         return f"""
@@ -450,7 +450,7 @@ class PolicyGuidedTemplatePromptBuilder:
 class NewTemplatePromptBuilder:
     def __init__(self, request):
         self.request = request
-    
+
     def build(self) -> str:
         """새 템플릿 생성 프롬프트"""
         return f"""
@@ -486,7 +486,7 @@ class TemplateTitlePromptBuilder:
     def __init__(self, request, template_text):
         self.request = request
         self.template_text = template_text
-    
+
     def build(self) -> str:
         """템플릿 제목 생성 프롬프트"""
         return f"""

@@ -24,16 +24,6 @@ public class TemplateService {
     private final AccountRepository accountRepository;
     private final AIService aiService; // FastAPI 통신을 전담할 서비스 주입
 
-    /**
-     * AI를 활용하여 새로운 템플릿을 생성하고 연관된 변수들을 함께 저장합니다.
-     */
-    @Transactional
-    public FastAPIResponseDto createTemplateWithAi(TemplateRequestDto requestDto) {
-        log.info("AI 템플릿 생성 요청을 AI 서버로 전달합니다. User Message: {}", requestDto.getUserMessage());
-        // AI 서버에 템플릿 생성을 요청하고, 받은 응답을 그대로 반환합니다.
-        // DB 저장 로직은 여기에서 제외됩니다.
-        return aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage());
-    }
 
 
     /**

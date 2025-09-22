@@ -13,7 +13,7 @@ const api = axios.create({
 // AI 서비스용 API 설정
 const aiApi = axios.create({
   baseURL: '/ai',
-  timeout: 10000,
+  timeout: 60000, // AI 템플릿 생성은 시간이 오래 걸릴 수 있음
   headers: {
     'Content-Type': 'application/json',
   },

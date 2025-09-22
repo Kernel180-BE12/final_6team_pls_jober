@@ -15,7 +15,7 @@ services:
     # MySQL은 호스트에 설치된 것을 사용하므로 depends_on 제거
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 30s
       timeout: 10s
       retries: 3

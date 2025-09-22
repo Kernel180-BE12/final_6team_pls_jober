@@ -1,29 +1,28 @@
 """
 검증 파이프라인 - 2단계 검증을 순차적으로 실행
 """
-from typing import Dict, Any, List
-try:
-    from .constraint_validator import ConstraintValidator  
-    from .semantic_validator import SemanticValidator
-    from ..models.alimtalk_models import ValidationResult
-except ImportError:
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from validators.constraint_validator import ConstraintValidator
-    from validators.semantic_validator import SemanticValidator
-    from models.alimtalk_models import ValidationResult
+from typing import Dict, Any
+# 👇 --- try-except 블록을 모두 제거하고, 이렇게 깔끔하게 정리합니다. ---
+from .constraint_validator import ConstraintValidator
+from .semantic_validator import SemanticValidator
+from models.alimtalk_models import ValidationResult
+from services.chromadb_service import ChromaDBService
 
 
 class ValidationPipeline:
-    """2단계 검증 파이프라인"""
+    """2단계 검증 파이프라인 - 의존성을 외부에서 주입받는 구조"""
     
-    def __init__(self):
+    def __init__(self, chromadb_service: ChromaDBService, constraint_validator: ConstraintValidator):
         """
         2단계 검증 파이프라인 초기화
+        모든 의존성을 외부에서 주입받습니다.
+        이 클래스는 더 이상 아무것도 직접 생성하지 않습니다.
+        즉, 오직 "검증 순서 제어"라는 자신의 책임에만 100% 집중합니다.
         """
-        self.constraint_validator = ConstraintValidator()  # OpenAI API 사용
-        self.semantic_validator = SemanticValidator()      # ChromaDB blacklist 컬렉션 사용
+        # ✅ 의존성 주입으로 수정함.
+        self.chromadb_service = chromadb_service
+        self.constraint_validator = constraint_validator  # 외부에서 주입받음
+        self.semantic_validator = SemanticValidator(chromadb_service=chromadb_service)      # ChromaDB blacklist 컬렉션 사용
         
     def validate(self, template_data: Dict[str, Any]) -> Dict[str, Any]:
         """

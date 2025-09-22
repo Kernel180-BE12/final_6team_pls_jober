@@ -77,7 +77,7 @@ export interface TemplateModificationResponse {
 export const aiService = {
   // 템플릿 생성
   async generateTemplate(request: TemplateGenerationRequest): Promise<TemplateGenerationResponse> {
-    const response = await aiApi.post('/ai-generation', request)
+    const response = await aiApi.post('/template/generate', request)
     return response.data
   },
 

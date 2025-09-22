@@ -53,9 +53,25 @@ fi
 log_info "기존 컨테이너 정리 중..."
 docker-compose down --remove-orphans || true
 
-# 사용하지 않는 이미지 정리
-log_info "사용하지 않는 Docker 이미지 정리 중..."
-docker system prune -a --volumes
+# 안전한 Docker 정리 (용량 증가 방지)
+log_info "사용하지 않는 Docker 리소스 정리 중..."
+
+# 1. 중지된 컨테이너 정리
+docker container prune -f
+
+# 2. 이전 프로젝트 이미지들 정리 (새로 빌드할 것들)
+docker rmi $(docker images 'final_6team_pls_jober*' -q) 2>/dev/null || true
+
+# 3. dangling 이미지 정리 (태그 없는 이미지)
+docker image prune -f
+
+# 4. 사용되지 않는 네트워크 정리
+docker network prune -f
+
+# 5. 빌드 캐시 정리 (용량 절약)
+docker builder prune -f
+
+log_success "Docker 리소스 정리 완료"
 
 # Docker BuildKit 활성화 (빌드 성능 향상) 
 export DOCKER_BUILDKIT=1
@@ -160,9 +176,9 @@ docker-compose ps
 log_success "배포가 완료되었습니다!"
 echo ""
 echo "서비스 접속 정보:"
-echo "  프론트엔드: http://158.179.169.48"
-echo "  백엔드 API: http://158.179.169.48/api"
-echo "  AI 서비스: http://158.179.169.48/ai"
+echo "  프론트엔드: http://138.2.119.75"
+echo "  백엔드 API: http://138.2.119.75/api"
+echo "  AI 서비스: http://138.2.119.75/ai"
 echo ""
 echo "서비스 관리 명령어:"
 echo "  Docker 서비스 상태 확인: docker-compose ps"

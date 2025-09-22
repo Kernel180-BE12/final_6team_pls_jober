@@ -5,8 +5,8 @@
       <div class="kakao-header">알림톡 도착</div>
       <div class="kakao-content">
         <div class="kakao-title">
-          <span>쿠폰 발급 안내</span>
-          <div class="template-icon">🎫</div>
+          <span>{{ templateTitle || '알림톡 템플릿' }}</span>
+          <div class="template-icon">📱</div>
         </div>
 
         <div 
@@ -25,6 +25,7 @@ import { ref, watch, computed } from 'vue'
 
 interface KakaoPreviewProps {
   templateContent?: string
+  templateTitle?: string
   showVariables: boolean
   variables: Record<string, string>
   isRejected: boolean
