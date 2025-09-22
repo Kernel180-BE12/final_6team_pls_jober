@@ -58,11 +58,20 @@ const formattedTemplateContent = computed(() => {
 
   // 2) 텍스트 정리
   let content = props.templateContent ?? ''
+  
+  // 디버깅을 위한 로그
+  console.log('=== KakaoPreviewComponent 템플릿 처리 ===')
+  console.log('원본 템플릿:', content)
+  
+  // 더 정확한 텍스트 정리
   content = content
     .replace(/(변수\s*목록\s*:|변수\s*:).*$/s, '')      // 변수 목록 제거
     .replace(/알림톡\s*템플릿은.*$/s, '')               // 설명 문구 제거
     .replace(/\n\s*\n\s*\n/g, '\n\n')                   // 빈 줄 정리
     .trim()
+  
+  console.log('정리된 템플릿:', content)
+  console.log('================================')
 
   // 3) 변수 하이라이트
   if (props.showVariables) {

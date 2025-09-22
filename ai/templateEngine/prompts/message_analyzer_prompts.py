@@ -334,40 +334,31 @@ class TemplateGenerationPromptBuilder:
 - 카카오톡 알림톡 가이드라인 준수
 """
 
-
 class TemplateModificationPromptBuilder:
     def __init__(self, current_template: str, user_message: str, chat_context: str = ""):
+        # 중요: 이 클래스에 전달하기 전에 current_template에서 불필요한 텍스트(헤더, 푸터, 설명 등)를 제거해야 합니다.
         self.current_template = current_template
         self.user_message = user_message
         self.chat_context = chat_context
-    
+
     def build(self) -> str:
         """템플릿 수정 프롬프트 생성"""
         return f"""
-현재 알림톡 템플릿:
+당신은 카카오톡 알림톡 템플릿 수정 전문가입니다.
+
+## 작업 지침
+1. 사용자 요청을 분석하여 템플릿을 적절히 수정합니다.
+2. 변수 형식 `{{변수명}}`은 반드시 유지합니다.
+3. 템플릿의 기본 구조와 톤앤매너는 유지합니다.
+4. 수정이 필요하지 않으면 현재 템플릿을 그대로 반환합니다.
+
+## 현재 템플릿:
 {self.current_template}
 
-채팅 히스토리:
-{self.chat_context}
+## 사용자 요청:
+{self.user_message}
 
-사용자 요청: {self.user_message}
-
-위 정보를 바탕으로 사용자의 요청에 따라 템플릿을 수정해주세요.
-
-중요한 규칙:
-1. 기존 템플릿의 구조와 변수는 유지하면서 요청사항을 반영
-2. 변수({{변수명}} 또는 {{변수명}}) 형태는 그대로 유지
-3. 수정된 템플릿만 반환하세요
-4. 설명, 해설, 변경사항 설명 등은 절대 포함하지 마세요
-5. "수정된 템플릿:", "설명:", "변경사항:" 등의 헤더도 사용하지 마세요
-
-응답 형식:
-수정된 템플릿:
-[수정된 템플릿 내용만 여기에 작성]
-
-예시:
-수정된 템플릿:
-안녕하세요! {{고객명}}님, 주문이 완료되었습니다. 감사합니다.
+## 수정된 템플릿:
 """
 
 
