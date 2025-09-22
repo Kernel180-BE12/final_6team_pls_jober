@@ -29,6 +29,7 @@ interface KakaoPreviewProps {
   variables: Record<string, string>
   isRejected: boolean
   rejectedVariables: string[]
+  validationErrors?: any[]
 }
 
 const props = defineProps<KakaoPreviewProps>()
@@ -83,6 +84,22 @@ const formattedTemplateContent = computed(() => {
   // 4) 줄바꿈을 <p> 태그로 변환
   content = content.replace(/\n/g, '</p><p>')
   content = `<p>${content}</p>`
+
+  // 검증 오류가 있을 때 문제 영역 하이라이트
+  if (props.isRejected && props.validationErrors && props.validationErrors.length > 0) {
+    // 템플릿 전체 문제가 있는 경우 전체 하이라이트
+    const hasTemplateErrors = props.validationErrors.some((error: any) => 
+      error.reason.includes('제목') || 
+      error.reason.includes('내용') || 
+      error.reason.includes('광고성') ||
+      error.reason.includes('정형화') ||
+      error.reason.includes('변수가 전혀 사용되지 않음')
+    )
+    
+    if (hasTemplateErrors) {
+      content = `<div class="template-error-highlight">${content}</div>`
+    }
+  }
 
   return content
 })
@@ -213,6 +230,27 @@ const handleVariableClick = (event: Event) => {
   0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
   70% { box-shadow: 0 0 0 0.5rem rgba(244, 67, 54, 0); }
   100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+}
+
+:deep(.template-error-highlight) {
+  border: 2px solid #ff5252;
+  border-radius: 0.4rem;
+  background: rgba(255, 82, 82, 0.05);
+  padding: 0.3rem;
+  margin: -0.3rem;
+  animation: pulse-red 2s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 82, 82, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 82, 82, 0);
+  }
 }
 
 .disclaimer {
