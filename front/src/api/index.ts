@@ -142,13 +142,16 @@ export const templateApi = {
   
   // 템플릿 검증 (백엔드 API를 통해)
   validateTemplate: (templateContent: string, variableList: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
-    // 변수명만 배열로 변환 (백엔드에서 List<String>을 기대함)
-    const variableNames = Object.keys(variableList)
+    // 백엔드가 기대하는 VariableDto 배열 형식으로 변환
+    const variableArray = Object.entries(variableList).map(([key, value]) => ({
+      variableKey: key,
+      variableValue: String(value)
+    }))
     
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {
       templateContent: templateContent,
-      variableList: variableNames,
+      variableList: variableArray,
       category: category,
       userMessage: userMessage,
       templateTitle: templateTitle

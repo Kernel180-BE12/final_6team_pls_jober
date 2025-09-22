@@ -71,7 +71,7 @@ public class AIService {
             // HashMap을 사용하여 동적으로 필드 추가 가능
             Map<String, Object> templateMap = new java.util.HashMap<>();
             templateMap.put("channel", "alimtalk");
-            templateMap.put("templateContent", validationRequest.get("templateContent"));
+            templateMap.put("templateContent", validationRequest.get("user_input"));
             templateMap.put("variableList", validationRequest.get("variableList"));
             templateMap.put("category", validationRequest.get("category"));
             if (validationRequest.containsKey("templateTitle") && validationRequest.get("templateTitle") != null) {
