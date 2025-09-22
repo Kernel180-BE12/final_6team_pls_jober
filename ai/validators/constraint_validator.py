@@ -392,9 +392,7 @@ class ConstraintValidator:
         템플릿 텍스트에서 변수 추출
         
         지원하는 변수 패턴:
-        1. {변수명} - 기본 패턴
-        2. #{변수명} - 해시 접두사 패턴
-        3. {{변수명}} - 이중 중괄호 패턴
+        - #{변수명} - AI 서비스 표준 패턴 (카카오 알림톡 표준)
         
         Args:
             templateContent: 템플릿 텍스트 내용
@@ -404,21 +402,11 @@ class ConstraintValidator:
         """
         import re
         logger.debug("변수 추출 시작")
-        variables = []
-
-        # 1. {변수명} 패턴 - 기본 변수 형식
-        matches = re.findall(r'\{([^}]+)\}', templateContent)
-        variables.extend(matches)
-
-        # 2. #{변수명} 패턴 - 해시 접두사가 있는 변수
+        
+        # #{변수명} 패턴만 사용 (AI 서비스 표준)
         matches = re.findall(r'#\{([^}]+)\}', templateContent)
-        variables.extend(matches)
-
-        # 3. {{변수명}} 패턴 - 이중 중괄호 변수 (일부 템플릿 엔진 지원)
-        matches = re.findall(r'\{\{([^}]+)\}\}', templateContent)
-        variables.extend(matches)
-
+        
         # 중복 제거 후 반환
-        unique_vars = list(set(variables))
+        unique_vars = list(set(matches))
         logger.debug(f"추출된 변수 최종 목록: {unique_vars}")
         return unique_vars

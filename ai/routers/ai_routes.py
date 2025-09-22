@@ -186,8 +186,8 @@ async def generate_template(request: TemplateGenerationRequest):
         template_content = response
         variables = []
         
-        # 변수 추출 ({{변수명}} 형태)
-        variable_pattern = r'\{\{([^}]+)\}\}'
+        # 변수 추출 (#{변수명} 형태)
+        variable_pattern = r'#\{([^}]+)\}'
         found_variables = re.findall(variable_pattern, response)
         
         for var in set(found_variables):
@@ -257,8 +257,8 @@ async def modify_template(request: TemplateModificationRequest):
 
         variables = []
         
-        # 변수 추출 ({{변수명}} 형태)
-        variable_pattern = r'\{\{([^}]+)\}\}'
+        # 변수 추출 (#{변수명} 형태)
+        variable_pattern = r'#\{([^}]+)\}'
         found_variables = re.findall(variable_pattern, modified_template)
 
         for var in set(found_variables):
