@@ -4,7 +4,7 @@ import { useUserStore } from '@/stores/user'
 // API 기본 설정
 const api = axios.create({
   baseURL: '/api',
-  timeout: 10000,
+  timeout: 30000, // 30초로 증가 (AI 검증 시간 고려)
   headers: {
     'Content-Type': 'application/json',
   },
