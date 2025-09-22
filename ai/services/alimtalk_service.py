@@ -140,55 +140,7 @@ class AlimtalkValidationService:
                 "error": str(e)
             }
 
-    async def get_stats(self) -> SystemStats:
-        """시스템 통계 정보"""
-        if not self.is_initialized:
-            await self.initialize()
 
-        try:
-            chromadb_stats = self.chromadb_service.get_collection_stats()
-
-            return SystemStats(
-                vector_db=chromadb_stats,
-                validation_pipeline={
-                    "stages": ["constraint", "semantic"],
-                    "total_stages": 2
-                },
-                service_status="running" if self.is_initialized else "stopped"
-            )
-
-        except Exception as e:
-            return SystemStats(
-                vector_db={"error": str(e)},
-                validation_pipeline={"error": str(e)},
-                service_status="error"
-            )
-
-    async def get_template_examples(self) -> Dict[str, Any]:
-        """템플릿 예시 반환 (ChromaDB 컬렉션에서 조회)"""
-        try:
-            if not self.is_initialized:
-                await self.initialize()
-
-            # 각 컬렉션에서 템플릿 조회
-            blacklist_templates = self.chromadb_service.get_blacklist_templates()
-            whitelist_templates = self.chromadb_service.get_whitelist_templates()
-            approved_templates = self.chromadb_service.get_approved_templates()
-
-            return {
-                "blacklist": blacklist_templates,
-                "whitelist": whitelist_templates,
-                "approved": approved_templates,
-                "summary": {
-                    "blacklist_count": len(blacklist_templates),
-                    "whitelist_count": len(whitelist_templates),
-                    "approved_count": len(approved_templates)
-                }
-            }
-
-        except Exception as e:
-            print(f"템플릿 예시 로드 중 오류: {e}")
-            return self._get_default_examples()
 
     async def _load_initial_guidelines(self):
         """초기 가이드라인 로드 (이제 ChromaDB에서 직접 로드)"""
@@ -200,30 +152,4 @@ class AlimtalkValidationService:
         except Exception as e:
             print(f"❌ 가이드라인 로드 실패: {e}")
 
-    def add_template_to_collection(self, collection_name: str, template_data: Dict[str, Any]):
-        """특정 컬렉션에 템플릿 추가"""
-        return self.chromadb_service.add_template_to_collection(collection_name, template_data)
 
-    def search_templates_in_collection(self, collection_name: str, query: str, n_results: int = 5):
-        """특정 컬렉션에서 템플릿 검색"""
-        return self.chromadb_service.search_templates_in_collection(collection_name, query, n_results)
-
-    def _get_default_examples(self) -> Dict[str, Any]:
-        """기본 예시 템플릿"""
-        return {
-            "valid_transaction_template": {
-                "template_pk": "TPL_TRANS_001",
-                "title": "주문 배송 완료 안내",
-                "body": "안녕하세요 #{customer_name}님,\n\n주문하신 상품이 배송 완료되었습니다.\n\n감사합니다.",
-                "variables": {
-                    "customer_name": "홍길동"
-                },
-                "category": "transaction"
-            },
-            "valid_marketing_template": {
-                "template_pk": "TPL_MARKET_001",
-                "title": "(광고) 신상품 특가 이벤트",
-                "body": "(광고) 안녕하세요!\n\n신상품 출시 기념 특별 할인 이벤트를 진행합니다.\n\n* 수신거부: 080-000-0000",
-                "category": "marketing"
-            }
-        }

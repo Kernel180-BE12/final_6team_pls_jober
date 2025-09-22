@@ -88,15 +88,5 @@ def get_current_user(user_info: dict = Depends(AuthMiddleware.verify_token)) -> 
     """현재 사용자 정보를 반환합니다."""
     return user_info
 
-def get_current_user_id(user_info: dict = Depends(AuthMiddleware.verify_token)) -> int:
-    """현재 사용자의 ID를 반환합니다."""
-    return user_info["account_id"]
 
-# def require_admin(user_info: dict = Depends(AuthMiddleware.verify_token)) -> dict:
-#     """관리자 권한이 필요한 엔드포인트용 의존성 (현재 사용하지 않음)"""
-#     if user_info.get("role") != "ROLE_ADMIN":
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="관리자 권한이 필요합니다."
-#         )
-#     return user_info
+

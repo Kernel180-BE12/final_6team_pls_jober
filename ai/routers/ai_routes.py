@@ -5,7 +5,7 @@ import re
 from services.openai_service import OpenAIService
 from services.chromadb_service import ChromaDBService
 from templateEngine.prompts.message_analyzer_prompts import TemplateGenerationPromptBuilder, TemplateModificationPromptBuilder
-from middleware.auth_middleware import get_current_user, get_current_user_id
+from middleware.auth_middleware import get_current_user
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 

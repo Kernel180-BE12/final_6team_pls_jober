@@ -97,22 +97,6 @@ except Exception as e:
 # from routers import template_routes
 # app.include_router(template_routes.router)
 
-# Pydantic 모델
-class ChatRequest(BaseModel):
-    message: str
-    model: Optional[str] = "gpt-4o-mini"
-
-class ChatResponse(BaseModel):
-    response: str
-    model: str
-
-class DocumentRequest(BaseModel):
-    content: str
-    metadata: Optional[dict] = None
-
-class SearchRequest(BaseModel):
-    query: str
-    n_results: Optional[int] = 5
 
 
 # 기본 라우트
@@ -124,34 +108,6 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
-# 채팅 엔드포인트
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    try:
-        # OpenAI API 호출 (실제 구현에서는 OpenAI 클라이언트 사용)
-        response = f"AI 응답: {request.message}"
-        return ChatResponse(response=response, model=request.model)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# 문서 저장 엔드포인트
-@app.post("/documents")
-async def add_document(request: DocumentRequest):
-    try:
-        # ChromaDB에 문서 저장 (실제 구현에서는 ChromaDB 클라이언트 사용)
-        return {"message": "Document added successfully", "content": request.content}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# 검색 엔드포인트
-@app.post("/search")
-async def search_documents(request: SearchRequest):
-    try:
-        # ChromaDB에서 검색 (실제 구현에서는 ChromaDB 클라이언트 사용)
-        results = [f"검색 결과 {i+1}: {request.query}" for i in range(request.n_results)]
-        return {"query": request.query, "results": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

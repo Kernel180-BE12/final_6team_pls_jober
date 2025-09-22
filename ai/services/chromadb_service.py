@@ -74,16 +74,6 @@ class ChromaDBService:
         except Exception:
             return
 
-    def get_collection(self, collection_name: str = None):
-        """특정 컬렉션 가져오기"""
-        if not HAS_CHROMADB or self.client is None:
-            return None
-        try:
-            # collection_name이 없으면 approved_templates 기본 사용
-            name = collection_name or "approved_templates"
-            return self.client.get_or_create_collection(name=name)
-        except Exception:
-            return None
     def _get_or_create_collection(self, collection_name: str):
         """
         컬렉션 가져오기 또는 생성
