@@ -645,11 +645,16 @@ const submitTemplate = async () => {
       }
       editedVariables.value = fallback
     }
-
+    // 👉👉 여기서 "객체 -> 배열(VariableDto[])" 변환을 합니다.
+    // 백엔드 DTO: List<VariableDto> (variableKey, variableValue)
+    const variableList = Object.entries(editedVariables.value ?? {}).map(([k, v]) => ({
+      variableKey: k,
+      variableValue: String(v ?? ''),
+    }))
     // 백엔드로 템플릿 검증 요청
     const response = await templateApi.validateTemplate(
       templateContent.value,
-      editedVariables.value,
+      variableList,
       templateCategory.value,
       userMessage.value,
       templateTitle.value

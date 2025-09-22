@@ -134,6 +134,8 @@ export const myPageApi = {
     api.put('/mypage/password', { currentPassword, newPassword, confirmPassword })
 }
 
+export type VariableDto = { variableKey: string; variableValue: string };
+
 // 템플릿 관련 API
 export const templateApi = {
   // AI를 통한 템플릿 생성
@@ -141,20 +143,20 @@ export const templateApi = {
     aiApi.post('/template/generate', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
-  validateTemplate: (templateContent: string, variableList: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
+  validateTemplate: (templateContent: string, variableList: VariableDto[], category?: string, userMessage?: string, templateTitle?: string) => {
     // 백엔드가 기대하는 VariableDto 배열 형식으로 변환
-    const variableArray = Object.entries(variableList).map(([key, value]) => ({
-      variableKey: key,
-      variableValue: String(value)
-    }))
-    
+    // const variableArray = Object.entries(variableList).map(([key, value]) => ({
+    //   variableKey: key,
+    //   variableValue: String(value)
+    // }))
+    //
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {
-      templateContent: templateContent,
-      variableList: variableArray,
-      category: category,
-      userMessage: userMessage,
-      templateTitle: templateTitle
+      templateContent,
+      variableList,
+      category,
+      userMessage,
+      templateTitle,
     }
     
     console.log('검증 요청 데이터:', validationRequest)
