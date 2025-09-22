@@ -15,10 +15,19 @@ class ButtonType(str, Enum):
 
 class CategoryType(str, Enum):
     """알림톡 분류 열거형"""
-    TRANSACTION = "transaction"  # 거래성
-    MARKETING = "marketing"      # 마케팅
-    MIXED = "mixed"             # 혼합
-    REVIEW = "review"           # 검토 필요
+    TRANSACTION = "거래"         # 거래성
+    MARKETING = "마케팅"         # 마케팅
+    MIXED = "혼합"              # 혼합
+    REVIEW = "리뷰"             # 검토 필요
+    RESERVATION_CANCEL = "예약취소"  # 예약취소
+    ORDER = "주문"              # 주문
+    PAYMENT = "결제"            # 결제
+    DELIVERY = "배송"           # 배송
+    CANCEL = "취소"             # 취소
+    REFUND = "환불"             # 환불
+    PROMOTION = "프로모션"       # 프로모션
+    ADVERTISEMENT = "광고"       # 광고
+    FEEDBACK = "후기"           # 후기
 
 
 class ValidationResult(BaseModel):
@@ -92,7 +101,7 @@ class ValidationRequest(BaseModel):
             template_text=template_data.get("templateContent", ""),
             template_title=template_data.get("templateTitle", "알림톡 템플릿"),
             variables_detected=variable_names,
-            category=template_data.get("category", "marketing"),
+            category=template_data.get("category", "마케팅"),
             buttons=[]
         )
         
