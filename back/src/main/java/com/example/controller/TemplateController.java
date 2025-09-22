@@ -26,20 +26,6 @@ public class TemplateController {
     private final TemplateService templateService;
     private final UserService userService;
 
-    /**
-     * AI를 사용하여 새로운 템플릿을 생성합니다. (POST /api/ai-generation)
-     */
-    @PostMapping("/ai-generation")
-    public ResponseEntity<FastAPIResponseDto> createTemplateWithAi(
-            @Valid @RequestBody TemplateRequestDto requestDto,
-            @AuthenticationPrincipal Account currentUser
-    ) {
-        UserDto userDto = userService.convertToUserDto(currentUser);
-        // 사용자 정보를 로그에 출력 (UserDto에서 가져온 정보)
-        System.out.println("사용자 " + userDto.getUserName() + "(" + userDto.getEmail() + ")가 AI 템플릿 생성을 요청했습니다.");
-        FastAPIResponseDto response = templateService.createTemplateWithAi(requestDto);
-        return ResponseEntity.ok(response);
-    }
 
     /**
      * 템플릿을 검증합니다. (POST /api/template/validate)

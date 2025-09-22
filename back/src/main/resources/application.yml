@@ -64,7 +64,6 @@ logging:
 ai:
   fastapi:
     url: ${AI_SERVER_URL} #AI 서버 URL
-    path: /ai/template/generate #AI 서버 템플릿 생성 엔드포인트
  
   # OAuth2 설정
   security:
