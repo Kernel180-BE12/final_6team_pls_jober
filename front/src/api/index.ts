@@ -24,9 +24,14 @@ api.interceptors.request.use(
   (config) => {
     // user store에서 토큰 가져오기
     const userStore = useUserStore()
-    if (userStore.accessToken) {
+    
+    // 토큰이 없으면 에러 발생 (로그인이 필요한 API인 경우)
+    if (!userStore.accessToken) {
+      console.warn('API 요청 시 토큰이 없습니다. 로그인이 필요할 수 있습니다.')
+    } else {
       config.headers.Authorization = `Bearer ${userStore.accessToken}`
     }
+    
     return config
   },
   (error) => {
@@ -55,9 +60,10 @@ api.interceptors.response.use(
     return response
   },
   async (error) => {
-    // 401 에러 시 자동 로그아웃
-    if (error.response?.status === 401) {
+    // 401, 403 에러 시 자동 로그아웃
+    if (error.response?.status === 401 || error.response?.status === 403) {
       const userStore = useUserStore()
+      console.warn('인증 오류 발생, 자동 로그아웃 처리:', error.response.status)
       userStore.logout()
     }
     return Promise.reject(error)
@@ -141,7 +147,7 @@ export const templateApi = {
     aiApi.post('/template/generate', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
-  validateTemplate: (templateContent: string, variableList: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string) => {
+  validateTemplate: (templateContent: string, variableList: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string, templateId?: string) => {
     // 변수명만 배열로 변환 (백엔드에서 List<String>을 기대함)
     const variableNames = Object.keys(variableList)
     
@@ -151,7 +157,8 @@ export const templateApi = {
       variableList: variableNames,
       category: category,
       userMessage: userMessage,
-      templateTitle: templateTitle
+      templateTitle: templateTitle,
+      templateId: templateId
     }
     
     console.log('검증 요청 데이터:', validationRequest)
@@ -171,6 +178,24 @@ export const templateApi = {
     }
     
     return api.post('/template/modify', modificationRequest)
+  },
+  
+  // 템플릿 저장 (검증 없이 바로 저장)
+  saveTemplate: (templateContent: string, variableList: Record<string, string>, category: string, userMessage: string, templateTitle: string) => {
+    // 변수명만 배열로 변환 (백엔드에서 List<String>을 기대함)
+    const variableNames = Object.keys(variableList)
+    
+    const saveRequest = {
+      templateContent: templateContent,
+      variableList: variableNames,  // 문자열 배열로 직접 전달
+      category: category,
+      userMessage: userMessage,
+      templateTitle: templateTitle
+    }
+    
+    console.log('저장 요청 데이터:', saveRequest)
+    
+    return api.post('/template/save', saveRequest)
   },
 }
 

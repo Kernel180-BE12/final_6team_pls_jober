@@ -132,8 +132,10 @@ import HeaderComponent from '@/components/HeaderComponent.vue'
 import KakaoPreviewComponent from '@/components/KakaoPreviewComponent.vue'
 import RejectionSidebarComponent from '@/components/RejectionSidebarComponent.vue'
 import { templateApi } from '@/api'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 // 컴포넌트 refs
 const chatHistoryRef = ref<HTMLElement | null>(null)
@@ -157,6 +159,7 @@ const templateVariables = ref<any[]>([])
 const templateCategory = ref('')
 const templateCategoryId = ref<number>(11) // 기본값: 기타
 const userMessage = ref('')
+const savedTemplateId = ref<string | null>(null) // 저장된 템플릿 ID
 
 // 채팅 관련 변수들
 const chatInput = ref('')
@@ -458,7 +461,7 @@ watch(chatHistory, () => {
 // 템플릿 제출
 const submitTemplate = async () => {
   try {
-    console.log('템플릿 검증 요청 시작')
+    console.log('템플릿 저장 요청 시작')
     
     // 제출 전 변수 맵 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
     if (!editedVariables.value || Object.keys(editedVariables.value).length === 0) {
@@ -469,7 +472,7 @@ const submitTemplate = async () => {
         })
       } else if (templateContent.value) {
         // 변수 배열이 비어 있으면 템플릿 본문에서 변수 패턴을 파싱해 기본값 구성
-        const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g]
+        const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
         const found = new Set<string>()
         patterns.forEach((re) => {
           let m
@@ -480,11 +483,17 @@ const submitTemplate = async () => {
         })
         found.forEach((name) => { fallback[name] = `${name} 값` })
       }
+      console.log('변수 추출 결과:', fallback)
       editedVariables.value = fallback
     }
+    
+    console.log('저장 시 변수 목록:', Object.keys(editedVariables.value))
 
-    // 백엔드로 템플릿 검증 요청
-    const response = await templateApi.validateTemplate(
+    // 제목이 비어있으면 사용자 메시지를 기반으로 기본 제목 생성
+    const finalTitle = templateTitle.value.trim() || `템플릿 - ${userMessage.value.substring(0, 20)}${userMessage.value.length > 20 ? '...' : ''}`
+    
+    // 백엔드로 템플릿 저장 요청 (검증 없이 바로 저장)
+    const response = await templateApi.saveTemplate(
       templateContent.value,
       editedVariables.value,
       templateCategory.value,
@@ -492,11 +501,12 @@ const submitTemplate = async () => {
       templateTitle.value
     )
     
-    console.log('템플릿 검증 응답:', response.data)
+    console.log('템플릿 저장 응답:', response.data)
     
     if (response.data.success) {
-      // 검증 성공 - 성공 페이지로 이동
-      console.log('템플릿 검증 성공, 저장된 템플릿 ID:', response.data.templateId)
+      // 저장 성공 - 성공 페이지로 이동
+      console.log('템플릿 저장 성공, 저장된 템플릿 ID:', response.data.templateId)
+      savedTemplateId.value = response.data.templateId // 저장된 템플릿 ID 저장
       // 성공 페이지로 이동하면서 템플릿 ID 전달
       router.push({
         path: '/success',
@@ -550,9 +560,23 @@ const submitTemplate = async () => {
       // 사용자에게 오류 메시지 표시 (검증 단계 포함)
       alert(`템플릿 검증 실패 (${stage}): ${response.data.message}`)
     }
-  } catch (error) {
-    console.error('템플릿 검증 실패:', error)
-    alert('템플릿 검증 중 오류가 발생했습니다. 다시 시도해주세요.')
+  } catch (error: any) {
+    console.error('템플릿 저장 중 오류 발생:', error)
+    
+    if (error.response?.status === 403) {
+      // 인증 오류 - 로그인 페이지로 리다이렉트
+      alert('세션이 만료되었습니다. 다시 로그인해주세요.')
+      userStore.logout()
+      router.push('/')
+    } else if (error.response?.status === 401) {
+      // 인증 토큰 오류 - 로그인 페이지로 리다이렉트
+      alert('인증이 필요합니다. 로그인해주세요.')
+      userStore.logout()
+      router.push('/')
+    } else {
+      // 기타 오류
+      alert('템플릿 저장 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message))
+    }
   }
 }
 

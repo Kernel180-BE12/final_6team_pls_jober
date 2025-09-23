@@ -4,15 +4,10 @@ import com.example.dto.*;
 import com.example.entity.*;
 import com.example.exception.ResourceNotFoundException;
 import com.example.repository.*;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.*;
 
@@ -40,6 +35,67 @@ public class TemplateService {
         return aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage());
     }
 
+    // 수정에서 제출하기 버튼 클릭 시 템플릿 저장
+    @Transactional
+    public TemplateSaveResponseDto saveTemplate(TemplateSaveRequestDto requestDto, UserDto currentUser) {
+        try {
+            // 요청 데이터 로깅
+            log.info("템플릿 저장 요청 데이터 - 제목: '{}', 사용자메시지: '{}', 카테고리: '{}'", 
+                    requestDto.getTemplateTitle(), requestDto.getUserMessage(), requestDto.getCategory());
+            
+            // 사용자 계정 조회
+            Account account = accountRepository.findById(currentUser.getAccountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+            log.info("사용자 계정 조회 완료 - account: {}", account);
+
+            // 카테고리 조회
+            log.info("카테고리 조회 시작 - categoryName: {}", requestDto.getCategory());
+            Category category = findCategoryByName(requestDto.getCategory());
+            log.info("카테고리 조회 완료 - category: {}", category);
+            
+            // Template 생성
+            Template template = Template.builder()
+                    .account(account)
+                    .templateContent(requestDto.getTemplateContent())
+                    .category(category)
+                    .userMessage(requestDto.getUserMessage()) // 사용자 원본 요청 저장
+                    .autoTitle(requestDto.getTemplateTitle()) // 템플릿 제목 저장
+                    .status("검증 중")
+                    .build();
+
+            if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
+                log.info("변수 목록 저장 시작 - 변수 개수: {}", requestDto.getVariableList().size());
+                for (String variableName : requestDto.getVariableList()) {
+                    log.info("변수 저장: {}", variableName);
+                    Var variable = Var.builder()
+                            .variableKey(variableName)
+                            .build();
+                    template.addVariable(variable);
+                }
+            } else {
+                log.warn("변수 목록이 비어있습니다. requestDto.getVariableList(): {}", requestDto.getVariableList());
+            }
+
+            // DB 저장
+            Template savedTemplate = templateRepository.save(template);
+            log.info("템플릿 저장 완료: {}", savedTemplate.getTemplateId());
+            log.info("저장된 템플릿 상세 - 제목: '{}', 사용자메시지: '{}', 내용: '{}'", 
+                    savedTemplate.getAutoTitle(), savedTemplate.getUserMessage(), 
+                    savedTemplate.getTemplateContent() != null ? savedTemplate.getTemplateContent().substring(0, Math.min(50, savedTemplate.getTemplateContent().length())) : "null");
+            log.info("저장된 변수 개수: {}", savedTemplate.getVariables().size());
+            log.info("=== TemplateService.saveTemplate 완료 ===");
+
+            return TemplateSaveResponseDto.success(savedTemplate.getTemplateId().toString());
+        } catch (Exception e) {
+            log.error("=== TemplateService.saveTemplate 오류 발생 ===");
+            log.error("오류 타입: {}", e.getClass().getSimpleName());
+            log.error("오류 메시지: {}", e.getMessage());
+            log.error("오류 스택 트레이스:", e);
+            return TemplateSaveResponseDto.failure("템플릿 저장 중 오류가 발생했습니다: "+e.getMessage());
+        }
+    }
+
+
 
     /**
      * 템플릿을 검증합니다.
@@ -53,6 +109,14 @@ public class TemplateService {
             Map<String, Object> validationRequest = new HashMap<>();
             validationRequest.put("user_input", requestDto.getTemplateContent());
             validationRequest.put("variableList", requestDto.getVariableList());
+            if (requestDto.getTemplateId() != null) {
+                validationRequest.put("templateId", requestDto.getTemplateId());
+                log.info("AI 서버로 전달할 검증 요청에 templateId 포함: {}", requestDto.getTemplateId());
+            } else {
+                log.warn("검증 요청에 templateId가 없습니다");
+            }
+            
+            log.info("AI 서버 검증 요청 데이터: {}", validationRequest);
             
             // AI 서버 검증 호출 (실제로는 AIService를 통해 호출)
             Map<String, Object> aiValidationResult = aiService.validateTemplateWithFastAPI(validationRequest);
@@ -60,9 +124,10 @@ public class TemplateService {
             boolean isValid = isValidationSuccessful(aiValidationResult);
             log.info("AI 검증 결과 - 성공 여부: {}", isValid);
 
-            if (isValid) {
-                return handleApproval(requestDto, currentUser);
-            }
+            // 검증 성공 시에도 저장하지 않음 - 수정에서만 저장
+            // if (isValid) {
+            //     return handleApproval(requestDto, currentUser);
+            // }
 
             RejectionDetails rejectionDetails = extractRejectionDetails(aiValidationResult);
             log.info("검증 실패, 반려된 변수: {}, 오류 정보: {}, 검증 단계: {}",
@@ -101,32 +166,33 @@ public class TemplateService {
         return false;
     }
 
-    private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, UserDto currentUser) {
-        // UserDto에서 가져온 accountId로 기존 Account 엔티티 참조
-        Account account = accountRepository.findById(currentUser.getAccountId())
-                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + currentUser.getAccountId()));
+    // 검증에서 저장 기능 제거됨 - 수정에서만 저장
+    // private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, UserDto currentUser) {
+    //     // UserDto에서 가져온 accountId로 기존 Account 엔티티 참조
+    //     Account account = accountRepository.findById(currentUser.getAccountId())
+    //             .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + currentUser.getAccountId()));
 
-        Template template = Template.builder()
-                .account(account)
-                .templateContent(requestDto.getTemplateContent())
-                .category(findCategoryByName(requestDto.getCategory()))
-                .status("APPROVED")
-                .build();
+    //     Template template = Template.builder()
+    //             .account(account)
+    //             .templateContent(requestDto.getTemplateContent())
+    //             .category(findCategoryByName(requestDto.getCategory()))
+    //             .status("APPROVED")
+    //             .build();
 
-        if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
-            for (TemplateValidationRequestDto.VariableDto variableDto : requestDto.getVariableList()) {
-                Var variable = Var.builder()
-                        .variableKey(variableDto.getVariableKey())
-                        .variableValue(variableDto.getVariableValue())
-                        .build();
-                template.addVariable(variable);
-            }
-        }
+    //     if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
+    //         for (TemplateValidationRequestDto.VariableDto variableDto : requestDto.getVariableList()) {
+    //             Var variable = Var.builder()
+    //                     .variableKey(variableDto.getVariableKey())
+    //                     .variableValue(variableDto.getVariableValue())
+    //                     .build();
+    //             template.addVariable(variable);
+    //         }
+    //     }
 
-        Template savedTemplate = templateRepository.save(template);
-        log.info("검증 성공, 템플릿 및 변수 저장 완료: {}", savedTemplate.getTemplateId());
-        return TemplateValidationResponseDto.success(savedTemplate.getTemplateId().toString());
-    }
+    //     Template savedTemplate = templateRepository.save(template);
+    //     log.info("검증 성공, 템플릿 및 변수 저장 완료: {}", savedTemplate.getTemplateId());
+    //     return TemplateValidationResponseDto.success(savedTemplate.getTemplateId().toString());
+    // }
 
     private RejectionDetails extractRejectionDetails(Map<String, Object> aiValidationResult) {
         log.info("AI 검증 실패 응답 전체: {}", aiValidationResult);
