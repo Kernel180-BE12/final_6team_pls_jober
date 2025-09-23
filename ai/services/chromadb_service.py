@@ -55,6 +55,7 @@ class ChromaDBService:
             logger.error(f"❌ ChromaDB 연결 또는 컬렉션 로드 실패: {e}", exc_info=True)
             self.client = None
             self.is_mock = True
+        
     async def initialize(self):
         """
         ChromaDB 서비스 초기화 (비동기)
@@ -67,22 +68,6 @@ class ChromaDBService:
         self._get_or_create_collection("whitelist")
         self._initialized = True
 
-    async def load_initial_guidelines(self):
-        """초기 가이드라인 데이터 로드 (필요 시 확장). 현재는 no-op."""
-        try:
-            return
-        except Exception:
-            return
-
-    def get_collection(self, collection_name: str = None):
-        """특정 컬렉션 가져오기"""
-        if not HAS_CHROMADB or self.client is None:
-            return None
-
-        try:
-            return self.client.get_or_create_collection(name=collection_name)
-        except Exception:
-            return None
     def _get_or_create_collection(self, collection_name: str):
         """
         컬렉션 가져오기 또는 생성
