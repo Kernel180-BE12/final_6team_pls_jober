@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from contextlib import asynccontextmanager
 import os
-# from routers import ai_routes
+from routers import ai_routes
 # 로깅 활성화 - 디버깅용
 import logging
 
@@ -70,7 +70,7 @@ app.add_middleware(
 )
 
 # 라우터 등록
-# app.include_router(ai_routes.router)
+app.include_router(ai_routes.router)
 
 # 알림톡 검증 라우터 추가
 try:

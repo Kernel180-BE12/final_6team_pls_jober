@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 import re
 from services.openai_service import OpenAIService
 from templateEngine.prompts.message_analyzer_prompts import TemplateModificationPromptBuilder
-from middleware.auth_middleware import get_current_user, get_current_user_id
+from middleware.auth_middleware import get_current_user
 from models.alimtalk_models import (
     ChatRequest, ChatResponse, 
     TemplateModificationRequest, TemplateModificationResponse
