@@ -48,9 +48,6 @@ class AlimtalkValidationService:
             # ChromaDB 초기화
             await self.chromadb_service.initialize()
             
-            # 가이드라인 로드
-            await self._load_initial_guidelines()
-            
             # 검증 파이프라인 초기화
             from validators.constraint_validator import ConstraintValidator
             constraint_validator = ConstraintValidator()
@@ -95,11 +92,26 @@ class AlimtalkValidationService:
             if result.get('semantic_result'):
                 validation_results.append(result['semantic_result'])
             
+            # validation_errors 생성
+            validation_errors = []
+            for result in validation_results:
+                for error in result.errors:
+                    validation_errors.append({
+                        "rule_type": f"{result.stage}_validation",
+                        "rule": "알림톡 승인 규칙",
+                        "reason": error,
+                        "suggestion": "AI에서 생성된 수정 제안을 참고해주세요",
+                        "severity": "error",
+                        "variable_name": None,
+                        "stage": result.stage
+                    })
+            
             response = ValidationResponse(
                 success=success,
-                template=request.template if success else None,
-                validation_results=validation_results,
-                final_message=final_message
+                message=final_message,
+                rejected_variables=[],
+                validation_errors=validation_errors,
+                alternatives={}
             )
             
             return response
@@ -107,50 +119,11 @@ class AlimtalkValidationService:
         except Exception as e:
             return ValidationResponse(
                 success=False,
-                template=None,
-                validation_results=[],
-                final_message=f"검증 중 오류가 발생했습니다: {str(e)}"
+                message=f"검증 중 오류가 발생했습니다: {str(e)}",
+                rejected_variables=[],
+                validation_errors=[],
+                alternatives={}
             )
 
-
-    async def get_health_status(self) -> Dict[str, Any]:
-        """헬스 상태 확인"""
-        try:
-            if not self.is_initialized:
-                return {
-                    "status": "not_initialized",
-                    "message": "서비스가 초기화되지 않았습니다."
-                }
-
-            # ChromaDB 상태 확인
-            chromadb_stats = self.chromadb_service.get_collection_stats()
-
-            return {
-                "status": "healthy",
-                "vector_db": chromadb_stats,
-                "pipeline_ready": self.validation_pipeline is not None,
-                "services": {
-                    "chromadb": "healthy" if chromadb_stats else "unhealthy",
-                    "openai": "healthy" if self.openai_service else "not_configured"
-                }
-            }
-
-        except Exception as e:
-            return {
-                "status": "unhealthy",
-                "error": str(e)
-            }
-
-
-
-    async def _load_initial_guidelines(self):
-        """초기 가이드라인 로드 (이제 ChromaDB에서 직접 로드)"""
-        try:
-            # ChromaDB에서 가이드라인 로드
-            await self.chromadb_service.load_initial_guidelines()
-            print("✅ 가이드라인 로드 완료")
-
-        except Exception as e:
-            print(f"❌ 가이드라인 로드 실패: {e}")
 
 

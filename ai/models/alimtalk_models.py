@@ -127,11 +127,12 @@ class ValidationRequest(BaseModel):
             )
 
 class ValidationResponse(BaseModel):
-    """검증 응답 모델"""
+    """검증 응답 모델 - 백엔드 구조와 일치"""
     success: bool
-    template: Optional[AlimtalkTemplate] = None
-    validation_results: List[ValidationResult] = []
-    final_message: str
+    message: str
+    rejected_variables: List[str] = []
+    validation_errors: List[Dict[str, Any]] = []
+    alternatives: Dict[str, List[str]] = {}
 
 class SystemStats(BaseModel):
     """시스템 통계 모델"""

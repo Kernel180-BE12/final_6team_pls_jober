@@ -50,10 +50,8 @@ async def validate_template(backend_request: Dict[str, Any]):
         
         logger.info(f"검증 완료: {'성공' if result.success else '실패'}")
         
-        # 백엔드가 기대하는 형식으로 응답 변환
-        backend_response = convert_to_backend_format(result, request)
-        
-        return backend_response
+        # ValidationResponse가 이미 백엔드 구조와 일치하므로 직접 반환
+        return result
         
     except Exception as e:
         logger.error(f"검증 중 오류: {e}")
@@ -70,78 +68,6 @@ async def validate_template(backend_request: Dict[str, Any]):
             }
         }
 
-def convert_to_backend_format(validation_result: ValidationResponse, request: ValidationRequest) -> Dict[str, Any]:
-    """
-    AI 서버의 ValidationResponse를 백엔드가 기대하는 형식으로 변환
-    
-    백엔드가 기대하는 형식:
-    {
-        "success": bool,
-        "message": str,
-        "rejected_variables": List[str],
-        "validation_errors": List[Dict],
-        "alternatives": Dict[str, List[str]]
-    }
-    """
-    try:
-        # 기본 응답 구조
-        response = {
-            "success": validation_result.success,
-            "message": validation_result.final_message,
-            "rejected_variables": [],
-            "validation_errors": [],
-            "alternatives": {}
-        }
-        
-        if not validation_result.success:
-            # 검증 실패 시 상세 정보 추출
-            validation_errors = []
-            
-            # 각 검증 결과에서 오류 정보 수집
-            for result in validation_result.validation_results:
-                for error in result.errors:
-                    # 검증 오류 상세 정보 추가
-                    validation_errors.append({
-                        "rule_type": f"{result.stage}_validation",
-                        "rule": "알림톡 승인 규칙",
-                        "reason": error,
-                        "suggestion": "AI에서 생성된 수정 제안을 참고해주세요",
-                        "severity": "error",
-                        "variable_name": None,
-                        "stage": result.stage
-                    })
-            
-            response["rejected_variables"] = []
-            response["validation_errors"] = validation_errors
-            
-            # 대안 추천은 AI에서 생성하므로 여기서는 빈 객체로 설정
-            response["alternatives"] = {}
-        
-        # 백엔드가 기대하는 validation_results 필드도 추가
-        if not validation_result.success:
-            response["validation_results"] = [{
-                "is_valid": False,
-                "validator_name": "constraint_validator",
-                "stage": "constraint",
-                "errors": [error["reason"] for error in validation_errors],
-                "details": {
-                    "validation_details": validation_errors
-                }
-            }]
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"응답 변환 중 오류: {e}")
-        return {
-            "success": False,
-            "message": f"응답 변환 중 오류가 발생했습니다: {str(e)}",
-            "rejected_variables": [],
-            "validation_errors": [],
-            "alternatives": {
-                "message": ["시스템 오류가 발생했습니다. 다시 시도해주세요."]
-            }
-        }
 
 
 
