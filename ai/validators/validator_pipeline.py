@@ -29,7 +29,12 @@ class ValidationPipeline:
         2단계 검증을 순차적으로 실행
         
         Args:
-            template_data: 검증할 템플릿 데이터
+            template_data: 검증할 템플릿 데이터 (TemplateGenerationResponse 구조)
+                - template_content: 템플릿 텍스트 내용
+                - template_title: 템플릿 제목
+                - variables: 변수 정의 리스트 (List[Dict[str, str]])
+                - category: 템플릿 카테고리
+                - model: 사용된 모델명
             
         Returns:
             각 단계별 검증 결과와 최종 결과

@@ -112,6 +112,7 @@ class AlimtalkValidationService:
                 final_message=f"검증 중 오류가 발생했습니다: {str(e)}"
             )
 
+
     async def get_health_status(self) -> Dict[str, Any]:
         """헬스 상태 확인"""
         try:

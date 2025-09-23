@@ -93,18 +93,16 @@ def create_final_validation_prompt(
 def get_prompt_examples():
     """프롬프트 사용 예시"""
     
-    # 예시 템플릿 데이터
+    # 예시 템플릿 데이터 (TemplateGenerationResponse 구조에 맞게)
     example_template = {
-        "template_pk": "TPL_20241201_001",
-        "channel": "alimtalk",
-        "title": "주문 배송 완료 안내",
-        "body": "안녕하세요 #{customer_name}님,\n\n주문하신 상품이 배송 완료되었습니다.\n주문번호: #{order_no}\n\n감사합니다.",
-        "variables": {
-            "customer_name": "홍길동",
-            "order_no": "ORD-20241201-001"
-        },
+        "template_content": "안녕하세요 #{customer_name}님,\n\n주문하신 상품이 배송 완료되었습니다.\n주문번호: #{order_no}\n\n감사합니다.",
+        "template_title": "주문 배송 완료 안내",
+        "variables": [
+            {"name": "customer_name", "type": "string", "description": "고객명"},
+            {"name": "order_no", "type": "string", "description": "주문번호"}
+        ],
         "category": "transaction",
-        "buttons": []
+        "model": "gpt-4o-mini"
     }
     
     # 예시 2차 검증 결과

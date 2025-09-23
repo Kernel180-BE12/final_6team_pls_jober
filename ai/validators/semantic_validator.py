@@ -106,7 +106,7 @@ class SemanticValidator:
         항상 동일 스키마의 ValidationResult를 반환.
         """
         print("🔍 SemanticValidator.validate() 시작")
-        text = f"{template.get('templateTitle','')} {template.get('templateContent','')}".strip()
+        text = f"{template.get('template_title','')} {template.get('template_content','')}".strip()
         category = template.get("category")
         print(f"검증 대상 텍스트: {text[:100]}...")
         print(f"카테고리: {category}")

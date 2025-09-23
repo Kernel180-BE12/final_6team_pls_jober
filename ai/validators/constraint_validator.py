@@ -65,10 +65,11 @@ class ConstraintValidator:
         
         Args:
             template_data: 검증할 템플릿 데이터
-                - templateContent: 템플릿 텍스트 내용
-                - templateTitle: 템플릿 제목
-                - variableList: 변수 정의 딕셔너리
+                - template_content: 템플릿 텍스트 내용
+                - template_title: 템플릿 제목
+                - variables: 변수 정의 리스트 (List[Dict[str, str]])
                 - category: 템플릿 카테고리
+                - model: 사용된 모델명
         
         Returns:
             ValidationResult: 검증 결과 객체
@@ -207,8 +208,8 @@ class ConstraintValidator:
         errors, warnings, details = [], [], []
         
         # 검증 대상 데이터 추출 (카테고리, 제목, 내용)
-        templateContent = template_data.get('templateContent', '')
-        templateTitle = template_data.get('templateTitle', '')
+        templateContent = template_data.get('template_content', '')
+        templateTitle = template_data.get('template_title', '')
         category = template_data.get('category', '')
         
         try:
@@ -251,8 +252,8 @@ class ConstraintValidator:
         errors, warnings, details = [], [], []
         
         # 검증 대상 데이터 추출 (제목, 내용)
-        templateContent = template_data.get('templateContent', '')
-        templateTitle = template_data.get('templateTitle', '')
+        templateContent = template_data.get('template_content', '')
+        templateTitle = template_data.get('template_title', '')
         
         try:
             prompt = get_standardized_template_validation_prompt(templateTitle, templateContent)
@@ -294,13 +295,13 @@ class ConstraintValidator:
         errors, warnings, details = [], [], []
         rejected_variables = []
         
-        templateContent = template_data.get('templateContent', '')
-        variableList = template_data.get('variableList', [])
-        # variableList에서 변수명만 추출
-        if variableList and isinstance(variableList[0], dict):
-            variable_names = [var.get("variableKey", "") for var in variableList if isinstance(var, dict)]
+        templateContent = template_data.get('template_content', '')
+        variables = template_data.get('variables', [])
+        # variables에서 변수명만 추출 (List[Dict[str, str]] 형태)
+        if variables and isinstance(variables[0], dict):
+            variable_names = [var.get("name", "") for var in variables if isinstance(var, dict)]
         else:
-            variable_names = variableList
+            variable_names = variables
         detected_variables = self._extract_variables_from_template(templateContent)
         
         try:
@@ -349,8 +350,8 @@ class ConstraintValidator:
         errors, warnings, details = [], [], []
         
         # 검증 대상 데이터 추출 (제목, 내용)
-        templateContent = template_data.get('templateContent', '')
-        templateTitle = template_data.get('templateTitle', '')
+        templateContent = template_data.get('template_content', '')
+        templateTitle = template_data.get('template_title', '')
         
         try:
             prompt = get_template_writing_validation_prompt(templateTitle, templateContent)

@@ -51,7 +51,7 @@ class TemplateGenerationRequest(BaseModel):
 class TemplateGenerationResponse(BaseModel):
     template_content: str
     template_title: str
-    variables: List[str]
+    variables: List[Dict[str, str]]
     category: str
     model: str
 
@@ -152,20 +152,26 @@ async def generate_template(request: TemplateGenerationRequest):
         
         # 변수 추출 (#{변수명} 형태)
         variable_pattern = r'#\{([^}]+)\}'
-        found_variables = re.findall(variable_pattern, response)
-        
+        found_variables = re.findall(variable_pattern, template_content)
+
+        # ✅ TemplateGenerationResponse 구조에 맞게 변수 변환
+        variables_dto = []
         for var in set(found_variables):
-            variables.append(var.strip())
+            variables_dto.append({
+                "name": var.strip(),
+                "type": "string",
+                "description": f"{var.strip()} 변수"
+            })
         
         # 템플릿 제목 생성 (사용자 메시지 기반)
         template_title = f"{category} 템플릿 - {request.userMessage[:30]}..."
         
-        print(f"템플릿 생성 완료: {len(variables)}개 변수 추출")
+        print(f"템플릿 생성 완료: {len(variables_dto)}개 변수 추출")
         
         return TemplateGenerationResponse(
             template_content=template_content,
             template_title=template_title,
-            variables=variables,
+            variables=variables_dto,
             category=category,
             model=request.model
         )
