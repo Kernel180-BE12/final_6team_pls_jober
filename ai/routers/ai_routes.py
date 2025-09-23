@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional, Dict, Any
 import re
 from services.openai_service import OpenAIService
+from services.dependencies import get_openai_service
 from templateEngine.prompts.message_analyzer_prompts import TemplateModificationPromptBuilder
 from middleware.auth_middleware import get_current_user
 from models.alimtalk_models import (
@@ -11,20 +12,12 @@ from models.alimtalk_models import (
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 
-# 서비스 인스턴스 초기화
-print("AI 서비스 초기화 시작...")
-try:
-    openai_service = OpenAIService()
-    print("✅ OpenAI 서비스 초기화 완료")
-except Exception as e:
-    print(f"❌ OpenAI 서비스 초기화 실패: {e}")
-
-print("AI 서비스 초기화 완료!")
-
-
-# OpenAI 라우트 (인증 필요)
+# OpenAI 라우트 (의존성 주입 사용)
 @router.post("/openai/chat", response_model=ChatResponse)
-async def openai_chat(request: ChatRequest):
+async def openai_chat(
+    request: ChatRequest,
+    openai_service: OpenAIService = Depends(get_openai_service)
+):
     """OpenAI 채팅 API"""
     try:
         messages = [{"role": "user", "content": request.message}]
@@ -36,7 +29,10 @@ async def openai_chat(request: ChatRequest):
 
 # 템플릿 수정 라우트
 @router.post("/template/modify", response_model=TemplateModificationResponse)
-async def modify_template(request: TemplateModificationRequest):
+async def modify_template(
+    request: TemplateModificationRequest,
+    openai_service: OpenAIService = Depends(get_openai_service)
+):
     """채팅을 통한 템플릿 수정"""
     try:
         # 채팅 히스토리를 포함한 프롬프트 구성
@@ -99,4 +95,5 @@ async def modify_template(request: TemplateModificationRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
