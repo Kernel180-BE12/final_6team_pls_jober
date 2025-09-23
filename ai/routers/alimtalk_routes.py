@@ -68,7 +68,7 @@ async def validate_template(backend_request: Dict[str, Any]):
         # 백엔드 요청을 ValidationRequest로 변환
         request = ValidationRequest.from_backend_request(backend_request)
         
-        logger.info(f"변환된 요청: user_input={request.user_input[:50]}..., template_text={request.template.template_text[:50]}...")
+        logger.info(f"변환된 요청: user_input={request.user_input[:50]}..., template_content={request.template.template_content[:50]}...")
         
         # 검증 실행
         result = await validation_service.validate_template(request)

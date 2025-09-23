@@ -8,10 +8,11 @@ def get_variable_usage_validation_prompt(template_content: str, detected_variabl
 
 ## 변수 사용 규칙
 - 변수는 최대 40개까지만 사용 가능
-- 변수 예시값 반드시 기재 필요
+- 변수 예시값은 권장사항 (필수 아님)
 - 템플릿이 변수로만 이루어질 수 없음
 - 버튼명, 미리보기 메시지에는 변수를 포함할 수 없음
 - 충분한 고정 텍스트가 있어야 함
+- 개인정보(고객명, 주문번호 등)는 변수 사용 권장
 
 ## 검증 대상 템플릿
 내용: {template_content}

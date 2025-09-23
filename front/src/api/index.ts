@@ -138,7 +138,7 @@ export type VariableDto = { variableKey: string; variableValue: string };
 
 // 템플릿 관련 API
 export const templateApi = {
-  // AI를 통한 템플릿 생성
+  // AI를 통한 템플릿 생성 (AI 서버 직접 호출)
   generateTemplate: (userMessage: string) => 
     aiApi.post('/template/generate', { userMessage }),
   
