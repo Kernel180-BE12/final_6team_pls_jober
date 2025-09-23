@@ -108,15 +108,15 @@
                 />
               </div>
             </div>
-            
+
             <!-- 액션 버튼들 -->
             <div class="action-buttons-container">
               <div class="correction-count">남은 정정 횟수: {{ remainingCorrections }}/{{ maxCorrections }}</div>
               <div class="action-buttons">
-                <button 
-                  class="btn-submit" 
-                  @click="submitTemplate"
-                  :disabled="isValidating"
+                <button
+                    class="btn-submit"
+                    @click="submitTemplate"
+                    :disabled="isValidating"
                 >
                   <span v-if="!isValidating">제출하기</span>
                   <span v-else class="loading-content">
@@ -126,6 +126,7 @@
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       </div>
@@ -943,72 +944,71 @@ const scrollToBottom = () => {
 .main-content {
   flex: 1;
   background: linear-gradient(135deg, #E3F2FD 0%, #F1F8E9 100%);
-  padding: 2rem 0 0 0;
+  padding: 3vw 0;
   overflow: auto;
 }
 
 /* 콘텐츠 래퍼 */
 .content-wrapper {
-  max-width: 1400px;
+  display: flex;
+  justify-content: center;
+  align-items:center;
+  width:80vw;
+  height:80vh;
   margin: 0 auto;
-  padding: 0 1.2rem;
+  //background-color: lime;
 }
 
 /* 좌우 분할 레이아웃 */
 .split-layout {
-  display: flex;
-  gap: 0;
+  width:100%;
   height: 100%;
-  position: relative;
-  min-width: 50rem;
+  display: flex;
+  justify-content: space-between;
+  //background-color: green;
 }
 
 /* 분할선 스타일 */
 .split-layout::after {
   content: '';
   position: absolute;
-  left: calc(33.33% + 1rem);
-  top: 0;
+  left: calc(50% + 1rem);
+  top: 15vw;
   bottom: 0;
   width: 0.1rem;
+  height:60vh;
   background: linear-gradient(180deg, transparent, #e0e0e0, transparent);
   box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.1);
 }
 
 /* 왼쪽 패널 (채팅 영역) */
 .left-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-  padding-right: 2rem;
-  width: 20rem;
+  width: 50%;
+  height: 100%;
 }
 
 /* 오른쪽 패널 (미리보기 영역) */
 .right-panel {
-  flex: 2;
+  width:47%;
+  height:100%;
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
-  padding-left: 2rem;
-  min-width: 22rem;
   overflow: visible;
-  position: relative;
+  //background-color: blue;
 }
 
 /* 미리보기와 사이드바 컨테이너 */
 .preview-and-sidebar-container {
   display: flex;
-  gap: 1rem;
   transition: transform 0.3s ease;
-  align-self: flex-start; /* 상단 정렬 */
   max-height: 80vh; /* 최대 높이 제한 */
   overflow: visible;
-  margin-bottom: 1rem;
   width: 100%;
+  height:70vh;
   justify-content: center;
   align-items: flex-start; /* 자식 요소들을 상단 정렬 */
+  //background-color: yellow;
 }
 
 /* 반려 사이드바가 열렸을 때의 상태 */
@@ -1177,17 +1177,14 @@ const scrollToBottom = () => {
   margin: 0;
 }
 
-
-
-
-
 /* ===== 채팅 관련 스타일 ===== */
 /* 채팅 이력 컨테이너 */
 .chat-history-container {
   background-color: white;
   border-radius: 0.6rem;
-  padding: 1rem;
-  height: 32rem;
+  width:100%;
+  padding: 2vw;
+  height: 71.5vh;
   box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
@@ -1206,7 +1203,6 @@ const scrollToBottom = () => {
 .chat-message {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
 }
 
 /* 사용자 메시지 정렬 */
@@ -1320,6 +1316,7 @@ const scrollToBottom = () => {
   padding: 0.6rem;
   height: 3.5rem;
   box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.1);
+  margin-top:2vw;
 }
 
 /* 입력 필드 컨테이너 */
@@ -1388,25 +1385,27 @@ const scrollToBottom = () => {
 .action-buttons-container {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  position: absolute;
-  bottom: -2rem;
-  left: 0;
-  right: 0;
-  padding: 1rem 0;
+  align-items: end;
+  width:100%;
+  height:5vw;
+  padding:0 1vw;
   border-top: 0.05rem solid #e0e0e0;
+  //background-color:red;
 }
 
 /* 정정 횟수 표시 */
 .correction-count {
   background-color: #1976d2;
   color: white;
-  padding: 0.4rem 0.8rem;
-  border-radius: 1rem;
-  font-size: 0.9rem;
+  padding: 0.8vw 1vw;
+  border-radius: 0.3vw;
+  font-size: 1vw;
   font-weight: 500;
-  margin-left: 1rem;
+}
+.correction-count:hover {
+  transition: background-color 0.2s ease;
+  background-color: #0366b1;
+  cursor:pointer;
 }
 
 /* 액션 버튼들 */
@@ -1420,10 +1419,10 @@ const scrollToBottom = () => {
   background-color: #6c757d;
   color: white;
   border: none;
-  padding: 0.4rem 0.8rem;
-  border-radius: 0.2rem;
+  padding: 0.8vw 1vw;
+  border-radius: 0.3vw;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 1vw;
   transition: background-color 0.2s ease;
   position: relative;
   min-width: 6rem;
