@@ -1,10 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import re
 from services.openai_service import OpenAIService
 from templateEngine.prompts.message_analyzer_prompts import TemplateModificationPromptBuilder
 from middleware.auth_middleware import get_current_user, get_current_user_id
+from models.alimtalk_models import (
+    ChatRequest, ChatResponse, 
+    TemplateModificationRequest, TemplateModificationResponse
+)
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 
@@ -18,31 +21,6 @@ except Exception as e:
 
 print("AI 서비스 초기화 완료!")
 
-# Pydantic 모델들
-class ChatRequest(BaseModel):
-    message: str
-    model: Optional[str] = "gpt-4o-mini"
-
-class ChatResponse(BaseModel):
-    response: str
-    model: str
-
-
-
-class TemplateModificationRequest(BaseModel):
-    current_template: str
-    current_template_title: str
-    userMessage: str
-    chat_history: List[Dict[str, Any]] = []
-    variableList: List[str] = []
-
-class TemplateModificationResponse(BaseModel):
-    modified_template: str
-    template_title: str
-    variables: List[str]
-    explanation: str
-    model: str
-
 
 # OpenAI 라우트 (인증 필요)
 @router.post("/openai/chat", response_model=ChatResponse)
@@ -54,8 +32,6 @@ async def openai_chat(request: ChatRequest):
         return ChatResponse(response=response, model=request.model)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
 
 
 # 템플릿 수정 라우트

@@ -140,3 +140,34 @@ class SystemStats(BaseModel):
     validation_pipeline: Dict[str, Any]
     service_status: str
 
+
+# AI 서비스 관련 모델들
+class ChatRequest(BaseModel):
+    """채팅 요청 모델"""
+    message: str
+    model: Optional[str] = "gpt-4o-mini"
+
+
+class ChatResponse(BaseModel):
+    """채팅 응답 모델"""
+    response: str
+    model: str
+
+
+class TemplateModificationRequest(BaseModel):
+    """템플릿 수정 요청 모델"""
+    current_template: str
+    current_template_title: str
+    userMessage: str
+    chat_history: List[Dict[str, Any]] = []
+    variableList: List[str] = []
+
+
+class TemplateModificationResponse(BaseModel):
+    """템플릿 수정 응답 모델"""
+    modified_template: str
+    template_title: str
+    variables: List[str]
+    explanation: str
+    model: str
+
