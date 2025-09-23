@@ -69,6 +69,7 @@ class ConstraintValidator:
                 - templateTitle: 템플릿 제목
                 - variableList: 변수 정의 딕셔너리
                 - category: 템플릿 카테고리
+                - detected_variables: 이미 추출된 변수 리스트
         
         Returns:
             ValidationResult: 검증 결과 객체
@@ -295,16 +296,11 @@ class ConstraintValidator:
         rejected_variables = []
         
         templateContent = template_data.get('templateContent', '')
-        variableList = template_data.get('variableList', [])
-        # variableList에서 변수명만 추출
-        if variableList and isinstance(variableList[0], dict):
-            variable_names = [var.get("variableKey", "") for var in variableList if isinstance(var, dict)]
-        else:
-            variable_names = variableList
-        detected_variables = self._extract_variables_from_template(templateContent)
+        variableList = template_data.get('variableList', {})
+        detected_variables = template_data.get('detected_variables', [])
         
         try:
-            prompt = get_variable_usage_validation_prompt(templateContent, detected_variables, variable_names)
+            prompt = get_variable_usage_validation_prompt(templateContent, detected_variables, variableList)
             
             # 비동기 함수 호출
             response = await self.openai_service.chat_completion([
@@ -387,26 +383,3 @@ class ConstraintValidator:
         
         return errors, warnings, details
 
-    def _extract_variables_from_template(self, templateContent: str) -> List[str]:
-        """
-        템플릿 텍스트에서 변수 추출
-        
-        지원하는 변수 패턴:
-        - #{변수명} - AI 서비스 표준 패턴 (카카오 알림톡 표준)
-        
-        Args:
-            templateContent: 템플릿 텍스트 내용
-        
-        Returns:
-            List[str]: 중복 제거된 변수명 리스트
-        """
-        import re
-        logger.debug("변수 추출 시작")
-        
-        # #{변수명} 패턴만 사용 (AI 서비스 표준)
-        matches = re.findall(r'#\{([^}]+)\}', templateContent)
-        
-        # 중복 제거 후 반환
-        unique_vars = list(set(matches))
-        logger.debug(f"추출된 변수 최종 목록: {unique_vars}")
-        return unique_vars

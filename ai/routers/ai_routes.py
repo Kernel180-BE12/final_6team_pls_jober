@@ -152,7 +152,7 @@ async def generate_template(request: TemplateGenerationRequest):
         
         # 변수 추출 (#{변수명} 형태)
         variable_pattern = r'#\{([^}]+)\}'
-        found_variables = re.findall(variable_pattern, response)
+        found_variables = re.findall(variable_pattern, template_content)
         
         for var in set(found_variables):
             variables.append(var.strip())
