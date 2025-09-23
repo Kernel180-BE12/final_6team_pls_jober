@@ -4,7 +4,7 @@ import { useUserStore } from '@/stores/user'
 // API 기본 설정
 const api = axios.create({
   baseURL: '/api',
-  timeout: 10000,
+  timeout: 30000, // 30초로 증가 (AI 검증 시간 고려)
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,7 +13,7 @@ const api = axios.create({
 // AI 서비스용 API 설정
 const aiApi = axios.create({
   baseURL: '/ai',
-  timeout: 10000,
+  timeout: 60000, // AI 템플릿 생성은 시간이 오래 걸릴 수 있음
   headers: {
     'Content-Type': 'application/json',
   },
@@ -24,14 +24,13 @@ api.interceptors.request.use(
   (config) => {
     // user store에서 토큰 가져오기
     const userStore = useUserStore()
-    
+
     // 토큰이 없으면 에러 발생 (로그인이 필요한 API인 경우)
     if (!userStore.accessToken) {
       console.warn('API 요청 시 토큰이 없습니다. 로그인이 필요할 수 있습니다.')
     } else {
       config.headers.Authorization = `Bearer ${userStore.accessToken}`
     }
-    
     return config
   },
   (error) => {
@@ -63,7 +62,6 @@ api.interceptors.response.use(
     // 401, 403 에러 시 자동 로그아웃
     if (error.response?.status === 401 || error.response?.status === 403) {
       const userStore = useUserStore()
-      console.warn('인증 오류 발생, 자동 로그아웃 처리:', error.response.status)
       userStore.logout()
     }
     return Promise.reject(error)
@@ -140,9 +138,11 @@ export const myPageApi = {
     api.put('/mypage/password', { currentPassword, newPassword, confirmPassword })
 }
 
+export type VariableDto = { variableKey: string; variableValue: string };
+
 // 템플릿 관련 API
 export const templateApi = {
-  // AI를 통한 템플릿 생성
+  // AI를 통한 템플릿 생성 (AI 서버 직접 호출)
   generateTemplate: (userMessage: string) => 
     aiApi.post('/template/generate', { userMessage }),
   
@@ -179,12 +179,12 @@ export const templateApi = {
     
     return api.post('/template/modify', modificationRequest)
   },
-  
+
   // 템플릿 저장 (검증 없이 바로 저장)
   saveTemplate: (templateContent: string, variableList: Record<string, string>, category: string, userMessage: string, templateTitle: string) => {
     // 변수명만 배열로 변환 (백엔드에서 List<String>을 기대함)
     const variableNames = Object.keys(variableList)
-    
+
     const saveRequest = {
       templateContent: templateContent,
       variableList: variableNames,  // 문자열 배열로 직접 전달
@@ -192,9 +192,9 @@ export const templateApi = {
       userMessage: userMessage,
       templateTitle: templateTitle
     }
-    
+
     console.log('저장 요청 데이터:', saveRequest)
-    
+
     return api.post('/template/save', saveRequest)
   },
 }

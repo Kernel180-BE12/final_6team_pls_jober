@@ -70,16 +70,17 @@ const handleSubmit = async () => {
   try {
     const response = await templateApi.generateTemplate(templateStore.userMessage)
     templateStore.setUserMessage(templateStore.userMessage)
-    // AI 서버의 응답(TemplateGenerationResponse)을 sessionStorage에 저장합니다.
+    // AI 서버의 응답을 sessionStorage에 저장합니다.
     const responseData = response.data;
 
-    // AI가 반환한 variables (List<Dict>)에서 이름(name)만 추출하여 문자열 배열로 변환합니다.
-    const variableNames = responseData.variables.map((v: any) => v.name);
+    // AI가 반환한 variables는 이미 문자열 배열입니다.
+    const variableNames = responseData.variables || [];
 
     sessionStorage.setItem('generatedTemplate', JSON.stringify({
       templateContent: responseData.template_content,
+      templateTitle: responseData.template_title,
       variables: variableNames,
-      category: responseData.category,
+      category: responseData.category || '기타',
       userMessage: templateStore.userMessage
     }));
     

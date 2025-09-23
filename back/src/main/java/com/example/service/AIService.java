@@ -1,6 +1,5 @@
 package com.example.service;
 
-import com.example.dto.FastAPIRequestDto;
 import com.example.dto.FastAPIResponseDto;
 import com.example.dto.TemplateRequestDto;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import java.util.Map;
+import java.util.List;
 
 
 /**
@@ -18,43 +18,20 @@ import java.util.Map;
 @Service
 public class AIService {
     private final WebClient webClient;
-    private final String apiPath;
 
     /**
      * AIService의 생성자입니다.
-     * application.yml에 설정된 FastAPI 서버 URL과 경로를 주입받아 WebClient 인스턴스를 초기화합니다.
+     * application.yml에 설정된 FastAPI 서버 URL을 주입받아 WebClient 인스턴스를 초기화합니다.
      *
      * @param webClientBuilder Spring이 제공하는 WebClient 빌더
      * @param fastapiUrl       application.yml에서 주입받는 FastAPI 서버의 기본 URL
-     * @param apiPath          application.yml에서 주입받는 FastAPI 서버의 API 경로
      */
     public AIService(WebClient.Builder webClientBuilder,
-                     @Value("${ai.fastapi.url}") String fastapiUrl,
-                     @Value("${ai.fastapi.path}") String apiPath) {
+                     @Value("${ai.fastapi.url}") String fastapiUrl) {
         this.webClient = webClientBuilder.baseUrl(fastapiUrl).build();
-        this.apiPath = apiPath;
     }
 
 
-    /**
-     * FastAPI 서버에 텍스트 생성을 요청하고 결과를 받아옵니다.
-     *
-     * @param userMessage 사용자가 입력한 원본 텍스트
-     * @return AI가 생성한 구조화된 템플릿 데이터 DTO
-     * @throws RuntimeException AI 서버 통신 실패 시
-     */
-    public FastAPIResponseDto generateTemplateDataFromFastAPI(String userMessage) {
-        log.info("FastAPI 서버 호출 시작. 내용: '{}'", userMessage);
-        FastAPIRequestDto request = new FastAPIRequestDto(userMessage);
-
-        return webClient.post()
-                .uri(apiPath)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(FastAPIResponseDto.class)
-                .block();
-    }
 
     /**
      * FastAPI 서버에 템플릿 검증을 요청하고 결과를 받아옵니다.
@@ -67,20 +44,38 @@ public class AIService {
         log.info("FastAPI 템플릿 검증 요청 시작: {}", validationRequest);
         
         try {
-            // AI 서버에 전송할 요청 형식으로 변환
+            // AI 서버에 전송할 요청 형식으로 변환 (생성 결과 구조에 맞게)
             // HashMap을 사용하여 동적으로 필드 추가 가능
             Map<String, Object> templateMap = new java.util.HashMap<>();
             templateMap.put("channel", "alimtalk");
-            templateMap.put("body", validationRequest.get("user_input"));
-            templateMap.put("variableList", validationRequest.get("variableList"));
-            templateMap.put("category", "marketing");
-            if (validationRequest.containsKey("title") && validationRequest.get("title") != null) {
-                templateMap.put("title", validationRequest.get("title"));
+            templateMap.put("template_content", validationRequest.get("user_input"));  // templateContent → template_content
+            templateMap.put("category", validationRequest.get("category"));
+            if (validationRequest.containsKey("templateTitle") && validationRequest.get("templateTitle") != null) {
+                templateMap.put("template_title", validationRequest.get("templateTitle"));  // templateTitle → template_title
             }
-            // 조건부로 title 필드 추가
+            
+            // variableList를 variables로 변환 (List[Dict] → List[String])
+            Object variableListObj = validationRequest.get("variableList");
+            if (variableListObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Object> variableList = (List<Object>) variableListObj;
+                List<String> variables = new java.util.ArrayList<>();
+                for (Object var : variableList) {
+                    if (var instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> varMap = (Map<String, Object>) var;
+                        Object variableKey = varMap.get("variableKey");
+                        if (variableKey != null) {
+                            variables.add(variableKey.toString());
+                        }
+                    }
+                }
+                templateMap.put("variables", variables);  // variableList → variables
+            }
+            // 조건부로 templateTitle 필드 추가
             Map<String, Object> aiRequest = Map.of(
                 "template", templateMap,
-                "user_input", validationRequest.get("user_input")
+                "user_input", validationRequest.get("userMessage")
             );
             
             log.info("AI 서버로 전송할 요청: {}", aiRequest);

@@ -1,22 +1,22 @@
 import openai
 import os
 from typing import List, Dict, Any
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 class OpenAIService:
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     
     async def chat_completion(self, messages: List[Dict[str, str]], model: str = "gpt-4o-mini") -> str:
         """
         OpenAI 채팅 완성 API 호출
         """
         try:
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=model,
                 messages=messages,
                 max_completion_tokens=1000,
-                temperature=0.7
+                temperature=0.5
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -27,7 +27,7 @@ class OpenAIService:
         OpenAI 텍스트 완성 API 호출
         """
         try:
-            response = self.client.completions.create(
+            response = await self.client.completions.create(
                 model=model,
                 prompt=prompt,
                 max_tokens=1000,
@@ -42,7 +42,7 @@ class OpenAIService:
         OpenAI 임베딩 API 호출
         """
         try:
-            response = self.client.embeddings.create(
+            response = await self.client.embeddings.create(
                 model=model,
                 input=text
             )
@@ -55,7 +55,7 @@ class OpenAIService:
         여러 텍스트의 임베딩을 일괄 처리
         """
         try:
-            response = self.client.embeddings.create(
+            response = await self.client.embeddings.create(
                 model=model,
                 input=texts
             )

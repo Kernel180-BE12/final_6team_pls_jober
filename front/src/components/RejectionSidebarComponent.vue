@@ -1,6 +1,7 @@
 <template>
   <div v-if="show" class="rejection-sidebar">
     <div class="sidebar-header">
+      <button v-if="currentVariable || showingAlternatives" class="back-btn" @click="goBack">←</button>
       <h3>반려 사유 및 대안</h3>
       <div v-if="validationStage" class="validation-stage">
         <span class="stage-badge">{{ validationStage }}</span>
@@ -11,24 +12,24 @@
     <!-- 반려 사유 -->
     <div class="rejection-reason" v-if="currentVariable">
       <h4>• 반려 사유</h4>
-      <div v-if="validationErrors" class="error-details">
+      <div v-if="getCurrentValidationError()" class="error-details">
         <div class="rule-info">
-          <p><strong>위반 규칙:</strong> {{ validationErrors.rule || '알 수 없는 규칙' }}</p>
-          <p><strong>규칙 유형:</strong> {{ getRuleTypeDisplay(validationErrors.errorType) }}</p>
-          <p v-if="validationErrors.validationStage"><strong>검증 단계:</strong> {{ validationErrors.validationStage }}</p>
+          <p><strong>위반 규칙:</strong> {{ getErrorRule() }}</p>
+          <p><strong>규칙 유형:</strong> {{ getRuleTypeDisplay(getErrorRuleType()) }}</p>
+          <p v-if="getErrorStage()"><strong>검증 단계:</strong> {{ getErrorStage() }}</p>
           <p><strong>심각도:</strong> 
-            <span :class="getSeverityClass(validationErrors.severity)">
-              {{ getSeverityDisplay(validationErrors.severity) }}
+            <span :class="getSeverityClass(getErrorSeverity())">
+              {{ getSeverityDisplay(getErrorSeverity()) }}
             </span>
           </p>
         </div>
         <div class="error-message">
           <p><strong>상세 사유:</strong></p>
-          <p class="reason-text">{{ validationErrors.errorMessage }}</p>
+          <p class="reason-text">{{ getErrorMessage() }}</p>
         </div>
-        <div class="suggestion-box" v-if="validationErrors.suggestion">
+        <div class="suggestion-box" v-if="getCurrentValidationError()?.suggestion">
           <p><strong>개선 방안:</strong></p>
-          <p class="suggestion-text">{{ validationErrors.suggestion }}</p>
+          <p class="suggestion-text">{{ getCurrentValidationError()?.suggestion }}</p>
         </div>
         <p class="variable-instruction">변수 "<strong>{{ currentVariable }}</strong>"에 대한 대안을 선택하세요.</p>
       </div>
@@ -63,37 +64,57 @@
       </div>
     </div>
     
-    <!-- 반려된 모든 항목 요약 -->
-    <div class="rejected-summary" v-if="!currentVariable">
-      <h4>반려 사유 목록</h4>
+    <!-- 대안 선택 화면 -->
+    <div class="alternatives-selection" v-if="showingAlternatives && selectedError">
+      <div class="error-detail">
+        <h4>수정이 필요한 내용</h4>
+        <div class="error-description">
+          <p class="error-reason">{{ selectedError.reason }}</p>
+          <p class="error-suggestion">💡 {{ selectedError.suggestion }}</p>
+        </div>
+      </div>
       
-      <!-- 변수 관련 반려 항목 -->
-      <div v-if="rejectedVariables.length > 0" class="rejected-variables-section">
-        <h5>• 반려된 변수들</h5>
-        <div class="rejected-items">
-          <div 
-            v-for="variable in rejectedVariables" 
-            :key="variable"
-            class="rejected-item variable-item"
-            @click="$emit('variableClick', variable)"
-          >
-            <div class="variable-info">
-              <span class="variable-name">{{ variable }}</span>
-              <span class="click-hint">클릭하여 상세 확인</span>
-            </div>
+      <h4>대안 선택 (3개)</h4>
+      <div class="alternatives-list">
+        <div 
+          v-for="(alternative, index) in currentAlternatives" 
+          :key="index"
+          :class="['alternative-item', { 'selected': alternative.selected }]"
+          @click="selectAlternative(alternative)"
+        >
+          <div class="alternative-content">
+            <p>{{ alternative.text }}</p>
+          </div>
+          <div class="alternative-status">
+            <span v-if="alternative.selected" class="selected-mark">✓</span>
           </div>
         </div>
       </div>
       
+      <div class="alternatives-actions">
+        <button 
+          class="btn-apply" 
+          @click="applySelectedAlternative"
+          :disabled="!hasSelectedAlternative"
+        >
+          선택한 대안 적용하기
+        </button>
+      </div>
+    </div>
+
+    <!-- 반려 사유 목록 (기본 화면) -->
+    <div class="rejected-summary" v-if="!currentVariable && !showingAlternatives">
+      <h4>반려 사유 목록</h4>
+      
       <!-- 전체 반려 사유 목록 -->
       <div v-if="getAllValidationErrors().length > 0" class="all-errors-section">
-        <h5>• 모든 반려 사유</h5>
         <div class="error-list">
           <div 
             v-for="(error, index) in getAllValidationErrors()" 
             :key="index"
-            class="error-item"
+            class="error-item clickable-error"
             :class="getSeverityClass(error.severity)"
+            @click="showAlternativesForError(error)"
           >
             <div class="error-header">
               <span class="rule-type-badge">{{ getRuleTypeDisplay(error.rule_type) }}</span>
@@ -104,6 +125,7 @@
             <div class="error-content">
               <p class="error-reason">{{ error.reason }}</p>
               <p v-if="error.suggestion" class="error-suggestion">💡 {{ error.suggestion }}</p>
+              <p class="click-hint">클릭하여 대안 확인 →</p>
             </div>
           </div>
         </div>
@@ -113,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 interface Alternative {
   text: string
@@ -153,10 +175,12 @@ const props = defineProps<RejectionSidebarProps>()
 const emit = defineEmits<{
   close: []
   variableClick: [variableName: string]
-  applyAlternative: [alternative: Alternative]
+  applyAlternative: [alternative: Alternative, error: DetailedValidationError]
 }>()
 
 const currentAlternatives = ref<Alternative[]>([])
+const showingAlternatives = ref(false)
+const selectedError = ref<DetailedValidationError | null>(null)
 
 watch(() => props.alternatives, (newAlternatives) => {
   currentAlternatives.value = JSON.parse(JSON.stringify(newAlternatives))
@@ -177,9 +201,71 @@ const selectAlternative = (alternative: Alternative) => {
 // 선택한 대안 적용
 const applySelectedAlternative = () => {
   const selectedAlternative = currentAlternatives.value.find(alt => alt.selected)
-  if (selectedAlternative) {
-    emit('applyAlternative', selectedAlternative)
+  if (selectedAlternative && selectedError.value) {
+    emit('applyAlternative', selectedAlternative, selectedError.value)
+    // 적용 후 메인 화면으로 돌아가기
+    goBack()
   }
+}
+
+// 선택된 대안이 있는지 확인
+const hasSelectedAlternative = computed(() => {
+  return currentAlternatives.value.some(alt => alt.selected)
+})
+
+// 뒤로가기
+const goBack = () => {
+  showingAlternatives.value = false
+  selectedError.value = null
+  currentAlternatives.value = []
+}
+
+// 오류에 대한 대안 표시
+const showAlternativesForError = (error: DetailedValidationError) => {
+  selectedError.value = error
+  showingAlternatives.value = true
+  
+  // 해당 오류에 대한 대안 3개 생성
+  currentAlternatives.value = generateAlternativesForError(error)
+}
+
+// 오류별 대안 생성
+const generateAlternativesForError = (error: DetailedValidationError): Alternative[] => {
+  const alternatives: Alternative[] = []
+  
+  if (error.reason.includes('변수') && (error.reason.includes('사용되지 않음') || error.reason.includes('없으므로'))) {
+    alternatives.push(
+      { text: '예약취소 안내 템플릿으로 변경 (#{고객명}, #{예약번호}, #{취소일시} 변수 포함)', selected: false },
+      { text: '개인화된 알림 템플릿으로 변경 (#{고객명}, #{서비스명}, #{처리일시} 변수 포함)', selected: false },
+      { text: '정보 제공 템플릿으로 변경 (#{고객명}, #{내용}, #{담당자} 변수 포함)', selected: false }
+    )
+  } else if (error.reason.includes('제목') && error.reason.includes('내용')) {
+    alternatives.push(
+      { text: '예약취소 확인 템플릿으로 완전 재작성 (제목, 내용, 변수 모두 포함)', selected: false },
+      { text: '서비스 안내 템플릿으로 완전 재작성 (구조화된 형태)', selected: false },
+      { text: '고객 안내 템플릿으로 완전 재작성 (필수 정보 모두 포함)', selected: false }
+    )
+  } else if (error.reason.includes('광고성')) {
+    alternatives.push(
+      { text: '순수 정보 전달 템플릿으로 재작성 (이모지, 감탄사 제거)', selected: false },
+      { text: '사실 기반 안내 템플릿으로 재작성 (객관적 표현만 사용)', selected: false },
+      { text: '공식 통지 형태 템플릿으로 재작성 (중립적 톤앤매너)', selected: false }
+    )
+  } else if (error.reason.includes('정형화')) {
+    alternatives.push(
+      { text: '표준 알림톡 구조로 재작성 (제목-내용-변수 구조 확립)', selected: false },
+      { text: '정형화된 안내 템플릿으로 재작성 (일정한 패턴 적용)', selected: false },
+      { text: '승인 가능한 표준 형식으로 재작성 (검증 규칙 준수)', selected: false }
+    )
+  } else {
+    alternatives.push(
+      { text: '알림톡 승인 기준에 맞는 완전한 템플릿으로 재작성', selected: false },
+      { text: '검증 통과 가능한 표준 템플릿으로 전면 수정', selected: false },
+      { text: '카카오 알림톡 가이드라인 준수 템플릿으로 변경', selected: false }
+    )
+  }
+  
+  return alternatives
 }
 
 // 규칙 유형 표시명 변환
@@ -207,6 +293,55 @@ const getSeverityDisplay = (severity: string) => {
 // 심각도 CSS 클래스
 const getSeverityClass = (severity: string) => {
   return severity === 'error' ? 'severity-error' : 'severity-warning'
+}
+
+// 현재 변수에 대한 검증 오류 가져오기
+const getCurrentValidationError = () => {
+  if (!props.validationErrors) return null
+  
+  // 배열인 경우 현재 변수와 관련된 첫 번째 오류 반환
+  if (Array.isArray(props.validationErrors)) {
+    const errors = props.validationErrors as DetailedValidationError[]
+    return errors.find(error => error.variable_name === props.currentVariable) || errors[0] || null
+  }
+  
+  // 단일 오류 객체인 경우 그대로 반환
+  return props.validationErrors as ValidationError
+}
+
+// 타입 가드를 사용한 헬퍼 함수들
+const isDetailedError = (error: any): error is DetailedValidationError => {
+  return error && typeof error === 'object' && 'rule_type' in error
+}
+
+const getErrorRule = () => {
+  const error = getCurrentValidationError()
+  if (!error) return '알 수 없는 규칙'
+  return isDetailedError(error) ? error.rule : error.rule || '알 수 없는 규칙'
+}
+
+const getErrorRuleType = () => {
+  const error = getCurrentValidationError()
+  if (!error) return 'unknown'
+  return isDetailedError(error) ? error.rule_type : error.errorType || 'unknown'
+}
+
+const getErrorStage = () => {
+  const error = getCurrentValidationError()
+  if (!error) return ''
+  return isDetailedError(error) ? error.stage : error.validationStage || ''
+}
+
+const getErrorSeverity = () => {
+  const error = getCurrentValidationError()
+  if (!error) return 'error'
+  return error.severity || 'error'
+}
+
+const getErrorMessage = () => {
+  const error = getCurrentValidationError()
+  if (!error) return '알 수 없는 오류'
+  return isDetailedError(error) ? error.reason : error.errorMessage || '알 수 없는 오류'
 }
 
 // 모든 검증 오류 가져오기
@@ -295,6 +430,22 @@ const getAllValidationErrors = () => {
 }
 
 .close-btn:hover {
+  background: #f5f5f5;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #666;
+  padding: 0.2rem 0.4rem;
+  margin-right: 0.5rem;
+  border-radius: 0.3rem;
+  transition: background-color 0.2s ease;
+}
+
+.back-btn:hover {
   background: #f5f5f5;
 }
 
@@ -590,5 +741,52 @@ const getAllValidationErrors = () => {
   font-size: 0.8rem;
   color: #666;
   font-style: italic;
+  margin-top: 0.3rem;
+}
+
+.clickable-error {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickable-error:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.alternatives-selection {
+  margin-top: 0.8rem;
+}
+
+.error-detail {
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  background: #fff3e0;
+  border-radius: 0.4rem;
+  border-left: 0.3rem solid #ff9800;
+}
+
+.error-detail h4 {
+  margin: 0 0 0.5rem 0;
+  color: #e65100;
+  font-size: 0.9rem;
+}
+
+.error-description {
+  margin-top: 0.5rem;
+}
+
+.error-description .error-reason {
+  background: #fff;
+  padding: 0.5rem;
+  border-radius: 0.3rem;
+  margin-bottom: 0.3rem;
+  font-weight: 500;
+}
+
+.error-description .error-suggestion {
+  color: #4caf50;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 </style>

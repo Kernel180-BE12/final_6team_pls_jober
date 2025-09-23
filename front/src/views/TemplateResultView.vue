@@ -80,14 +80,15 @@
               <div class="kakao-preview-wrapper">
                 <KakaoPreviewComponent
                   :template-content="templateContent"
+                  :template-title="templateTitle"
                   :show-variables="showVariables"
                   :variables="editedVariables"
                   :is-modifying="false"
                   :is-rejected="isRejected"
                   :rejected-variables="rejectedVariables"
+                  :validation-errors="validationErrors"
                   @variable-click="handleVariableClick"
                   @update-variables="updateVariables"
-                  @reject-template="rejectTemplate"
                   @submit-template="submitTemplate"
                 />
               </div>
@@ -103,7 +104,7 @@
                   :validation-stage="validationStage"
                   @close="closeRejectionSidebar"
                   @variable-click="handleVariableClick"
-                  @apply-alternative="applySelectedAlternative"
+                  @apply-alternative="applyAlternativeToTemplate"
                 />
               </div>
             </div>
@@ -112,8 +113,17 @@
             <div class="action-buttons-container">
               <div class="correction-count">남은 정정 횟수: {{ remainingCorrections }}/{{ maxCorrections }}</div>
               <div class="action-buttons">
-                <button class="btn-reject" @click="rejectTemplate">반려하기</button>
-                <button class="btn-submit" @click="submitTemplate">제출하기</button>
+                <button
+                  class="btn-submit"
+                  @click="submitTemplate"
+                  :disabled="isValidating"
+                >
+                  <span v-if="!isValidating">제출하기</span>
+                  <span v-else class="loading-content">
+                    <span class="spinner"></span>
+                    검증 중...
+                  </span>
+                </button>
               </div>
             </div>
           </div>
@@ -166,6 +176,7 @@ const chatInput = ref('')
 const currentVersion = ref(1)
 const chatHistory = ref<any[]>([])
 const isGenerating = ref(false)
+const isValidating = ref(false) // 검증 중 상태 추가
 
 // 정정 횟수 관리 - 세션 기반
 const maxCorrections = 3
@@ -315,43 +326,8 @@ onMounted(() => {
     router.push('/')
   }
 })
- 
-// 변수별 대안 데이터
-const variableAlternatives = {
-  '수신자': [
-    { text: '고객', selected: false },
-    { text: '회원', selected: false },
-    { text: '사용자', selected: false }
-  ],
-  '발신 스페이스': [
-    { text: '저희 회사', selected: false },
-    { text: '저희 팀', selected: false },
-    { text: '저희', selected: false }
-  ],
-  '쿠폰명': [
-    { text: '할인 쿠폰', selected: false },
-    { text: '특별 혜택', selected: false },
-    { text: '프로모션 쿠폰', selected: false }
-  ],
-  '사용기한': [
-    { text: '유효기간', selected: false },
-    { text: '사용 가능 기간', selected: false },
-    { text: '만료일', selected: false }
-  ],
-  '추가 메시지': [
-    { text: '문의사항이 있으시면 언제든 연락주세요.', selected: false },
-    { text: '궁금한 점이 있으시면 편하게 문의해주세요.', selected: false },
-    { text: '도움이 필요하시면 언제든 연락주세요.', selected: false }
-  ]
-}
 
-// 반려하기
-const rejectTemplate = () => {
-  isRejected.value = true
-  showRejectionSidebar.value = true
-  // 모든 변수를 반려된 것으로 설정 (테스트용)
-  rejectedVariables.value = ['수신자', '발신 스페이스', '쿠폰명', '사용기한', '추가 메시지']
-}
+
 
 // 변수 클릭 처리
 const handleVariableClick = (variableName: string) => {
@@ -380,28 +356,17 @@ const handleVariableClick = (variableName: string) => {
       currentValidationError.value = null
     }
     
-    // 대안 정보 설정 (기본값 또는 백엔드에서 받은 대안)
-    currentAlternatives.value = JSON.parse(JSON.stringify(variableAlternatives[variableName as keyof typeof variableAlternatives] || []))
+    // 대안 정보 설정 (백엔드에서 받은 대안)
+    currentAlternatives.value = []
     showRejectionSidebar.value = true
   }
 }
 
-// 대안 선택
-const selectAlternative = (alternative: any) => {
-  // 다른 대안들의 선택 해제
-  currentAlternatives.value.forEach(alt => {
-    if (alt !== alternative) {
-      alt.selected = false
-    }
-  })
-  // 현재 대안 선택/해제
-  alternative.selected = !alternative.selected
-}
 
-// 선택한 대안 적용
+
+// 선택한 대안 적용 (기존 함수 - 호환성 유지)
 const applySelectedAlternative = (alternative: any) => {
-  // 여기서 실제 텍스트를 대체하는 로직을 구현할 수 있습니다
-  console.log(`${currentVariable.value}를 "${alternative.text}"로 대체`)
+  console.log(`대안 적용: ${currentVariable.value}를 "${alternative.text}"로 대체`)
   
   // 반려된 변수 목록에서 제거
   const index = rejectedVariables.value.indexOf(currentVariable.value)
@@ -413,10 +378,205 @@ const applySelectedAlternative = (alternative: any) => {
   if (rejectedVariables.value.length === 0) {
     isRejected.value = false
     showRejectionSidebar.value = false
+  } else {
+    // 다른 반려된 변수가 있으면 첫 번째로 이동
+    currentVariable.value = ''
+    currentAlternatives.value = []
   }
-  
-  currentVariable.value = ''
-  currentAlternatives.value = []
+}
+
+// 템플릿에 대안 적용 (새로운 함수)
+const applyAlternativeToTemplate = (alternative: any, error: any) => {
+  console.log('템플릿에 대안 적용:', alternative.text, '오류:', error.reason)
+
+  // 대안에 따라 템플릿 수정 로직 실행
+  if (alternative.text.includes('변수를 추가')) {
+    // 변수 추가 로직
+    applyVariableAddition(alternative)
+  } else if (alternative.text.includes('재작성') || alternative.text.includes('수정')) {
+    // 템플릿 전체 수정 로직
+    applyTemplateRewrite(alternative, error)
+  } else {
+    // 기본 수정 로직
+    applyGenericFix(alternative, error)
+  }
+
+  // 해당 오류를 해결된 것으로 처리
+  const errorIndex = validationErrors.value.findIndex(e => e.reason === error.reason)
+  if (errorIndex > -1) {
+    validationErrors.value.splice(errorIndex, 1)
+  }
+
+  // 모든 오류가 해결되면 반려 상태 해제
+  if (validationErrors.value.length === 0) {
+    isRejected.value = false
+    showRejectionSidebar.value = false
+    rejectedVariables.value = []
+  }
+
+  console.log('대안 적용 완료')
+}
+
+// 변수 추가 적용
+const applyVariableAddition = (alternative: any) => {
+  // 검증 통과 가능한 완전한 템플릿으로 교체
+  if (alternative.text.includes('예약취소 안내')) {
+    templateTitle.value = '예약 취소 안내'
+    templateContent.value = `안녕하세요, #{고객명}님.
+
+#{예약번호} 예약이 #{취소일시}에 취소 처리되었습니다.
+
+취소된 예약 정보:
+- 예약번호: #{예약번호}
+- 취소일시: #{취소일시}
+- 처리상태: 취소 완료
+
+문의사항이 있으시면 고객센터로 연락해 주세요.
+
+감사합니다.`
+
+    templateVariables.value = ['고객명', '예약번호', '취소일시']
+  } else if (alternative.text.includes('개인화된 알림')) {
+    templateTitle.value = '서비스 처리 안내'
+    templateContent.value = `안녕하세요, #{고객명}님.
+
+#{서비스명} 관련 처리가 #{처리일시}에 완료되었습니다.
+
+처리 내용:
+- 서비스: #{서비스명}
+- 처리일시: #{처리일시}
+- 상태: 완료
+
+추가 문의사항이 있으시면 연락 주세요.`
+
+    templateVariables.value = ['고객명', '서비스명', '처리일시']
+  } else {
+    templateTitle.value = '안내 사항'
+    templateContent.value = `안녕하세요, #{고객명}님.
+
+#{내용} 관련하여 안내드립니다.
+
+담당자: #{담당자}
+
+문의사항이 있으시면 연락 주세요.`
+
+    templateVariables.value = ['고객명', '내용', '담당자']
+  }
+
+  // 편집 가능한 변수 업데이트
+  const newVariables: Record<string, string> = {}
+  templateVariables.value.forEach((variable: string) => {
+    newVariables[variable] = `${variable} 값`
+  })
+  editedVariables.value = newVariables
+}
+
+// 템플릿 재작성 적용
+const applyTemplateRewrite = (alternative: any, error: any) => {
+  if (alternative.text.includes('예약취소 확인')) {
+    templateTitle.value = '예약 취소 확인'
+    templateContent.value = `안녕하세요, #{고객명}님.
+
+예약 취소 요청이 정상적으로 처리되었습니다.
+
+취소 정보:
+- 예약번호: #{예약번호}
+- 취소일시: #{취소일시}
+- 환불예정일: #{환불예정일}
+
+환불은 #{환불예정일}에 처리될 예정입니다.
+
+문의사항이 있으시면 고객센터로 연락해 주세요.`
+
+    templateVariables.value = ['고객명', '예약번호', '취소일시', '환불예정일']
+  } else if (alternative.text.includes('서비스 안내')) {
+    templateTitle.value = '서비스 이용 안내'
+    templateContent.value = `안녕하세요, #{고객명}님.
+
+#{서비스명} 이용과 관련하여 안내드립니다.
+
+안내 내용:
+- 서비스명: #{서비스명}
+- 처리일시: #{처리일시}
+- 담당자: #{담당자명}
+
+추가 문의사항이 있으시면 연락 주세요.`
+
+    templateVariables.value = ['고객명', '서비스명', '처리일시', '담당자명']
+  } else {
+    templateTitle.value = '고객 안내'
+    templateContent.value = `안녕하세요, #{고객명}님.
+
+#{안내내용}에 대해 안내드립니다.
+
+상세 정보:
+- 처리일시: #{처리일시}
+- 담당부서: #{담당부서}
+- 연락처: #{연락처}
+
+문의사항이 있으시면 언제든 연락해 주세요.`
+
+    templateVariables.value = ['고객명', '안내내용', '처리일시', '담당부서', '연락처']
+  }
+
+  // 편집 가능한 변수 업데이트
+  const newVariables: Record<string, string> = {}
+  templateVariables.value.forEach((variable: string) => {
+    newVariables[variable] = `${variable} 값`
+  })
+  editedVariables.value = newVariables
+}
+
+// 일반적인 수정 적용
+const applyGenericFix = (alternative: any, error: any) => {
+  if (alternative.text.includes('순수 정보 전달')) {
+    templateTitle.value = '안내 사항'
+    templateContent.value = `안녕하세요, #{고객명}님.
+
+#{안내사항}에 대해 안내드립니다.
+
+상세 내용:
+- 처리일시: #{처리일시}
+- 담당자: #{담당자}
+
+문의사항이 있으시면 연락해 주세요.`
+
+    templateVariables.value = ['고객명', '안내사항', '처리일시', '담당자']
+  } else if (alternative.text.includes('표준 알림톡 구조')) {
+    templateTitle.value = '알림 안내'
+    templateContent.value = `안녕하세요, #{고객명}님.
+
+#{처리내용}이 완료되었습니다.
+
+처리 정보:
+- 처리일시: #{처리일시}
+- 처리결과: #{처리결과}
+
+추가 문의사항이 있으시면 연락해 주세요.`
+
+    templateVariables.value = ['고객명', '처리내용', '처리일시', '처리결과']
+  } else {
+    // 기본 승인 가능한 템플릿
+    templateTitle.value = '서비스 안내'
+    templateContent.value = `안녕하세요, #{고객명}님.
+
+#{서비스내용} 관련하여 안내드립니다.
+
+안내 사항:
+- 처리일시: #{처리일시}
+- 상태: #{처리상태}
+
+문의사항이 있으시면 고객센터로 연락해 주세요.`
+
+    templateVariables.value = ['고객명', '서비스내용', '처리일시', '처리상태']
+  }
+
+  // 편집 가능한 변수 업데이트
+  const newVariables: Record<string, string> = {}
+  templateVariables.value.forEach((variable: string) => {
+    newVariables[variable] = `${variable} 값`
+  })
+  editedVariables.value = newVariables
 }
 
 // 반려 사이드바 닫기
@@ -460,8 +620,11 @@ watch(chatHistory, () => {
 
 // 템플릿 제출
 const submitTemplate = async () => {
+  if (isValidating.value) return // 이미 검증 중이면 중복 실행 방지
+
+  isValidating.value = true // 검증 시작
   try {
-    console.log('템플릿 저장 요청 시작')
+    console.log('템플릿 검증 요청 시작')
     
     // 제출 전 변수 맵 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
     if (!editedVariables.value || Object.keys(editedVariables.value).length === 0) {
@@ -472,7 +635,7 @@ const submitTemplate = async () => {
         })
       } else if (templateContent.value) {
         // 변수 배열이 비어 있으면 템플릿 본문에서 변수 패턴을 파싱해 기본값 구성
-        const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
+        const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g]
         const found = new Set<string>()
         patterns.forEach((re) => {
           let m
@@ -483,30 +646,28 @@ const submitTemplate = async () => {
         })
         found.forEach((name) => { fallback[name] = `${name} 값` })
       }
-      console.log('변수 추출 결과:', fallback)
       editedVariables.value = fallback
     }
-    
-    console.log('저장 시 변수 목록:', Object.keys(editedVariables.value))
-
-    // 제목이 비어있으면 사용자 메시지를 기반으로 기본 제목 생성
-    const finalTitle = templateTitle.value.trim() || `템플릿 - ${userMessage.value.substring(0, 20)}${userMessage.value.length > 20 ? '...' : ''}`
-    
-    // 백엔드로 템플릿 저장 요청 (검증 없이 바로 저장)
-    const response = await templateApi.saveTemplate(
+    // 👉👉 여기서 "객체 -> 배열(VariableDto[])" 변환을 합니다.
+    // 백엔드 DTO: List<VariableDto> (variableKey, variableValue)
+    const variableList = Object.entries(editedVariables.value ?? {}).map(([k, v]) => ({
+      variableKey: k,
+      variableValue: String(v ?? ''),
+    }))
+    // 백엔드로 템플릿 검증 요청
+    const response = await templateApi.validateTemplate(
       templateContent.value,
-      editedVariables.value,
+      variableList,
       templateCategory.value,
       userMessage.value,
       templateTitle.value
     )
     
-    console.log('템플릿 저장 응답:', response.data)
-    
+    console.log('템플릿 검증 응답:', response.data)
+
     if (response.data.success) {
-      // 저장 성공 - 성공 페이지로 이동
-      console.log('템플릿 저장 성공, 저장된 템플릿 ID:', response.data.templateId)
-      savedTemplateId.value = response.data.templateId // 저장된 템플릿 ID 저장
+      // 검증 성공 - 성공 페이지로 이동
+      console.log('템플릿 검증 성공, 저장된 템플릿 ID:', response.data.templateId)
       // 성공 페이지로 이동하면서 템플릿 ID 전달
       router.push({
         path: '/success',
@@ -557,12 +718,18 @@ const submitTemplate = async () => {
       isRejected.value = true
       showRejectionSidebar.value = true
       
-      // 사용자에게 오류 메시지 표시 (검증 단계 포함)
-      alert(`템플릿 검증 실패 (${stage}): ${response.data.message}`)
+      // 변수가 없어도 템플릿 전체 오류가 있으면 사이드바 표시
+      if (rejectedVariables.value.length === 0 && detailedErrors.length > 0) {
+        // 템플릿 전체를 문제 영역으로 표시
+        rejectedVariables.value = ['템플릿 내용']
+      }
+
+      // 사용자에게 친화적인 안내 메시지 표시
+      alert(`템플릿 수정이 필요합니다 📝\n\n${stage}에서 ${rejectedVariables.value.length > 0 ? '일부 변수' : '내용'}에 문제가 발견되었습니다.\n오른쪽 사이드바에서 상세 내용과 수정 방법을 확인해주세요.`)
     }
   } catch (error: any) {
     console.error('템플릿 저장 중 오류 발생:', error)
-    
+
     if (error.response?.status === 403) {
       // 인증 오류 - 로그인 페이지로 리다이렉트
       alert('세션이 만료되었습니다. 다시 로그인해주세요.')
@@ -577,6 +744,11 @@ const submitTemplate = async () => {
       // 기타 오류
       alert('템플릿 저장 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message))
     }
+  } catch (error) {
+    console.error('템플릿 검증 실패:', error)
+    alert('템플릿 검증 중 오류가 발생했습니다. 다시 시도해주세요.')
+  } finally {
+    isValidating.value = false // 검증 완료
   }
 }
 
@@ -1274,6 +1446,8 @@ const scrollToBottom = () => {
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.2s ease;
+  position: relative;
+  min-width: 6rem;
 }
 
 /* 제출 버튼 스타일 */
@@ -1282,19 +1456,39 @@ const scrollToBottom = () => {
 }
 
 /* 제출 버튼 호버 효과 */
-.btn-submit:hover {
+.btn-submit:hover:not(:disabled) {
   background-color: #218838;
 }
 
-/* 반려 버튼 스타일 */
-.btn-reject {
-  background-color: #dc3545;
+/* 제출 버튼 비활성화 상태 */
+.btn-submit:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
-/* 반려 버튼 호버 효과 */
-.btn-reject:hover {
-  background-color: #c82333;
+/* 로딩 컨텐츠 */
+.loading-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
+
+/* 스피너 애니메이션 */
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 0.1rem solid #ffffff40;
+  border-left: 0.1rem solid #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 
 /* 수정 버튼 스타일 제거됨 */
 

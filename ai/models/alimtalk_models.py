@@ -15,10 +15,19 @@ class ButtonType(str, Enum):
 
 class CategoryType(str, Enum):
     """알림톡 분류 열거형"""
-    TRANSACTION = "transaction"  # 거래성
-    MARKETING = "marketing"      # 마케팅
-    MIXED = "mixed"             # 혼합
-    REVIEW = "review"           # 검토 필요
+    TRANSACTION = "거래"         # 거래성
+    MARKETING = "마케팅"         # 마케팅
+    MIXED = "혼합"              # 혼합
+    REVIEW = "리뷰"             # 검토 필요
+    RESERVATION_CANCEL = "예약취소"  # 예약취소
+    ORDER = "주문"              # 주문
+    PAYMENT = "결제"            # 결제
+    DELIVERY = "배송"           # 배송
+    CANCEL = "취소"             # 취소
+    REFUND = "환불"             # 환불
+    PROMOTION = "프로모션"       # 프로모션
+    ADVERTISEMENT = "광고"       # 광고
+    FEEDBACK = "후기"           # 후기
 
 
 class ValidationResult(BaseModel):
@@ -48,14 +57,14 @@ class Button(BaseModel):
 
 class AlimtalkTemplate(BaseModel):
     """알림톡 템플릿 모델"""
-    template_pk: Optional[int] = Field(None, description="템플릿 Primary Key")
-    template_text : Optional[str] = Field(None, description="생성된 카카오톡 알림톡 템플릿 전체 내용")
+    # template_pk: Optional[int] = Field(None, description="템플릿 Primary Key")
+    template_content: Optional[str] = Field(None, description="생성된 카카오톡 알림톡 템플릿 전체 내용")
     template_title: Optional[str] = Field(None, max_length=50, description="제목")
-    variables_detected: Optional[Dict[str, str]] = Field(None, description="변수 목록")
+    variables: Optional[List[Dict[str, str]]] = Field(None, description="변수 리스트")
     buttons: Optional[List[Button]] = Field(None, max_items=5, description="버튼 목록")
     category: Optional[CategoryType] = Field(None, description="분류")
 
-    @field_validator('template_text')
+    @field_validator('template_content')
     def validate_body(cls, v):
         if not v or not v.strip():
             raise ValueError("본문은 빈 값일 수 없습니다")
@@ -76,30 +85,46 @@ class ValidationRequest(BaseModel):
     @classmethod
     def from_backend_request(cls, backend_data: Dict[str, Any]) -> "ValidationRequest":
         """백엔드 요청 데이터로부터 ValidationRequest 생성"""
-        template_data = backend_data.get("template", {})
         
-        # 백엔드에서 전송하는 구조에 맞게 템플릿 데이터 변환
-        # variableList를 variables 객체로 변환
-        variables_detected = {}
-        if "variableList" in backend_data:
-            for var in backend_data["variableList"]:
-                variables_detected[var["variableKey"]] = var["variableValue"]
-        elif "variables" in template_data:
-            variables_detected = template_data.get("variables", {})
-        
-        alimtalk_template = AlimtalkTemplate(
-            template_text=template_data.get("body", ""),
-            template_title="알림톡 템플릿",
-            variables_detected=variables_detected,
-            category=template_data.get("category", "marketing"),
-            buttons=[]
-        )
-        
-        return cls(
-            template=alimtalk_template,
-            user_input=backend_data.get("user_input", "")
-        )
-    
+        # TemplateGenerationResponse 구조인지 확인
+        if "template_content" in backend_data:
+            # TemplateGenerationResponse 구조
+            alimtalk_template = AlimtalkTemplate(
+                template_content=backend_data.get("template_content", ""),
+                template_title=backend_data.get("template_title", "알림톡 템플릿"),
+                variables=backend_data.get("variables", []),
+                category=backend_data.get("category"),
+                buttons=[]
+            )
+            
+            return cls(
+                template=alimtalk_template,
+                user_input=""  # TemplateGenerationResponse에는 user_input이 없음
+            )
+        else:
+            # 기존 백엔드 요청 구조 - variables_detected를 variables로 변환
+            variables = []
+            if backend_data.get("variableList"):
+                for v in backend_data["variableList"]:
+                    if v.get("variableKey"):
+                        variables.append({
+                            "name": v.get("variableKey"),
+                            "type": "string",
+                            "description": v.get("variableValue", "")
+                        })
+            
+            alimtalk_template = AlimtalkTemplate(
+                template_content=backend_data.get("templateContent", ""),
+                template_title=backend_data.get("templateTitle", "알림톡 템플릿"),
+                variables=variables,
+                category=backend_data.get("category"),
+                buttons=[]
+            )
+            
+            return cls(
+                template=alimtalk_template,
+                user_input=backend_data.get("userMessage", "")
+            )
 
 class ValidationResponse(BaseModel):
     """검증 응답 모델"""

@@ -24,25 +24,15 @@ public class TemplateService {
     private final AccountRepository accountRepository;
     private final AIService aiService; // FastAPI 통신을 전담할 서비스 주입
 
-    /**
-     * AI를 활용하여 새로운 템플릿을 생성하고 연관된 변수들을 함께 저장합니다.
-     */
-    @Transactional
-    public FastAPIResponseDto createTemplateWithAi(TemplateRequestDto requestDto) {
-        log.info("AI 템플릿 생성 요청을 AI 서버로 전달합니다. User Message: {}", requestDto.getUserMessage());
-        // AI 서버에 템플릿 생성을 요청하고, 받은 응답을 그대로 반환합니다.
-        // DB 저장 로직은 여기에서 제외됩니다.
-        return aiService.generateTemplateDataFromFastAPI(requestDto.getUserMessage());
-    }
 
     // 수정에서 제출하기 버튼 클릭 시 템플릿 저장
     @Transactional
     public TemplateSaveResponseDto saveTemplate(TemplateSaveRequestDto requestDto, UserDto currentUser) {
         try {
             // 요청 데이터 로깅
-            log.info("템플릿 저장 요청 데이터 - 제목: '{}', 사용자메시지: '{}', 카테고리: '{}'", 
+            log.info("템플릿 저장 요청 데이터 - 제목: '{}', 사용자메시지: '{}', 카테고리: '{}'",
                     requestDto.getTemplateTitle(), requestDto.getUserMessage(), requestDto.getCategory());
-            
+
             // 사용자 계정 조회
             Account account = accountRepository.findById(currentUser.getAccountId())
                     .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
@@ -52,7 +42,7 @@ public class TemplateService {
             log.info("카테고리 조회 시작 - categoryName: {}", requestDto.getCategory());
             Category category = findCategoryByName(requestDto.getCategory());
             log.info("카테고리 조회 완료 - category: {}", category);
-            
+
             // Template 생성
             Template template = Template.builder()
                     .account(account)
@@ -79,8 +69,8 @@ public class TemplateService {
             // DB 저장
             Template savedTemplate = templateRepository.save(template);
             log.info("템플릿 저장 완료: {}", savedTemplate.getTemplateId());
-            log.info("저장된 템플릿 상세 - 제목: '{}', 사용자메시지: '{}', 내용: '{}'", 
-                    savedTemplate.getAutoTitle(), savedTemplate.getUserMessage(), 
+            log.info("저장된 템플릿 상세 - 제목: '{}', 사용자메시지: '{}', 내용: '{}'",
+                    savedTemplate.getAutoTitle(), savedTemplate.getUserMessage(),
                     savedTemplate.getTemplateContent() != null ? savedTemplate.getTemplateContent().substring(0, Math.min(50, savedTemplate.getTemplateContent().length())) : "null");
             log.info("저장된 변수 개수: {}", savedTemplate.getVariables().size());
             log.info("=== TemplateService.saveTemplate 완료 ===");
@@ -109,15 +99,18 @@ public class TemplateService {
             Map<String, Object> validationRequest = new HashMap<>();
             validationRequest.put("user_input", requestDto.getTemplateContent());
             validationRequest.put("variableList", requestDto.getVariableList());
+            validationRequest.put("category", requestDto.getCategory());
+            validationRequest.put("userMessage", requestDto.getUserMessage());
+            validationRequest.put("templateTitle", requestDto.getTemplateTitle());
             if (requestDto.getTemplateId() != null) {
                 validationRequest.put("templateId", requestDto.getTemplateId());
                 log.info("AI 서버로 전달할 검증 요청에 templateId 포함: {}", requestDto.getTemplateId());
             } else {
                 log.warn("검증 요청에 templateId가 없습니다");
             }
-            
+
             log.info("AI 서버 검증 요청 데이터: {}", validationRequest);
-            
+
             // AI 서버 검증 호출 (실제로는 AIService를 통해 호출)
             Map<String, Object> aiValidationResult = aiService.validateTemplateWithFastAPI(validationRequest);
 
@@ -143,7 +136,9 @@ public class TemplateService {
             // AI 서비스의 상세 검증 결과 전달
             Object validationResults = aiValidationResult.get("validation_results");
             if (validationResults instanceof List) {
-                response.setValidation_results((List<Object>) validationResults);
+                @SuppressWarnings("unchecked")
+                List<Object> validationResultsList = (List<Object>) validationResults;
+                response.setValidation_results(validationResultsList);
             }
             
             return response;

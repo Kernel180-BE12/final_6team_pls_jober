@@ -52,7 +52,6 @@ logging:
 ai:
   fastapi:
     url: http://localhost:8001
-    path: /ai/template/generate
 
 # OAuth2 설정 (테스트용)
   security:

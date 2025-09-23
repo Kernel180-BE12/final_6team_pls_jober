@@ -8,7 +8,9 @@ def get_standardized_template_validation_prompt(template_title: str, template_co
 
 ## 정형화된 템플릿 요건
 - 동일한 조건일 때 항상 같은 구조로 발송되는 메시지여야 함
+- 변수(#{{변수명}})를 사용한 개인화는 허용됨
 - 특정 사용자, 특정 상황에 따라 가변적으로 달라지는 공지사항은 불가
+- 단, 고객명, 주문번호 등 개인정보는 변수로 처리 가능
 
 ## 검증 대상 템플릿
 제목: {template_title}

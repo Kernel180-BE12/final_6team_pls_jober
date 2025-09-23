@@ -55,7 +55,7 @@ class ConstraintValidator:
 
     def validate(self, template_data: Dict[str, Any]) -> ValidationResult:
         """
-        1차 검증: 알림톡 승인 규칙 기반 검증
+        1차 검증: 알림톡 승인 규칙 기반 검증 (내부 검증 단계는 비동기 병렬 처리)
         
         검증 규칙:
         1. 정보성 메시지 요건
@@ -65,54 +65,89 @@ class ConstraintValidator:
         
         Args:
             template_data: 검증할 템플릿 데이터
-                - templateContent: 템플릿 텍스트 내용
-                - templateTitle: 템플릿 제목
-                - variableList: 변수 정의 딕셔너리
+                - template_content: 템플릿 텍스트 내용
+                - template_title: 템플릿 제목
+                - variables: 변수 정의 리스트 (List[Dict[str, str]])
                 - category: 템플릿 카테고리
+                - detected_variables: 이미 추출된 변수 리스트
+                - model: 사용된 모델명
         
         Returns:
             ValidationResult: 검증 결과 객체
         """
-        logger.info("🔍 1차 검증 시작: 알림톡 승인 규칙 검증")
+        logger.info("🔍 1차 검증 시작: 알림톡 승인 규칙 검증 (병렬 처리)")
         logger.debug(f"입력 데이터 keys: {list(template_data.keys())}")
 
-        errors = []
-        warnings = []
-        rejected_variables = []
-        validation_details = []
-
         try:
-            # 1. 정보성 메시지 요건 검증
-            logger.info("📌 [1단계] 정보성 메시지 요건 검증")
-            info_errors, info_warnings, info_details = self._check_informational_message_requirements(template_data)
-            errors.extend(info_errors)
-            warnings.extend(info_warnings)
-            validation_details.extend(info_details)
-
-            # 2. 정형화된 템플릿 요건 검증
-            logger.info("📌 [2단계] 정형화된 템플릿 요건 검증")
-            standard_errors, standard_warnings, standard_details = self._check_standardized_template_requirements(template_data)
-            errors.extend(standard_errors)
-            warnings.extend(standard_warnings)
-            validation_details.extend(standard_details)
-
-            # 3. 변수 사용 규칙 검증
-            logger.info("📌 [3단계] 변수 사용 규칙 검증")
-            var_errors, var_warnings, var_details, var_rejected = self._check_variable_usage_rules(template_data)
-            errors.extend(var_errors)
-            warnings.extend(var_warnings)
-            validation_details.extend(var_details)
-            rejected_variables.extend(var_rejected)
-
-            # 4. 기타 템플릿 작성 규칙 검증
-            logger.info("📌 [4단계] 기타 템플릿 작성 규칙 검증")
-            other_errors, other_warnings, other_details = self._check_other_template_rules(template_data)
-            errors.extend(other_errors)
-            warnings.extend(other_warnings)
-            validation_details.extend(other_details)
+            # 4개 검증 단계를 비동기로 병렬 실행
+            import asyncio
+            
+            # 현재 이벤트 루프가 실행 중인지 확인
+            try:
+                loop = asyncio.get_running_loop()
+                # 이미 실행 중인 루프가 있으면 새 스레드에서 실행
+                import concurrent.futures
+                
+                def run_in_thread():
+                    return asyncio.run(self._run_async_validations(template_data))
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_in_thread)
+                    results = future.result()
+            except RuntimeError:
+                # 실행 중인 루프가 없으면 새 루프 생성
+                results = asyncio.run(self._run_async_validations(template_data))
+            
+            # 결과 처리
+            errors = []
+            warnings = []
+            rejected_variables = []
+            validation_details = []
+            
+            # 각 검증 결과를 순서대로 처리
+            step_names = ["정보성 메시지", "정형화된 템플릿", "변수 사용 규칙", "기타 템플릿 작성"]
+            
+            for i, (step_name, result) in enumerate(zip(step_names, results), 1):
+                if isinstance(result, Exception):
+                    # 오류 발생 시
+                    error_msg = f"{step_name} 검증 중 오류가 발생했습니다."
+                    warnings.append(error_msg)
+                    logger.warning(f"[{i}단계] {step_name} 검증 실패: {str(result)}")
+                    print(f"⚠️ [{i}단계] {step_name} 경고 1개:")
+                    print(f"   1. {error_msg}")
+                else:
+                    # 정상 결과
+                    step_errors, step_warnings, step_details = result[:3]
+                    errors.extend(step_errors)
+                    warnings.extend(step_warnings)
+                    validation_details.extend(step_details)
+                    
+                    # 변수 검증 결과인 경우 반려된 변수도 추가
+                    if len(result) > 3:
+                        rejected_variables.extend(result[3])
+                    
+                    # 단계별 결과 로그
+                    if step_errors:
+                        print(f"❌ [{i}단계] {step_name} 오류 {len(step_errors)}개:")
+                        for j, error in enumerate(step_errors, 1):
+                            print(f"   {j}. {error}")
+                    if step_warnings:
+                        print(f"⚠️ [{i}단계] {step_name} 경고 {len(step_warnings)}개:")
+                        for j, warning in enumerate(step_warnings, 1):
+                            print(f"   {j}. {warning}")
+                    if len(result) > 3 and result[3]:  # 반려된 변수가 있는 경우
+                        print(f"🚫 [{i}단계] 반려된 변수 {len(result[3])}개: {result[3]}")
+                    if not step_errors and not step_warnings:
+                        print(f"✅ [{i}단계] {step_name} 검증 통과")
 
             # 최종 결과
             is_valid = len(errors) == 0
+            print(f"\n📋 1차 검증 최종 결과:")
+            print(f"   ✅ 통과 여부: {'통과' if is_valid else '실패'}")
+            print(f"   ❌ 총 오류: {len(errors)}개")
+            print(f"   ⚠️ 총 경고: {len(warnings)}개")
+            print(f"   🚫 반려된 변수: {len(rejected_variables)}개")
+            
             logger.info(f"✅ 1차 검증 완료 → valid={is_valid}, 총 오류={len(errors)}, 총 경고={len(warnings)}")
 
             return ValidationResult(
@@ -121,7 +156,7 @@ class ConstraintValidator:
                 errors=errors,
                 warnings=warnings,
                 details={
-                    "validation_type": "alimtalk_approval_rules",
+                    "validation_type": "alimtalk_approval_rules_parallel",
                     "total_errors": len(errors),
                     "total_warnings": len(warnings),
                     "rejected_variables": rejected_variables,
@@ -145,19 +180,44 @@ class ConstraintValidator:
                 details={"exception": str(e)}
             )
 
-    def _check_informational_message_requirements(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
-        """정보성 메시지 요건 검증 (LLM 기반)"""
+    async def _run_async_validations(self, template_data: Dict[str, Any]) -> List:
+        """
+        4개 검증 단계를 비동기로 병렬 실행
+        
+        Args:
+            template_data: 검증할 템플릿 데이터
+            
+        Returns:
+            List: 각 검증 단계의 결과 리스트
+        """
+        import asyncio
+        
+        # 4개 검증을 병렬로 실행
+        tasks = [
+            self._check_informational_message_requirements_async(template_data),
+            self._check_standardized_template_requirements_async(template_data),
+            self._check_variable_usage_rules_async(template_data),
+            self._check_other_template_rules_async(template_data)
+        ]
+        
+        # 모든 검증을 병렬로 실행 (오류가 발생해도 다른 검증은 계속 진행)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return results
+
+    async def _check_informational_message_requirements_async(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
+        """정보성 메시지 요건 검증 (비동기 버전)"""
         errors, warnings, details = [], [], []
         
         # 검증 대상 데이터 추출 (카테고리, 제목, 내용)
-        templateContent = template_data.get('templateContent', '')
-        templateTitle = template_data.get('templateTitle', '')
+        templateContent = template_data.get('template_content', '')
+        templateTitle = template_data.get('template_title', '')
         category = template_data.get('category', '')
         
         try:
             prompt = get_informational_message_validation_prompt(category, templateTitle, templateContent)
             
-            response = self.openai_service.chat_completion([
+            # 비동기 함수 호출
+            response = await self.openai_service.chat_completion([
                 {"role": "system", "content": "알림톡 템플릿 검증 전문가입니다. JSON 형식으로만 응답하세요."},
                 {"role": "user", "content": prompt}
             ])
@@ -179,25 +239,28 @@ class ConstraintValidator:
                             "severity": violation.get('severity', 'error')
                         })
             except json.JSONDecodeError:
-                warnings.append("정보성 메시지 검증 중 오류가 발생했습니다.")
+                warnings.append("정보성 메시지 검증 응답 파싱 중 오류가 발생했습니다.")
                 
         except Exception as e:
+            # 시스템 오류는 로그에만 기록하고 사용자에게는 일반적인 메시지만 표시
+            logger.warning(f"정보성 메시지 검증 중 예외 발생: {str(e)}")
             warnings.append("정보성 메시지 검증 중 오류가 발생했습니다.")
         
         return errors, warnings, details
 
-    def _check_standardized_template_requirements(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
-        """정형화된 템플릿 요건 검증 (LLM 기반)"""
+    async def _check_standardized_template_requirements_async(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
+        """정형화된 템플릿 요건 검증 (비동기 버전)"""
         errors, warnings, details = [], [], []
         
         # 검증 대상 데이터 추출 (제목, 내용)
-        templateContent = template_data.get('templateContent', '')
-        templateTitle = template_data.get('templateTitle', '')
+        templateContent = template_data.get('template_content', '')
+        templateTitle = template_data.get('template_title', '')
         
         try:
             prompt = get_standardized_template_validation_prompt(templateTitle, templateContent)
             
-            response = self.openai_service.chat_completion([
+            # 비동기 함수 호출
+            response = await self.openai_service.chat_completion([
                 {"role": "system", "content": "알림톡 템플릿 검증 전문가입니다. JSON 형식으로만 응답하세요."},
                 {"role": "user", "content": prompt}
             ])
@@ -219,26 +282,35 @@ class ConstraintValidator:
                             "severity": violation.get('severity', 'error')
                         })
             except json.JSONDecodeError:
-                warnings.append("정형화된 템플릿 검증 중 오류가 발생했습니다.")
+                warnings.append("정형화된 템플릿 검증 응답 파싱 중 오류가 발생했습니다.")
                 
         except Exception as e:
+            # 시스템 오류는 로그에만 기록하고 사용자에게는 일반적인 메시지만 표시
+            logger.warning(f"정형화된 템플릿 검증 중 예외 발생: {str(e)}")
             warnings.append("정형화된 템플릿 검증 중 오류가 발생했습니다.")
         
         return errors, warnings, details
 
-    def _check_variable_usage_rules(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]], List[str]]:
-        """변수 사용 규칙 검증 (LLM 기반)"""
+    async def _check_variable_usage_rules_async(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]], List[str]]:
+        """변수 사용 규칙 검증 (비동기 버전)"""
         errors, warnings, details = [], [], []
         rejected_variables = []
         
-        templateContent = template_data.get('templateContent', '')
-        variableList = template_data.get('variableList', {})
-        detected_variables = self._extract_variables_from_template(templateContent)
+        templateContent = template_data.get('template_content', '')
+        variables = template_data.get('variables', [])
+        detected_variables = template_data.get('detected_variables', [])
+        
+        # variables에서 변수명만 추출 (List[Dict[str, str]] 형태)
+        if variables and isinstance(variables[0], dict):
+            variable_names = [var.get("name", "") for var in variables if isinstance(var, dict)]
+        else:
+            variable_names = variables
         
         try:
-            prompt = get_variable_usage_validation_prompt(templateContent, detected_variables, variableList)
+            prompt = get_variable_usage_validation_prompt(templateContent, detected_variables, variable_names)
             
-            response = self.openai_service.chat_completion([
+            # 비동기 함수 호출
+            response = await self.openai_service.chat_completion([
                 {"role": "system", "content": "알림톡 템플릿 변수 사용 검증 전문가입니다. JSON 형식으로만 응답하세요."},
                 {"role": "user", "content": prompt}
             ])
@@ -266,25 +338,28 @@ class ConstraintValidator:
                             "variable_name": violation.get('variable_name')
                         })
             except json.JSONDecodeError:
-                warnings.append("변수 사용 규칙 검증 중 오류가 발생했습니다.")
+                warnings.append("변수 사용 규칙 검증 응답 파싱 중 오류가 발생했습니다.")
                 
         except Exception as e:
+            # 시스템 오류는 로그에만 기록하고 사용자에게는 일반적인 메시지만 표시
+            logger.warning(f"변수 사용 규칙 검증 중 예외 발생: {str(e)}")
             warnings.append("변수 사용 규칙 검증 중 오류가 발생했습니다.")
         
         return errors, warnings, details, rejected_variables
 
-    def _check_other_template_rules(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
-        """기타 템플릿 작성 규칙 검증 (LLM 기반)"""
+    async def _check_other_template_rules_async(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
+        """기타 템플릿 작성 규칙 검증 (비동기 버전)"""
         errors, warnings, details = [], [], []
         
         # 검증 대상 데이터 추출 (제목, 내용)
-        templateContent = template_data.get('templateContent', '')
-        templateTitle = template_data.get('templateTitle', '')
+        templateContent = template_data.get('template_content', '')
+        templateTitle = template_data.get('template_title', '')
         
         try:
             prompt = get_template_writing_validation_prompt(templateTitle, templateContent)
             
-            response = self.openai_service.chat_completion([
+            # 비동기 함수 호출
+            response = await self.openai_service.chat_completion([
                 {"role": "system", "content": "알림톡 템플릿 작성 규칙 검증 전문가입니다. JSON 형식으로만 응답하세요."},
                 {"role": "user", "content": prompt}
             ])
@@ -306,44 +381,12 @@ class ConstraintValidator:
                             "severity": violation.get('severity', 'error')
                         })
             except json.JSONDecodeError:
-                warnings.append("기타 템플릿 작성 규칙 검증 중 오류가 발생했습니다.")
+                warnings.append("기타 템플릿 작성 규칙 검증 응답 파싱 중 오류가 발생했습니다.")
+                
         except Exception as e:
+            # 시스템 오류는 로그에만 기록하고 사용자에게는 일반적인 메시지만 표시
+            logger.warning(f"기타 템플릿 작성 규칙 검증 중 예외 발생: {str(e)}")
             warnings.append("기타 템플릿 작성 규칙 검증 중 오류가 발생했습니다.")
         
         return errors, warnings, details
 
-    def _extract_variables_from_template(self, templateContent: str) -> List[str]:
-        """
-        템플릿 텍스트에서 변수 추출
-        
-        지원하는 변수 패턴:
-        1. {변수명} - 기본 패턴
-        2. #{변수명} - 해시 접두사 패턴
-        3. {{변수명}} - 이중 중괄호 패턴
-        
-        Args:
-            templateContent: 템플릿 텍스트 내용
-        
-        Returns:
-            List[str]: 중복 제거된 변수명 리스트
-        """
-        import re
-        logger.debug("변수 추출 시작")
-        variables = []
-
-        # 1. {변수명} 패턴 - 기본 변수 형식
-        matches = re.findall(r'\{([^}]+)\}', templateContent)
-        variables.extend(matches)
-
-        # 2. #{변수명} 패턴 - 해시 접두사가 있는 변수
-        matches = re.findall(r'#\{([^}]+)\}', templateContent)
-        variables.extend(matches)
-
-        # 3. {{변수명}} 패턴 - 이중 중괄호 변수 (일부 템플릿 엔진 지원)
-        matches = re.findall(r'\{\{([^}]+)\}\}', templateContent)
-        variables.extend(matches)
-
-        # 중복 제거 후 반환
-        unique_vars = list(set(variables))
-        logger.debug(f"추출된 변수 최종 목록: {unique_vars}")
-        return unique_vars

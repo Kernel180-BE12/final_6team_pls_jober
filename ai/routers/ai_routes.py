@@ -5,8 +5,8 @@ import re
 from services.openai_service import OpenAIService
 from services.chromadb_service import ChromaDBService
 from templateEngine.prompts.message_analyzer_prompts import TemplateGenerationPromptBuilder, TemplateModificationPromptBuilder
+from templateEngine.pipeline import create_pipeline
 from middleware.auth_middleware import get_current_user, get_current_user_id
-from templateEngine.integrated_template_pipeline import IntegratedTemplatePipeline, IntegratedGenerationRequest, IntegratedGenerationResult, clean_template_content, extract_variables_from_template
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 
@@ -24,11 +24,6 @@ try:
 except Exception as e:
     print(f"❌ ChromaDB 서비스 초기화 실패: {e}")
 
-try:
-    integrated_pipeline = IntegratedTemplatePipeline()
-    print("✅ 통합 파이프라인 초기화 완료")
-except Exception as e:
-    print(f"❌ 통합 파이프라인 초기화 실패: {e}")
 
 print("AI 서비스 초기화 완료!")
 
@@ -53,11 +48,12 @@ class SearchRequest(BaseModel):
 class TemplateGenerationRequest(BaseModel):
     userMessage: str
     model: Optional[str] = "gpt-4o-mini"
+    category: Optional[str] = "기타"
 
 class TemplateGenerationResponse(BaseModel):
     template_content: str
     template_title: str
-    variables: List[Dict[str, Any]]
+    variables: List[Dict[str, str]]
     category: str
     model: str
 
@@ -71,24 +67,10 @@ class TemplateModificationRequest(BaseModel):
 class TemplateModificationResponse(BaseModel):
     modified_template: str
     template_title: str
-    variables: List[Dict[str, Any]]
+    variables: List[str]
     explanation: str
     model: str
 
-class IntegratedTemplateRequest(BaseModel):
-    user_text: str
-    category_main: str
-    category_sub_list: List[str]
-    model: Optional[str] = "gpt-4o-mini"
-
-class IntegratedTemplateResponse(BaseModel):
-    template_text: str
-    template_title: str
-    generation_method: str
-    reference_templates: List[Dict[str, Any]]
-    metadata: Dict[str, Any]
-    success: bool
-    error_message: Optional[str] = None
 
 # OpenAI 라우트 (인증 필요)
 @router.post("/openai/chat", response_model=ChatResponse)
@@ -144,71 +126,66 @@ async def get_document(document_id: str):
 # 템플릿 생성 라우트
 @router.post("/template/generate", response_model=TemplateGenerationResponse)
 async def generate_template(request: TemplateGenerationRequest):
-    category = "예약취소"
     """알림톡 템플릿 생성"""
     try:
         print(f"템플릿 생성 요청 받음: {request.userMessage}")
         
-        # 가이드라인 검색을 통한 컨텍스트 생성
+        # 카테고리 설정 (요청에서 받거나 기본값 사용)
+        category = request.category or "기타"
+
+        # 템플릿 생성 파이프라인 실행
+        print("템플릿 생성 파이프라인 시작...")
         try:
-            print("ChromaDB 검색 시작...")
-            guidelines = await chromadb_service.search_documents(
-                f"{category} {request.userMessage}",
-                3
-            )
-            print(f"ChromaDB 검색 완료: {len(guidelines.get('documents', []))}개 문서")
+            pipeline = await create_pipeline()
+            result = await pipeline.ainvoke({
+                "userMessage": request.userMessage,
+                "category_sub_list": ["서비스이용", "이용안내/공지", "운영안내", "기타"],
+                "openai_service": openai_service,
+                "chromadb_service": chromadb_service
+            })
+            print("템플릿 생성 파이프라인 실행 완료")
         except Exception as e:
-            print(f"가이드라인 검색 실패: {e}")
-            guidelines = {"documents": []}
+            print(f"파이프라인 실행 실패: {e}")
+            # 파이프라인 실패 시 기본값으로 fallback
+            result = {
+                "template_text": f"안녕하세요. {request.userMessage}에 대한 알림톡 템플릿입니다.",
+                "template_title": f"{category} 템플릿",
+                "variables": [],
+                "category_sub": category
+            }
+
+        # 파이프라인 결과에서 데이터 추출
+        template_content = result.get("template_text", "")
+        template_title = result.get("template_title", f"{category} 템플릿")
+        category = result.get("category_sub", category)
         
-        # 프롬프트 구성
-        context = ""
-        if guidelines and 'documents' in guidelines:
-            context = "\n".join(guidelines['documents'][:3])
-        
-        # 프롬프트 빌더 사용
-        print("프롬프트 빌더 초기화 중...")
-        prompt_builder = TemplateGenerationPromptBuilder(
-            category=category,
-            user_message=request.userMessage,
-            context=context
-        )
-        prompt = prompt_builder.build()
-        print(f"프롬프트 생성 완료 (길이: {len(prompt)}자)")
-        
-        # OpenAI를 통한 템플릿 생성
-        print("OpenAI API 호출 시작...")
-        messages = [{"role": "user", "content": prompt}]
-        response = await openai_service.chat_completion(messages, request.model)
-        print(f"OpenAI API 호출 완료 (응답 길이: {len(response)}자)")
-        
-        # 응답에서 템플릿과 변수 추출 (간단한 파싱)
-        template_content = response
+        # 변수 추출 및 변환
         variables = []
+        raw_variables = result.get("variables", [])
+
+        # 변수 추출 (#{변수명} 형태)
+        variable_pattern = r'#\{([^}]+)\}'
+        found_variables = re.findall(variable_pattern, template_content)
         
-        # 변수 추출 ({{변수명}} 형태)
-        variable_pattern = r'\{\{([^}]+)\}\}'
-        found_variables = re.findall(variable_pattern, response)
-        
+        # ✅ TemplateGenerationResponse 구조에 맞게 변수 변환
+        variables_dto = []
         for var in set(found_variables):
-            variables.append({
+            variables_dto.append({
                 "name": var.strip(),
                 "type": "string",
-                "description": f"{var} 관련 정보"
+                "description": f"{var.strip()} 변수"
             })
         
-        # 템플릿 제목 생성 (사용자 메시지 기반)
-        template_title = f"{category} 템플릿 - {request.userMessage[:30]}..."
-        
-        print(f"템플릿 생성 완료: {len(variables)}개 변수 추출")
+        print(f"템플릿 생성 완료: {len(variables_dto)}개 변수 추출")
+
         return TemplateGenerationResponse(
             template_content=template_content,
             template_title=template_title,
-            variables=variables,
+            variables=variables_dto,
             category=category,
             model=request.model
         )
-        
+
     except Exception as e:
         print(f"템플릿 생성 중 에러 발생: {str(e)}")
         print(f"에러 타입: {type(e).__name__}")
@@ -225,10 +202,10 @@ async def modify_template(request: TemplateModificationRequest):
         chat_context = ""
         if request.chat_history:
             chat_context = "\n".join([
-                f"{msg.get('type', 'user')}: {msg.get('content', '')}" 
+                f"{msg.get('type', 'user')}: {msg.get('content', '')}"
                 for msg in request.chat_history[-6:]  # 최근 6개 메시지만 사용
             ])
-        
+
         # 프롬프트 빌더 사용
         prompt_builder = TemplateModificationPromptBuilder(
             current_template=request.current_template,
@@ -236,17 +213,13 @@ async def modify_template(request: TemplateModificationRequest):
             chat_context=chat_context
         )
         prompt = prompt_builder.build()
-        
+
         # OpenAI를 통한 템플릿 수정
         messages = [{"role": "user", "content": prompt}]
         response = await openai_service.chat_completion(messages, "gpt-4o-mini")
-        
-        # AI 응답에서 템플릿 부분 추출 (더 정확한 패턴)
-        print(f"AI 원본 응답: {response}")
-        
-        # AI 응답에서 실제 템플릿 내용 추출
-        # 패턴 1: "알림톡 템플릿:" 다음의 내용에서 "---" 사이의 텍스트 추출
-        template_match = re.search(r'알림톡\s*템플릿:\s*\n?---\s*\n(.*?)\n---', response, re.DOTALL)
+
+        # "수정된 템플릿:" 이후의 템플릿 부분만 추출
+        template_match = re.search(r'수정된 템플릿:\s*\n?(.*?)(?:\n\n수정된 부분 설명:|수정 설명:|설명:|$)', response, re.DOTALL)
         if template_match:
             modified_template = template_match.group(1).strip()
         else:
@@ -269,29 +242,25 @@ async def modify_template(request: TemplateModificationRequest):
                     if line.startswith('변수') or line.startswith('이 템플릿'):
                         break
                 modified_template = '\n'.join(content_lines).strip()
-        
+
         # 최종 정리
         if not modified_template or len(modified_template) < 10:
             modified_template = response.strip()
-        
+
         print(f"추출된 템플릿: {modified_template}")
 
         variables = []
         
-        # 변수 추출 ({{변수명}} 형태)
-        variable_pattern = r'\{\{([^}]+)\}\}'
+        # 변수 추출 (#{변수명} 형태)
+        variable_pattern = r'#\{([^}]+)\}'
         found_variables = re.findall(variable_pattern, modified_template)
 
         for var in set(found_variables):
-            variables.append({
-                "name": var.strip(),
-                "type": "string",
-                "description": f"{var} 관련 정보"
-            })
+            variables.append(var.strip())
         
         # 수정 설명 생성
         explanation = f"사용자 요청 '{request.userMessage}'에 따라 템플릿을 수정했습니다."
-        
+
         return TemplateModificationResponse(
             modified_template=modified_template,
             template_title=request.current_template_title,
@@ -299,41 +268,10 @@ async def modify_template(request: TemplateModificationRequest):
             explanation=explanation,
             model="gpt-4o-mini"
         )
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 통합 템플릿 생성 라우트 (요구사항에 맞는 4단계 흐름)
-@router.post("/template/integrated-generate", response_model=IntegratedTemplateResponse)
-async def integrated_generate_template(request: IntegratedTemplateRequest):
-    """통합된 4단계 템플릿 생성 API"""
-    try:
-        # 통합 파이프라인 초기화
-        await integrated_pipeline.initialize()
-        
-        # 통합 생성 요청 객체 생성
-        generation_request = IntegratedGenerationRequest(
-            user_text=request.user_text,
-            category_main=request.category_main,
-            category_sub_list=request.category_sub_list,
-            model=request.model
-        )
-        
-        # 통합 파이프라인 실행
-        result = await integrated_pipeline.generate_template(generation_request)
-        
-        return IntegratedTemplateResponse(
-            template_text=result.template_text,
-            template_title=result.template_title,
-            generation_method=result.generation_method,
-            reference_templates=result.reference_templates,
-            metadata=result.metadata,
-            success=result.success,
-            error_message=result.error_message
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 # 사용자 권한 API들
 @router.post("/chromadb/documents")

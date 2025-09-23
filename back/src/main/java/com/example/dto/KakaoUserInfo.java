@@ -5,8 +5,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Map;
-
 /**
  * 카카오 사용자 정보 DTO
  */

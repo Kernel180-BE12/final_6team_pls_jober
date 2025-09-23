@@ -18,7 +18,7 @@ NC='\033[0m' # No Color
 # 로그 함수
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
-}
+} 
 
 log_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
@@ -44,7 +44,7 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null; then
+if ! command -v docker-compose version &> /dev/null; then
     log_error "Docker Compose가 설치되어 있지 않습니다."
     exit 1
 fi
@@ -53,9 +53,25 @@ fi
 log_info "기존 컨테이너 정리 중..."
 docker-compose down --remove-orphans || true
 
-# 사용하지 않는 이미지 정리
-log_info "사용하지 않는 Docker 이미지 정리 중..."
-docker system prune -a --volumes
+# 안전한 Docker 정리 (용량 증가 방지)
+log_info "사용하지 않는 Docker 리소스 정리 중..."
+
+# 1. 중지된 컨테이너 정리
+docker container prune -f
+
+# 2. 이전 프로젝트 이미지들 정리 (새로 빌드할 것들)
+docker rmi $(docker images 'final_6team_pls_jober*' -q) 2>/dev/null || true
+
+# 3. dangling 이미지 정리 (태그 없는 이미지)
+docker image prune -f
+
+# 4. 사용되지 않는 네트워크 정리
+docker network prune -f
+
+# 5. 빌드 캐시 정리 (용량 절약)
+docker builder prune -f
+
+log_success "Docker 리소스 정리 완료"
 
 # Docker BuildKit 활성화 (빌드 성능 향상) 
 export DOCKER_BUILDKIT=1
@@ -71,8 +87,8 @@ log_success "AI 서비스 빌드 완료"
 
 # 백엔드 이미지 빌드 (로컬에서 직접 빌드)
 log_info "백엔드 이미지 빌드 중..."
-if ! timeout 600 docker-compose build --parallel backend; then
-    log_error "백엔드 빌드 실패 또는 타임아웃 (10분 제한)"
+if ! timeout 1200 docker-compose build --parallel backend; then
+    log_error "백엔드 빌드 실패 또는 타임아웃 (20분 제한)"
     exit 1
 fi
 log_success "백엔드 빌드 완료"
@@ -105,8 +121,15 @@ else
 fi
 
 
+# Redis 상태 확인
+if redis-cli ping > /dev/null 2>&1; then
+    log_success "Redis가 정상적으로 실행 중입니다."
+else
+    log_warning "Redis 헬스체크 실패. Redis가 실행 중인지 확인해주세요."
+fi
+
 # ChromaDB 상태 확인 (포트 8001로 가정)
-if curl -f http://localhost:8001/health > /dev/null 2>&1; then
+if curl -f http://localhost:8001/api/v1 > /dev/null 2>&1; then
     log_success "ChromaDB가 정상적으로 실행 중입니다."
 else
     log_warning "ChromaDB 헬스체크 실패. ChromaDB가 실행 중인지 확인해주세요."
@@ -153,9 +176,9 @@ docker-compose ps
 log_success "배포가 완료되었습니다!"
 echo ""
 echo "서비스 접속 정보:"
-echo "  프론트엔드: http://144.24.69.36"
-echo "  백엔드 API: http://144.24.69.36/api"
-echo "  AI 서비스: http://144.24.69.36/ai"
+echo "  프론트엔드: http://138.2.119.75"
+echo "  백엔드 API: http://138.2.119.75/api"
+echo "  AI 서비스: http://138.2.119.75/ai"
 echo ""
 echo "서비스 관리 명령어:"
 echo "  Docker 서비스 상태 확인: docker-compose ps"
@@ -166,7 +189,7 @@ echo ""
 echo "  호스트 서비스 관리:"
 echo "  MySQL 상태: sudo systemctl status mysql"
 echo "  MySQL 재시작: sudo systemctl restart mysql"
-echo "  ChromaDB 상태: curl http://localhost:8001/health"
+echo "  ChromaDB 상태: curl http://localhost:8001/api/v1"
 echo ""
 echo "  Docker 서비스 관리:"
 echo "  Nginx 컨테이너 로그: docker-compose logs -f nginx"

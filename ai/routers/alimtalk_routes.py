@@ -68,7 +68,7 @@ async def validate_template(backend_request: Dict[str, Any]):
         # 백엔드 요청을 ValidationRequest로 변환
         request = ValidationRequest.from_backend_request(backend_request)
         
-        logger.info(f"변환된 요청: user_input={request.user_input[:50]}..., template_text={request.template.template_text[:50]}...")
+        logger.info(f"변환된 요청: user_input={request.user_input[:50]}..., template_content={request.template.template_content[:50]}...")
         
         # 검증 실행
         result = await validation_service.validate_template(request)
@@ -127,16 +127,20 @@ def convert_to_backend_format(validation_result: ValidationResponse, request: Va
             # 각 검증 결과에서 오류 정보 수집
             for result in validation_result.validation_results:
                 for error in result.errors:
-                    # 변수명 추출
+                    # 변수명 추출 (있는 경우)
                     variable_name = extract_variable_name_from_error(error)
                     if variable_name:
                         rejected_vars.add(variable_name)
                     
-                    # 검증 오류 상세 정보 추가
+                    # 검증 오류 상세 정보 추가 (변수가 없어도 템플릿 전체 오류로 처리)
                     validation_errors.append({
-                        "error": error,
-                        "stage": result.stage,
-                        "variable_name": variable_name
+                        "rule_type": f"{result.stage}_validation",
+                        "rule": "알림톡 승인 규칙",
+                        "reason": error,
+                        "suggestion": generate_suggestion_for_error(error),
+                        "severity": "error",
+                        "variable_name": variable_name,
+                        "stage": convert_stage_to_korean(result.stage)
                     })
             
             response["rejected_variables"] = list(rejected_vars)
@@ -145,6 +149,18 @@ def convert_to_backend_format(validation_result: ValidationResponse, request: Va
             # LLM 기반 대안 추천 생성
             if rejected_vars:
                 response["alternatives"] = generate_alternatives(list(rejected_vars), request)
+        
+        # 백엔드가 기대하는 validation_results 필드도 추가
+        if not validation_result.success:
+            response["validation_results"] = [{
+                "is_valid": False,
+                "validator_name": "constraint_validator",
+                "stage": "constraint",
+                "errors": [error["reason"] for error in validation_errors],
+                "details": {
+                    "validation_details": validation_errors
+                }
+            }]
         
         return response
         
@@ -160,6 +176,28 @@ def convert_to_backend_format(validation_result: ValidationResponse, request: Va
             }
         }
 
+
+def convert_stage_to_korean(stage: str) -> str:
+    """검증 단계를 한국어로 변환"""
+    stage_map = {
+        "constraint": "1차 검증",
+        "semantic": "2차 검증", 
+        "final": "최종 검증"
+    }
+    return stage_map.get(stage, "알 수 없음")
+
+def generate_suggestion_for_error(error_message: str) -> str:
+    """오류 메시지에 따른 수정 제안 생성"""
+    if "변수" in error_message and "사용되지 않음" in error_message:
+        return "템플릿에 #{변수명} 형식으로 변수를 추가해주세요"
+    elif "제목" in error_message and "내용" in error_message and "비어" in error_message:
+        return "템플릿에 명확한 제목과 내용을 작성해주세요"
+    elif "광고성" in error_message:
+        return "광고성 문구를 제거하고 정보 전달 목적의 내용으로 수정해주세요"
+    elif "정형화" in error_message:
+        return "일정한 구조를 가진 템플릿으로 작성해주세요"
+    else:
+        return "알림톡 승인 가이드라인에 맞게 내용을 수정해주세요"
 
 def extract_variable_name_from_error(error_message: str) -> str:
     """오류 메시지에서 변수명 추출"""

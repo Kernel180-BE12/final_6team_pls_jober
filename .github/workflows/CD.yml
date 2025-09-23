@@ -19,10 +19,12 @@ jobs:
       - name: Deploy to Oracle Cloud VM
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 144.24.69.36
+          host: 138.2.119.75
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE }}
           port: 22
+          timeout: 30m
+          command_timeout: 30m
           script: |
             # 프로젝트 디렉토리로 이동
             cd /home/ubuntu/final_6team_pls_jober
@@ -56,11 +58,11 @@ jobs:
           echo "Deploy: ${{ needs.deploy.result }}"
           echo "Environment: ${{ github.base_ref == 'main' && 'production' || 'staging' }}"
 
-          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+          if [[ "${{ needs.deploy.result }}" == "success" ]]; then 
             echo "Deployment completed successfully!"
-            echo "Frontend: http://134.185.106.160"
-            echo "Backend API: http://134.185.106.160/api"
-            echo "AI Service: http://134.185.106.160/ai"
+            echo "Frontend: http://138.2.119.75"
+            echo "Backend API: http://138.2.119.75/api"
+            echo "AI Service: http://138.2.119.75/ai"
           else
             echo "Deployment failed"
           fi
