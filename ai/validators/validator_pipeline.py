@@ -35,6 +35,7 @@ class ValidationPipeline:
                 - variables: 변수 정의 리스트 (List[Dict[str, str]])
                 - category: 템플릿 카테고리
                 - model: 사용된 모델명
+                - detected_variables: 이미 추출된 변수 리스트
             
         Returns:
             각 단계별 검증 결과와 최종 결과
