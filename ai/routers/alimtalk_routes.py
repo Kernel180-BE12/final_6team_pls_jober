@@ -26,31 +26,6 @@ router = APIRouter(prefix="/alimtalk", tags=["알림톡 검증"])
 # 전역 서비스 인스턴스
 validation_service = AlimtalkValidationService()
 
-# 초기화는 메인 앱에서 처리하므로 제거
-# @router.on_event("startup") # Deprecated in FastAPI
-
-@router.get("/")
-async def get_alimtalk_info():
-    """알림톡 검증 서비스 정보"""
-    return {
-        "service": "알림톡 템플릿 검증 시스템",
-        "version": "1.0.0",
-        "description": "AI 기반 2단계 알림톡 템플릿 검증 서비스",
-        "stages": ["1차: 제약 검증", "2차: 의미적 검증 (RAG)"]
-    }
-
-@router.get("/health")
-async def health_check():
-    """알림톡 서비스 헬스 체크"""
-    try:
-        health_status = await validation_service.get_health_status()
-        return health_status
-    except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e)
-        }
-
 @router.post("/validate")
 async def validate_template(backend_request: Dict[str, Any]):
     """
@@ -94,7 +69,6 @@ async def validate_template(backend_request: Dict[str, Any]):
                 "message": ["시스템 오류가 발생했습니다. 다시 시도해주세요."]
             }
         }
-
 
 def convert_to_backend_format(validation_result: ValidationResponse, request: ValidationRequest) -> Dict[str, Any]:
     """
@@ -176,7 +150,6 @@ def convert_to_backend_format(validation_result: ValidationResponse, request: Va
             }
         }
 
-
 def convert_stage_to_korean(stage: str) -> str:
     """검증 단계를 한국어로 변환"""
     stage_map = {
@@ -216,7 +189,6 @@ def extract_variable_name_from_error(error_message: str) -> str:
             return error_message[start + 1:end]
     
     return None
-
 
 def generate_alternatives(rejected_variables: List[str], request: ValidationRequest) -> Dict[str, List[str]]:
     """검증 실패 시 LLM 기반 대안 추천 생성"""
