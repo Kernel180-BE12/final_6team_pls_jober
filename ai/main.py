@@ -30,13 +30,13 @@ async def lifespan(app: FastAPI):
     try:
         from routers import alimtalk_routes
         print(">>main<<")
-        print("🔧 알림톡 검증 서비스 초기화 중...")
+        print("알림톡 검증 서비스 초기화 중...")
         logger.info("알림톡 검증 서비스 초기화 시작")
         await alimtalk_routes.validation_service.initialize()
-        print("✅ 알림톡 검증 서비스 초기화 완료!")
+        print("알림톡 검증 서비스 초기화 완료!")
         logger.info("알림톡 검증 서비스 초기화 완료")
     except Exception as e:
-        print(f"❌ 알림톡 서비스 초기화 실패: {e}")
+        print(f"알림톡 서비스 초기화 실패: {e}")
         logger.error(f"알림톡 서비스 초기화 실패: {e}")
         import traceback
         logger.error(f"상세 오류: {traceback.format_exc()}")
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # 종료 시 실행 (필요한 경우)
-    print("🔄 서비스 종료 중...")
+    print("서비스 종료 중...")
 
 app = FastAPI(
     title="AI Service API",
@@ -78,17 +78,17 @@ try:
     logger.info("알림톡 라우터 모듈 로드 완료")
     app.include_router(alimtalk_routes.router)
     print(">>main<<")
-    print("✅ 알림톡 검증 라우터 등록 완료")
+    print("[SUCCESS] 알림톡 검증 라우터 등록 완료")
     logger.info("알림톡 검증 라우터 등록 완료")
     logger.info(f"등록된 라우터 경로: {alimtalk_routes.router.prefix}")
     
 except ImportError as e:
     print(">>main<<")
-    print(f"⚠️ 알림톡 검증 라우터 로드 실패: {e}")
+    print(f"[WARNING] 알림톡 검증 라우터 로드 실패: {e}")
     logger.error(f"알림톡 검증 라우터 로드 실패: {e}")
 except Exception as e:
     print(">>main<<")
-    print(f"❌ 알림톡 검증 라우터 등록 실패: {e}")
+    print(f"[ERROR] 알림톡 검증 라우터 등록 실패: {e}")
     logger.error(f"알림톡 검증 라우터 등록 실패: {e}")
     import traceback
     logger.error(f"상세 오류: {traceback.format_exc()}")
