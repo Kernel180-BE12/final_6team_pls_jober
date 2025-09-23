@@ -40,15 +40,27 @@ class AlimtalkValidationService:
         self.is_initialized = False
         
     async def initialize(self):
-        """서비스 초기화"""
+        """
+        알림톡 검증 서비스 초기화
+        
+        지연 초기화(Lazy Initialization) 패턴을 사용하여 서버 시작 시간을 단축하고,
+        실제 검증 작업이 필요할 때만 무거운 초기화 작업을 수행합니다.
+        
+        초기화 과정:
+        1. ChromaDB 서비스 초기화 - 벡터 데이터베이스 연결 및 컬렉션 준비
+        2. 검증 파이프라인 구성 - 1차(제약) → 2차(의미적) 검증 순서 제어
+        3. 의존성 주입 - 각 컴포넌트들을 연결하여 검증 워크플로우 구성
+        
+        중복 초기화 방지를 위해 is_initialized 플래그로 상태를 관리합니다.
+        """
         if self.is_initialized:
             return
             
         try:
-            # ChromaDB 초기화
+            # ChromaDB 초기화 - 정책 문서 및 승인된 템플릿 데이터 로드
             await self.chromadb_service.initialize()
             
-            # 검증 파이프라인 초기화
+            # 검증 파이프라인 초기화 - LLM 기반 제약 검증기와 의미적 검증기 연결
             from validators.constraint_validator import ConstraintValidator
             constraint_validator = ConstraintValidator()
             self.validation_pipeline = ValidationPipeline(
