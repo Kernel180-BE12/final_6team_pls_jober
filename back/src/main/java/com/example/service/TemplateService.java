@@ -347,11 +347,34 @@ public class TemplateService {
 
     /**
      * 주어진 이름으로 Category 엔티티를 조회합니다.
+     * 카테고리가 존재하지 않으면 자동으로 생성합니다.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public Category findCategoryByName(String categoryName) {
-        return categoryRepository.findByName(categoryName)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with name: " + categoryName));
+        // 카테고리 이름 유효성 검사
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            throw new IllegalArgumentException("카테고리 이름이 비어있습니다.");
+        }
+        
+        // 앞뒤 공백 제거하여 정규화
+        String trimmedCategoryName = categoryName.trim();
+        
+        return categoryRepository.findByName(trimmedCategoryName)
+                .orElseGet(() -> {
+                    try {
+                        log.info("새로운 카테고리 생성: {}", trimmedCategoryName);
+                        Category newCategory = Category.builder()
+                                .name(trimmedCategoryName)
+                                .isActive(true)
+                                .build();
+                        Category savedCategory = categoryRepository.save(newCategory);
+                        log.info("새로운 카테고리 생성 완료: {} (ID: {})", trimmedCategoryName, savedCategory.getId());
+                        return savedCategory;
+                    } catch (Exception e) {
+                        log.error("새로운 카테고리 생성 실패: {}", trimmedCategoryName, e);
+                        throw new RuntimeException("카테고리 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
+                    }
+                });
     }
 
     /**

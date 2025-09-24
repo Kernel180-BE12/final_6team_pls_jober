@@ -1,7 +1,9 @@
 package com.example.dto;
 
+import lombok.Getter;
 import lombok.Setter;
 
+@Getter
 @Setter
 public class TemplateSaveResponseDto {
     private String templateId; // 저장된 템플릿 ID

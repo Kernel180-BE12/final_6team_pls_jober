@@ -25,11 +25,22 @@ api.interceptors.request.use(
     // user store에서 토큰 가져오기
     const userStore = useUserStore()
 
-    // 토큰이 없으면 에러 발생 (로그인이 필요한 API인 경우)
-    if (!userStore.accessToken) {
+    // 로그인 관련 API는 토큰이 필요하지 않음
+    const isAuthAPI = config.url?.includes('/auth/')
+    
+    console.log('API 요청 인터셉터 - URL:', config.url)
+    console.log('API 요청 인터셉터 - 사용자 토큰 상태:', {
+      hasToken: !!userStore.accessToken,
+      token: userStore.accessToken ? `${userStore.accessToken.substring(0, 20)}...` : 'null',
+      isAuthAPI,
+      isLoggedIn: userStore.isLoggedIn
+    })
+    
+    if (!userStore.accessToken && !isAuthAPI) {
       console.warn('API 요청 시 토큰이 없습니다. 로그인이 필요할 수 있습니다.')
-    } else {
+    } else if (userStore.accessToken) {
       config.headers.Authorization = `Bearer ${userStore.accessToken}`
+      console.log('Authorization 헤더 설정됨:', `Bearer ${userStore.accessToken.substring(0, 20)}...`)
     }
     return config
   },
@@ -60,7 +71,7 @@ api.interceptors.response.use(
   },
   async (error) => {
     // 401, 403 에러 시 자동 로그아웃
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    if (error.response?.status === 401 ) {
       const userStore = useUserStore()
       userStore.logout()
     }

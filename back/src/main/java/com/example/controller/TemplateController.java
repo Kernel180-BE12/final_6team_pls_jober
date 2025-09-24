@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -69,7 +70,8 @@ public class TemplateController {
      */
     @PostMapping("/template/modify")
     public ResponseEntity<FastAPIResponseDto> modifyTemplate(
-            @Valid @RequestBody TemplateRequestDto requestDto
+            @Valid @RequestBody TemplateRequestDto requestDto,
+            @AuthenticationPrincipal Account currentUser
     ) {
         try {
             log.info("템플릿 수정 요청 시작 - 템플릿 내용: {}, 제목: {}, 사용자 메시지: {}",
@@ -77,6 +79,12 @@ public class TemplateController {
                     requestDto.getTemplateTitle(),
                     requestDto.getUserMessage());
             log.info("요청 데이터 전체: {}", requestDto);
+            
+            if (currentUser == null) {
+                log.error("인증되지 않은 사용자입니다 - currentUser is null");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new FastAPIResponseDto());
+            }
 
             FastAPIResponseDto response = templateService.modifyTemplateWithAi(requestDto);
             log.info("템플릿 수정 성공 - 응답: {}", response);
@@ -102,12 +110,14 @@ public class TemplateController {
         try {
             log.info("=== 템플릿 저장 요청 시작 ===");
             log.info("템플릿 저장 요청 - currentUser: {}", currentUser);
+            log.info("SecurityContext Authentication: {}", SecurityContextHolder.getContext().getAuthentication());
             log.info("요청 데이터 - 제목: '{}', 사용자메시지: '{}', 변수개수: {}", 
                     requestDto.getTemplateTitle(), requestDto.getUserMessage(), 
                     requestDto.getVariableList() != null ? requestDto.getVariableList().size() : 0);
             
             if (currentUser == null) {
-                log.error("인증되지 않은 사용자입니다");
+                log.error("인증되지 않은 사용자입니다 - currentUser is null");
+                log.error("SecurityContext: {}", SecurityContextHolder.getContext().getAuthentication());
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(TemplateSaveResponseDto.failure("인증되지 않은 사용자입니다"));
             }

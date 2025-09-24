@@ -15,7 +15,7 @@ public class TemplateRequestDto {
     private String templateTitle;
     private String category;
     private List<Object> chatHistory;
-    private List<VariableDto> variableList;
+    private List<String> variableList;
     
     @Getter
     @Setter

@@ -89,7 +89,7 @@
                   :validation-errors="validationErrors"
                   @variable-click="handleVariableClick"
                   @update-variables="updateVariables"
-                  @submit-template="submitTemplate"
+                  @submit-template="handlePrimary"
                 />
               </div>
               
@@ -115,13 +115,13 @@
               <div class="action-buttons">
                 <button
                   class="btn-submit"
-                  @click="submitTemplate"
-                  :disabled="isValidating"
+                  @click="handlePrimary"
+                  :disabled="isBusy"
                 >
-                  <span v-if="!isValidating">제출하기</span>
+                  <span v-if="!isBusy">{{ primaryLabel }}</span>
                   <span v-else class="loading-content">
                     <span class="spinner"></span>
-                    검증 중...
+                    {{ stage === 'edit' ? '저장 중...' : '검증/제출 중...' }}
                   </span>
                 </button>
               </div>
@@ -136,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 import KakaoPreviewComponent from '@/components/KakaoPreviewComponent.vue'
@@ -177,6 +177,24 @@ const currentVersion = ref(1)
 const chatHistory = ref<any[]>([])
 const isGenerating = ref(false)
 const isValidating = ref(false) // 검증 중 상태 추가
+const isSaving = ref(false) // 저장 중 상태 추가
+
+// 단계 플래그: 채팅수정(edit) vs 검증(validate)
+type Stage = 'edit' | 'validate'
+// 기본은 채팅 단계. 검증 화면이라면 라우트로 'validate'를 주입해도 됨.
+const stage = ref<Stage>(
+  (router.currentRoute.value.query.stage as Stage) || 'edit'
+)
+
+// 공통 버튼 레이블/상태
+const primaryLabel = computed(() => stage.value === 'edit' ? '저장하기' : '제출하기')
+const isBusy = computed(() => stage.value === 'edit' ? isSaving.value : isValidating.value)
+
+// 공통 버튼 핸들러
+const handlePrimary = () => {
+  if (stage.value === 'edit') return saveTemplate()
+  else return submitTemplate()
+}
 
 // 정정 횟수 관리 - 세션 기반
 const maxCorrections = 3
@@ -621,7 +639,7 @@ watch(chatHistory, () => {
 // 템플릿 제출
 const submitTemplate = async () => {
   if (isValidating.value) return // 이미 검증 중이면 중복 실행 방지
-
+  
   isValidating.value = true // 검증 시작
   try {
     console.log('템플릿 검증 요청 시작')
@@ -664,7 +682,7 @@ const submitTemplate = async () => {
     )
     
     console.log('템플릿 검증 응답:', response.data)
-
+    
     if (response.data.success) {
       // 검증 성공 - 성공 페이지로 이동
       console.log('템플릿 검증 성공, 저장된 템플릿 ID:', response.data.templateId)
@@ -723,32 +741,101 @@ const submitTemplate = async () => {
         // 템플릿 전체를 문제 영역으로 표시
         rejectedVariables.value = ['템플릿 내용']
       }
-
+      
       // 사용자에게 친화적인 안내 메시지 표시
       alert(`템플릿 수정이 필요합니다 📝\n\n${stage}에서 ${rejectedVariables.value.length > 0 ? '일부 변수' : '내용'}에 문제가 발견되었습니다.\n오른쪽 사이드바에서 상세 내용과 수정 방법을 확인해주세요.`)
-    }
-  } catch (error: any) {
-    console.error('템플릿 저장 중 오류 발생:', error)
-
-    if (error.response?.status === 403) {
-      // 인증 오류 - 로그인 페이지로 리다이렉트
-      alert('세션이 만료되었습니다. 다시 로그인해주세요.')
-      userStore.logout()
-      router.push('/')
-    } else if (error.response?.status === 401) {
-      // 인증 토큰 오류 - 로그인 페이지로 리다이렉트
-      alert('인증이 필요합니다. 로그인해주세요.')
-      userStore.logout()
-      router.push('/')
-    } else {
-      // 기타 오류
-      alert('템플릿 저장 중 오류가 발생했습니다: ' + (error.response?.data?.message || error.message))
     }
   } catch (error) {
     console.error('템플릿 검증 실패:', error)
     alert('템플릿 검증 중 오류가 발생했습니다. 다시 시도해주세요.')
   } finally {
     isValidating.value = false // 검증 완료
+  }
+}
+
+// 수정 완료 후 템플릿 저장 (저장 → 검증 순서)
+const saveTemplate = async () => {
+  try {
+    console.log('템플릿 저장 요청 시작')
+    isSaving.value = true
+    
+    // 사용자 상태 디버깅
+    console.log('사용자 상태 확인:', {
+      isLoggedIn: userStore.isLoggedIn,
+      hasToken: !!userStore.accessToken,
+      accountId: userStore.accountId,
+      userName: userStore.userName,
+      email: userStore.email,
+      token: userStore.accessToken ? `${userStore.accessToken.substring(0, 20)}...` : 'null'
+    })
+    
+    // 로그인 상태 확인
+    if (!userStore.isLoggedIn) {
+      console.error('사용자가 로그인되지 않음')
+      alert('템플릿을 저장하려면 로그인이 필요합니다. 로그인 페이지로 이동합니다.')
+      router.push('/')
+      return
+    }
+    
+    // 제출 전 변수 맵 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
+    if (!editedVariables.value || Object.keys(editedVariables.value).length === 0) {
+      const fallback: Record<string, string> = {}
+      if (Array.isArray(templateVariables.value) && templateVariables.value.length > 0) {
+        templateVariables.value.forEach((variableName: string) => {
+          fallback[variableName] = `${variableName} 값`
+        })
+      } else if (templateContent.value) {
+        // 변수 배열이 비어 있으면 템플릿 본문에서 변수 패턴을 파싱해 기본값 구성
+        const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
+        const found = new Set<string>()
+        patterns.forEach((re) => {
+          let m
+          while ((m = re.exec(templateContent.value)) !== null) {
+            const name = (m[1] || '').trim()
+            if (name) found.add(name)
+          }
+        })
+        found.forEach((name) => { fallback[name] = `${name} 값` })
+      }
+      console.log('변수 추출 결과:', fallback)
+      editedVariables.value = fallback
+    }
+    
+    console.log('저장 시 변수 목록:', Object.keys(editedVariables.value))
+
+    // 1단계: 먼저 템플릿 저장
+    console.log('1단계: 템플릿 저장 시작')
+    const saveResponse = await templateApi.saveTemplate(
+      templateContent.value,
+      editedVariables.value,
+      templateCategory.value,
+      userMessage.value,
+      templateTitle.value
+    )
+    
+    console.log('템플릿 저장 응답:', saveResponse.data)
+    
+    if (!saveResponse.data.success) {
+      console.error('템플릿 저장 실패:', saveResponse.data.message)
+      alert('템플릿 저장에 실패했습니다: ' + saveResponse.data.message)
+      return
+    }
+    
+    const templateId = saveResponse.data.templateId
+    console.log('템플릿 저장 성공, 저장된 템플릿 ID:', templateId)
+    savedTemplateId.value = templateId // 저장된 템플릿 ID 저장
+    
+    // 저장 성공 후 검증 단계로 전환
+    stage.value = 'validate'
+    
+    // 검증 프로세스 시작
+    await submitTemplate()
+    
+  } catch (error: any) {
+    console.error('템플릿 저장 중 오류 발생:', error)
+    alert('템플릿 저장 중 오류가 발생했습니다. 다시 시도해주세요.')
+  } finally {
+    isSaving.value = false // 저장 완료
   }
 }
 
@@ -1437,6 +1524,7 @@ const scrollToBottom = () => {
 
 /* 공통 버튼 스타일 */
 .btn-submit,
+.btn-validate,
 .btn-reject {
   background-color: #6c757d;
   color: white;
