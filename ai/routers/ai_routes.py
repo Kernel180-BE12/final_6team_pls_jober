@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import re
 from services.openai_service import OpenAIService
@@ -7,74 +6,20 @@ from services.chromadb_service import ChromaDBService
 from templateEngine.prompts.message_analyzer_prompts import TemplateGenerationPromptBuilder, TemplateModificationPromptBuilder
 from templateEngine.pipeline import create_pipeline
 from middleware.auth_middleware import get_current_user
+from services.dependencies import get_openai_service
+from models.alimtalk_models import (
+    ChatRequest, ChatResponse, 
+    TemplateModificationRequest, TemplateModificationResponse
+)
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 
-# 서비스 인스턴스 초기화
-print("AI 서비스 초기화 시작...")
-try:
-    openai_service = OpenAIService()
-    print("✅ OpenAI 서비스 초기화 완료")
-except Exception as e:
-    print(f"❌ OpenAI 서비스 초기화 실패: {e}")
-
-try:
-    chromadb_service = ChromaDBService()
-    print("✅ ChromaDB 서비스 초기화 완료")
-except Exception as e:
-    print(f"❌ ChromaDB 서비스 초기화 실패: {e}")
-
-
-print("AI 서비스 초기화 완료!")
-
-# Pydantic 모델들
-class ChatRequest(BaseModel):
-    message: str
-    model: Optional[str] = "gpt-4o-mini"
-
-class ChatResponse(BaseModel):
-    response: str
-    model: str
-
-class DocumentRequest(BaseModel):
-    content: str
-    metadata: Optional[Dict[str, Any]] = None
-
-class SearchRequest(BaseModel):
-    query: str
-    n_results: Optional[int] = 5
-
-
-class TemplateGenerationRequest(BaseModel):
-    userMessage: str
-    model: Optional[str] = "gpt-4o-mini"
-    category: Optional[str] = "기타"
-
-class TemplateGenerationResponse(BaseModel):
-    template_content: str
-    template_title: str
-    variables: List[Dict[str, str]]
-    category: str
-    model: str
-
-class TemplateModificationRequest(BaseModel):
-    current_template: str
-    current_template_title: str
-    userMessage: str
-    chat_history: List[Dict[str, Any]] = []
-    variableList: List[str] = []
-
-class TemplateModificationResponse(BaseModel):
-    modified_template: str
-    template_title: str
-    variables: List[str]
-    explanation: str
-    model: str
-
-
-# OpenAI 라우트 (인증 필요)
+# OpenAI 라우트 (의존성 주입 사용)
 @router.post("/openai/chat", response_model=ChatResponse)
-async def openai_chat(request: ChatRequest):
+async def openai_chat(
+    request: ChatRequest,
+    openai_service: OpenAIService = Depends(get_openai_service)
+):
     """OpenAI 채팅 API"""
     try:
         messages = [{"role": "user", "content": request.message}]
@@ -195,7 +140,10 @@ async def generate_template(request: TemplateGenerationRequest):
 
 # 템플릿 수정 라우트
 @router.post("/template/modify", response_model=TemplateModificationResponse)
-async def modify_template(request: TemplateModificationRequest):
+async def modify_template(
+    request: TemplateModificationRequest,
+    openai_service: OpenAIService = Depends(get_openai_service)
+):
     """채팅을 통한 템플릿 수정"""
     try:
         # 채팅 히스토리를 포함한 프롬프트 구성
@@ -273,21 +221,3 @@ async def modify_template(request: TemplateModificationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 사용자 권한 API들
-@router.post("/chromadb/documents")
-async def add_documents(request: DocumentRequest):
-    """ChromaDB에 문서 추가"""
-    try:
-        result = await chromadb_service.add_documents([request.content], [request.metadata])
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.delete("/chromadb/documents/{document_id}")
-async def delete_document(document_id: str):
-    """ChromaDB에서 문서 삭제"""
-    try:
-        # 문서 삭제 로직 구현 (ChromaDBService에 메서드 추가 필요)
-        return {"message": f"문서 {document_id}가 삭제되었습니다."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

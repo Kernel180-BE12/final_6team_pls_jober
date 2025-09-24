@@ -40,18 +40,27 @@ class AlimtalkValidationService:
         self.is_initialized = False
         
     async def initialize(self):
-        """서비스 초기화"""
+        """
+        알림톡 검증 서비스 초기화
+        
+        지연 초기화(Lazy Initialization) 패턴을 사용하여 서버 시작 시간을 단축하고,
+        실제 검증 작업이 필요할 때만 무거운 초기화 작업을 수행합니다.
+        
+        초기화 과정:
+        1. ChromaDB 서비스 초기화 - 벡터 데이터베이스 연결 및 컬렉션 준비
+        2. 검증 파이프라인 구성 - 1차(제약) → 2차(의미적) 검증 순서 제어
+        3. 의존성 주입 - 각 컴포넌트들을 연결하여 검증 워크플로우 구성
+        
+        중복 초기화 방지를 위해 is_initialized 플래그로 상태를 관리합니다.
+        """
         if self.is_initialized:
             return
             
         try:
-            # ChromaDB 초기화
+            # ChromaDB 초기화 - 정책 문서 및 승인된 템플릿 데이터 로드
             await self.chromadb_service.initialize()
             
-            # 가이드라인 로드
-            await self._load_initial_guidelines()
-            
-            # 검증 파이프라인 초기화
+            # 검증 파이프라인 초기화 - LLM 기반 제약 검증기와 의미적 검증기 연결
             from validators.constraint_validator import ConstraintValidator
             constraint_validator = ConstraintValidator()
             self.validation_pipeline = ValidationPipeline(
@@ -95,11 +104,26 @@ class AlimtalkValidationService:
             if result.get('semantic_result'):
                 validation_results.append(result['semantic_result'])
             
+            # validation_errors 생성
+            validation_errors = []
+            for result in validation_results:
+                for error in result.errors:
+                    validation_errors.append({
+                        "rule_type": f"{result.stage}_validation",
+                        "rule": "알림톡 승인 규칙",
+                        "reason": error,
+                        "suggestion": "AI에서 생성된 수정 제안을 참고해주세요",
+                        "severity": "error",
+                        "variable_name": None,
+                        "stage": result.stage
+                    })
+            
             response = ValidationResponse(
                 success=success,
-                template=request.template if success else None,
-                validation_results=validation_results,
-                final_message=final_message
+                message=final_message,
+                rejected_variables=[],
+                validation_errors=validation_errors,
+                alternatives={}
             )
             
             return response
@@ -107,50 +131,11 @@ class AlimtalkValidationService:
         except Exception as e:
             return ValidationResponse(
                 success=False,
-                template=None,
-                validation_results=[],
-                final_message=f"검증 중 오류가 발생했습니다: {str(e)}"
+                message=f"검증 중 오류가 발생했습니다: {str(e)}",
+                rejected_variables=[],
+                validation_errors=[],
+                alternatives={}
             )
 
-
-    async def get_health_status(self) -> Dict[str, Any]:
-        """헬스 상태 확인"""
-        try:
-            if not self.is_initialized:
-                return {
-                    "status": "not_initialized",
-                    "message": "서비스가 초기화되지 않았습니다."
-                }
-
-            # ChromaDB 상태 확인
-            chromadb_stats = self.chromadb_service.get_collection_stats()
-
-            return {
-                "status": "healthy",
-                "vector_db": chromadb_stats,
-                "pipeline_ready": self.validation_pipeline is not None,
-                "services": {
-                    "chromadb": "healthy" if chromadb_stats else "unhealthy",
-                    "openai": "healthy" if self.openai_service else "not_configured"
-                }
-            }
-
-        except Exception as e:
-            return {
-                "status": "unhealthy",
-                "error": str(e)
-            }
-
-
-
-    async def _load_initial_guidelines(self):
-        """초기 가이드라인 로드 (이제 ChromaDB에서 직접 로드)"""
-        try:
-            # ChromaDB에서 가이드라인 로드
-            await self.chromadb_service.load_initial_guidelines()
-            print("✅ 가이드라인 로드 완료")
-
-        except Exception as e:
-            print(f"❌ 가이드라인 로드 실패: {e}")
 
 
