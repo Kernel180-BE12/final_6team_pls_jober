@@ -53,18 +53,27 @@ public class TemplateService {
                     .status("검증 중")
                     .build();
 
-            if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
-                log.info("변수 목록 저장 시작 - 변수 개수: {}", requestDto.getVariableList().size());
-                for (String variableName : requestDto.getVariableList()) {
-                    log.info("변수 저장: {}", variableName);
-                    Var variable = Var.builder()
-                            .variableKey(variableName)
-                            .build();
-                    template.addVariable(variable);
-                }
-            } else {
-                log.warn("변수 목록이 비어있습니다. requestDto.getVariableList(): {}", requestDto.getVariableList());
-            }
+                    if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
+                        // 유효한 변수만 필터링 (null이 아니고, 공백이 아닌 변수만)
+                        List<String> validVariables = requestDto.getVariableList().stream()
+                                .filter(variableName -> variableName != null && !variableName.trim().isEmpty())
+                                .toList();
+                        
+                    if (!validVariables.isEmpty()) {
+                        log.info("변수 목록 저장 시작 - 유효한 변수 개수: {}", validVariables.size());
+                        for (String variableName : validVariables) {
+                            log.info("변수 저장: {}", variableName);
+                            Var variable = Var.builder()
+                                .variableKey(variableName.trim()) // 앞뒤 공백 제거
+                                .build();
+                            template.addVariable(variable);
+                            }
+                        } else {
+                            log.warn("유효한 변수가 없습니다. 모든 변수가 null이거나 공백입니다.");
+                        }
+                    } else {
+                        log.warn("변수 목록이 비어있습니다. requestDto.getVariableList(): {}", requestDto.getVariableList());
+                    }
 
             // DB 저장
             Template savedTemplate = templateRepository.save(template);
