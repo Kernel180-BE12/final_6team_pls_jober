@@ -406,7 +406,7 @@ class ReferenceBasedTemplatePromptBuilder:
 
             reference_context += f"\n=== 참고 템플릿 {i} (유사도: {similarity:.3f}, 제목: '{title_hint}') ===\n{template.get('text', '')}\n"
 
-    # 👇 변수 처리 규칙을 명시적으로 추가
+        # 👇 변수 처리 규칙을 명시적으로 추가
         variable_rules = ""
         if self.extracted_fields:
             variable_rules = "\n\n**중요 변수 처리 규칙:**\n"

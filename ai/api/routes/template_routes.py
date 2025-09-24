@@ -3,12 +3,15 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+from core.database import get_db
 
-from core.constants import APPROVED_SUB_CATEGORIES
 from services.dependencies import get_openai_service, get_chromadb_service
 from services.openai_service import OpenAIService
+from services.category_service import CategoryService
 from services.chromadb_service import ChromaDBService
 from templateEngine.pipeline import run_template_generation_pipeline
+from core.database import SessionLocal
+Session = SessionLocal()
 
 router = APIRouter(prefix="/template", tags=["Template Generation"])
 
@@ -29,16 +32,19 @@ class GenerationResponse(BaseModel):
 @router.post("/generate", response_model=GenerationResponse)
 async def generate_template_endpoint(
         request: GenerationRequest,
+        db_session: Session = Depends(get_db), # db 세션 Depends로 주입
         openai_service: OpenAIService = Depends(get_openai_service),
         chromadb_service: ChromaDBService = Depends(get_chromadb_service)
 ):
     """
     LangGraph 기반의 지능형 템플릿 생성 파이프라인을 실행합니다.
     """
+    category_service = CategoryService(db_session)
+    category_sub_list= await category_service.get_all_categories()
     try:
         result = await run_template_generation_pipeline(
             userMessage=request.userMessage,
-            category_sub_list=APPROVED_SUB_CATEGORIES,
+            category_sub_list= category_sub_list,
             openai_service=openai_service,
             chromadb_service=chromadb_service
         )
@@ -59,6 +65,9 @@ async def generate_template_endpoint(
         
         return GenerationResponse(**response_data)
     except Exception as e:
+        import traceback
+        traceback.print_exc()  # ← 콘솔에 자세한 에러 출력
         raise HTTPException(status_code=500, detail=f"API 엔드포인트 오류: {str(e)}")
+
 
 
