@@ -73,6 +73,10 @@ public class TemplateService {
                     savedTemplate.getAutoTitle(), savedTemplate.getUserMessage(),
                     savedTemplate.getTemplateContent() != null ? savedTemplate.getTemplateContent().substring(0, Math.min(50, savedTemplate.getTemplateContent().length())) : "null");
             log.info("저장된 변수 개수: {}", savedTemplate.getVariables().size());
+            
+            // 카테고리 사용량 증가
+            incrementCategoryUsageCount(requestDto.getCategory());
+            
             log.info("=== TemplateService.saveTemplate 완료 ===");
 
             return TemplateSaveResponseDto.success(savedTemplate.getTemplateId().toString());
@@ -366,6 +370,7 @@ public class TemplateService {
                         Category newCategory = Category.builder()
                                 .name(trimmedCategoryName)
                                 .isActive(true)
+                                .createdBy("AI")
                                 .build();
                         Category savedCategory = categoryRepository.save(newCategory);
                         log.info("새로운 카테고리 생성 완료: {} (ID: {})", trimmedCategoryName, savedCategory.getId());
@@ -375,6 +380,21 @@ public class TemplateService {
                         throw new RuntimeException("카테고리 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
                     }
                 });
+    }
+
+    /**
+     * 카테고리 사용량을 증가시킵니다.
+     */
+    @Transactional
+    public void incrementCategoryUsageCount(String categoryName) {
+        try {
+            Category category = findCategoryByName(categoryName);
+            category.setUsageCount(category.getUsageCount() + 1);
+            categoryRepository.save(category);
+            log.info("카테고리 사용량 증가: {} (현재 사용량: {})", categoryName, category.getUsageCount());
+        } catch (Exception e) {
+            log.error("카테고리 사용량 증가 실패: {}", categoryName, e);
+        }
     }
 
     /**
