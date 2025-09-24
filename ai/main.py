@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv()
 from api.routes import template_routes
+from routers import ai_routes
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -59,6 +60,8 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 #@TODO: 생성 쪽 template_routes 라우터의 모든 경로는 /ai 로 시작하도록 설정.
 app.include_router(template_routes.router, prefix="/ai")
+# AI 서비스 라우터 등록 (템플릿 수정 기능 포함)
+app.include_router(ai_routes.router)
 
 # CORS 설정
 app.add_middleware(
