@@ -2,27 +2,33 @@
   <div class="kakao-preview-container">
     <!-- 카카오톡 미리보기 -->
     <div class="kakao-preview">
-      <div class="kakao-header">알림톡 도착</div>
+      <div class="kakao-header">
+        <span class="kakao-header-text">알림톡 도착</span>
+      </div>
       <div class="kakao-content">
-        <div class="kakao-title">
-          <span>{{ templateTitle || '모임 일정을\n안내드립니다' }}</span>
-          <div class="template-icon">🏠</div>
+        <div class="sender-info">
+          <span class="sender-name">알림톡 도착</span>
         </div>
 
-        <div class="kakao-message">
-          <div
-            class="message-content"
-            :class="{ 'expanded': isExpanded }"
-            v-html="formattedTemplateContent"
-            @click="handleVariableClick"
-          ></div>
-
+        <div class="message-bubble">
+          <div class="bubble-header">
+            <span class="template-title">{{ templateTitle || '안내드립니다' }}</span>
+          </div>
+          <div class="bubble-body">
+            <div
+              class="message-text"
+              :class="{ 'expanded': isExpanded }"
+              v-html="formattedTemplateContent"
+              @click="handleVariableClick"
+            ></div>
+          </div>
           <div
             v-if="shouldShowToggle"
             class="toggle-button"
             @click="toggleExpansion"
           >
-            {{ isExpanded ? '접기' : '자세히 보기' }}
+            <span class="toggle-icon">{{ isExpanded ? '▼' : '▶' }}</span>
+            <span class="toggle-text">자세히 보기</span>
           </div>
         </div>
       </div>
@@ -61,19 +67,17 @@ const formattedTemplateContent = computed(() => {
   // 1) 기본 템플릿
   if (!props.templateContent) {
     const defaultContent = `
-안녕하세요, #[신청자님], 신청하신 #[모임명] 스터디 모임 일정을 안내드립니다.
+안녕하세요, #{고객명}님.
 
-다음과 같은 상세 정보입니다.
+#{서비스명} 이용과 관련하여 안내드립니다.
 
-▶ 모임명: #[모임 내용을 여기에 입력하세요]
-▶ 일시: #[시행 일자를 여기에 입력하세요]
-▶ 장소: #[장소명]
+• 처리일시: #{처리일시}
+• 처리상태: #{처리상태}
+• 담당자: #{담당자명}
 
-자세한 사항은 홈페이지를 참고해 주시기 바랍니다.
+문의사항이 있으신 경우 고객센터로 연락 부탁드립니다.
 
-많은 이용 부탁드립니다.
-
-* 본 알림은 정보통신망법에 따라 발송되었습니다.
+감사합니다.
     `
 
     // 내용 길이 체크 및 토글 설정 (줄 수 기준)
@@ -97,17 +101,40 @@ const formattedTemplateContent = computed(() => {
 
   // 3) 변수 하이라이트
   if (props.showVariables) {
-    const anyVarPattern = /\{\{([^}]+)\}\}|#\{([^}]+)\}|\{([^}]+)\}/g
+    // 다양한 변수 패턴 처리: {{변수}}, #{변수}, {변수}
+    const varPatterns = [
+      /\{\{([^}]+)\}\}/g,  // {{변수}}
+      /#\{([^}]+)\}/g,      // #{변수}
+      /\{([^}]+)\}/g        // {변수}
+    ]
+    
+    varPatterns.forEach(pattern => {
+      content = content.replace(pattern, (match, varName) => {
+        const variableName = varName.trim()
+        let variableClass = 'variable'
 
-    content = content.replace(anyVarPattern, (match, a, b, c) => {
-      const variableName = (a || b || c || '').trim()
-      let variableClass = 'variable highlighted'
+        if (props.isRejected && props.rejectedVariables.includes(variableName)) {
+          variableClass = 'variable rejected-highlight'
+        } else {
+          variableClass = 'variable highlighted'
+        }
 
-      if (props.isRejected && props.rejectedVariables.includes(variableName)) {
-        variableClass += ' rejected-highlight'
-      }
-
-      return `<span class="${variableClass}" data-variable="${variableName}">{${variableName}}</span>`
+        return `<span class="${variableClass}" data-variable="${variableName}">#{${variableName}}</span>`
+      })
+    })
+  } else {
+    // showVariables가 false일 때는 변수를 회색 처리
+    const varPatterns = [
+      /\{\{([^}]+)\}\}/g,  // {{변수}}
+      /#\{([^}]+)\}/g,      // #{변수}
+      /\{([^}]+)\}/g        // {변수}
+    ]
+    
+    varPatterns.forEach(pattern => {
+      content = content.replace(pattern, (match, varName) => {
+        const variableName = varName.trim()
+        return `<span class="variable-gray">#{${variableName}}</span>`
+      })
     })
   }
 
@@ -135,9 +162,11 @@ const formattedTemplateContent = computed(() => {
 
 // 템플릿 내용 포맷팅 함수
 const formatTemplateContent = (content: string): string => {
-  // 변수를 회색으로 변환
-  content = content.replace(/#\[([^\]]+)\]/g, '<span class="variable-gray">#[$1]</span>')
-
+  // 화살표를 제대로된 포인트로 변환
+  content = content.replace(/▶\s*/g, '• ')
+  content = content.replace(/→\s*/g, '• ')
+  content = content.replace(/\-\s+/g, '• ')  // "- " 형식도 처리
+  
   // 기본 줄바꿈을 먼저 처리
   let lines = content.split('\n')
   let formattedLines: string[] = []
@@ -153,7 +182,11 @@ const formatTemplateContent = (content: string): string => {
     if (line.startsWith('*')) {
       formattedLines.push(`<div class="disclaimer">${line}</div>`)
     }
-    // 기본 내용 - 모든 줄을 동일하게 처리
+    // 포인트 항목 (• 로 시작)
+    else if (line.startsWith('•')) {
+      formattedLines.push(`<div class="point-item">${line}</div>`)
+    }
+    // 기본 내용
     else {
       formattedLines.push(`<div class="message-line">${line}</div>`)
     }
@@ -196,86 +229,99 @@ const handleVariableClick = (event: Event) => {
 }
 
 .kakao-preview {
-  background-color: white;
-  border-radius: 0.6rem;
+  background-color: #b2c7da;
+  border-radius: 0.8rem;
   overflow: hidden;
-  box-shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.1);
-  width: 20rem;
+  box-shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.15);
+  width: 22rem;
   flex-shrink: 0;
   align-self: center;
-  max-height: 60vh;
+  max-height: 70vh;
   display: flex;
   flex-direction: column;
 }
 
 .kakao-header {
   background-color: #fee500;
-  padding: 0.8rem 1rem;
-  font-weight: 600;
-  color: #333;
+  padding: 0.6rem 1rem;
   text-align: center;
 }
 
+.kakao-header-text {
+  font-weight: 600;
+  color: #3c1e1e;
+  font-size: 0.9rem;
+}
+
 .kakao-content {
-  padding: 1rem;
+  padding: 0.8rem;
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  background-color: #b2c7da;
 }
 
-.kakao-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  font-size: 1rem;
+.sender-info {
+  margin-bottom: 0.5rem;
+}
+
+.sender-name {
+  font-size: 0.85rem;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.message-bubble {
+  background-color: #ffffff;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.bubble-header {
+  background-color: #fee500;
+  padding: 0.7rem 1rem;
+  border-bottom: none;
+}
+
+.template-title {
+  font-size: 0.9rem;
   font-weight: 600;
   color: #000000;
-}
-.template-icon {
-  font-size: 1.2rem;
-  background-color: #5865f2;
-  color: white;
-  width: 1.4rem;
-  height: 1.4rem;
-  border-radius: 0.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
 }
 
-.kakao-message {
-  margin-bottom: 1rem;
+.bubble-body {
+  padding: 0.8rem 1rem;
+  background-color: white;
+}
+
+.message-text {
+  font-size: 0.9rem;
   line-height: 1.6;
-  flex: 1;
-  overflow: hidden;
-}
-
-.message-content {
-  max-height: none;
-  overflow: visible;
+  color: #333;
   transition: max-height 0.3s ease;
 }
 
-.message-content:not(.expanded) {
-  max-height: 6rem;
+.message-text:not(.expanded) {
+  max-height: 8rem;
   overflow: hidden;
 }
 
-.message-content.expanded {
+.message-text.expanded {
   max-height: none;
 }
 
 .toggle-button {
-  background-color: #f5f5f5;
-  color: #666;
-  padding: 0.5rem 1rem;
-  margin: 0.5rem -1rem -1rem -1rem;
-  text-align: center;
+  background-color: #f7f7f7;
+  padding: 0.7rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   cursor: pointer;
   border-top: 1px solid #e0e0e0;
-  font-size: 0.85rem;
   transition: background-color 0.2s ease;
 }
 
@@ -283,67 +329,83 @@ const handleVariableClick = (event: Event) => {
   background-color: #eeeeee;
 }
 
-.kakao-message p {
-  margin: 0.4rem 0;
+.toggle-icon {
+  color: #888;
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
 }
 
-/* 메시지 라인 스타일 - 단순하고 깔끔하게 */
+.toggle-text {
+  color: #666;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* 메시지 라인 스타일 */
 :deep(.message-line) {
-  color: #000000;
+  color: #333333;
   font-size: 0.9rem;
-  margin: 0.2rem 0;
-  line-height: 1.4;
+  margin: 0.3rem 0;
+  line-height: 1.5;
   font-weight: normal;
+}
+
+/* 포인트 항목 스타일 */
+:deep(.point-item) {
+  color: #333333;
+  font-size: 0.9rem;
+  margin: 0.4rem 0;
+  line-height: 1.5;
+  padding-left: 0.3rem;
 }
 
 /* 회색 변수 스타일 */
 :deep(.variable-gray) {
   color: #888888;
+  background-color: transparent;
   font-weight: normal;
+  display: inline;
 }
 
 :deep(.disclaimer) {
   color: #888888;
   font-size: 0.75rem;
-  margin-top: 0.8rem;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f0f0f0;
   line-height: 1.3;
   font-weight: normal;
 }
 
 :deep(.empty-line) {
-  height: 0.3rem;
+  height: 0.5rem;
 }
 
 /* 스크롤바 */
-.kakao-message::-webkit-scrollbar { width: 0.3rem; }
-.kakao-message::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 0.15rem; }
-.kakao-message::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 0.15rem; }
-.kakao-message::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+.kakao-content::-webkit-scrollbar { width: 0.4rem; }
+.kakao-content::-webkit-scrollbar-track { background: transparent; }
+.kakao-content::-webkit-scrollbar-thumb { background: #94a3b1; border-radius: 0.2rem; }
+.kakao-content::-webkit-scrollbar-thumb:hover { background: #7a8896; }
 
 /* 변수 스타일 */
 :deep(.variable) {
-  background-color: #f8f9fa;
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.2rem;
-  color: #495057;
-  border: 1px solid #dee2e6;
+  color: #888888;
+  background-color: transparent;
+  font-weight: normal;
+  display: inline;
   transition: all 0.2s ease;
-  min-width: 1rem;
-  display: inline-block;
-  font-weight: 500;
 }
 
 :deep(.variable.highlighted) {
-  background-color: #fff3cd !important;
-  border: 1px solid #ffeaa7 !important;
-  color: #856404 !important;
-  font-weight: 600 !important;
+  color: #888888 !important;
+  background-color: transparent !important;
+  font-weight: normal !important;
 }
 
 :deep(.variable.rejected-highlight) {
   background-color: #ffebee;
   color: #c62828;
-  border: 0.1rem solid #f44336;
+  border: 1px solid #f44336;
   cursor: pointer;
   animation: pulse 2s infinite;
 }

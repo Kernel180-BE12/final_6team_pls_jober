@@ -2,12 +2,12 @@ spring:
   application:
     name: final-project-backend-test
   
-  # 테스트용 데이터베이스 설정 (H2)
+  # 테스트용 데이터베이스 설정 (원격 DB 사용)
   datasource:
-    url: jdbc:h2:mem:testdb
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
+    url: ${DB_URL:jdbc:h2:mem:testdb}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
 
   # H2 콘솔 활성화
   h2:
@@ -24,16 +24,24 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
 
-  # Redis 설정 (테스트용 임베디드)
+  # Redis 설정 (원격 또는 테스트용)
   data:
     redis:
-      host: localhost
-      port: 6370  # 테스트용 다른 포트
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6370}  # 기본값은 테스트용 포트
+      password: ${REDIS_PASSWORD:}
       database: 1
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
 
 # JWT 설정
 jwt:
-  secret: test-secret-key-for-jwt-tokens-minimum-256-bits-long-enough-for-hs256-algorithm
+  secret: ${JWT_SECRET:test-secret-key-for-jwt-tokens-minimum-256-bits-long-enough-for-hs256-algorithm}
   access-expiration: 3600000     # 1시간
   refresh-expiration: 604800000  # 7일
 
@@ -48,22 +56,22 @@ logging:
     org.springframework.security: INFO
     org.springframework.web: DEBUG
 
-# AI 서버 설정 (테스트용 Mock)
+# AI 서버 설정
 ai:
   fastapi:
-    url: http://localhost:8001
+    url: ${AI_SERVER_URL:http://localhost:8001}
 
-# OAuth2 설정 (테스트용)
+# OAuth2 설정
   security:
     oauth2:
       client:
         registration:
           kakao:
-            client-id: test_kakao_client_id
-            client-secret: test_kakao_client_secret
+            client-id: ${KAKAO_CLIENT_ID:test_kakao_client_id}
+            client-secret: ${KAKAO_CLIENT_SECRET:test_kakao_client_secret}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
-            redirect-uri: http://localhost:8080/api/auth/kakao/callback
+            redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/api/auth/kakao/callback}
             scope:
               - profile_nickname
               - account_email
