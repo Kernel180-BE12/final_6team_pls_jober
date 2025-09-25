@@ -1,18 +1,11 @@
 <template>
   <div class="kakao-preview-container">
-    <!-- 카카오톡 미리보기 -->
+    <!-- 알림톡 미리보기 -->
     <div class="kakao-preview">
-      <div class="kakao-header">
-        <span class="kakao-header-text">알림톡 도착</span>
-      </div>
       <div class="kakao-content">
-        <div class="sender-info">
-          <span class="sender-name">알림톡 도착</span>
-        </div>
-
         <div class="message-bubble">
-          <div class="bubble-header">
-            <span class="template-title">{{ templateTitle || '안내드립니다' }}</span>
+          <div class="kakao-header">
+            <span class="kakao-header-text">알림톡 도착</span>
           </div>
           <div class="bubble-body">
             <div
@@ -27,8 +20,8 @@
             class="toggle-button"
             @click="toggleExpansion"
           >
-            <span class="toggle-icon">{{ isExpanded ? '▼' : '▶' }}</span>
-            <span class="toggle-text">자세히 보기</span>
+            <span class="toggle-icon" :class="{ expanded: isExpanded }">▶</span>
+            <span class="toggle-text">{{ isExpanded ? '접기' : '자세히 보기' }}</span>
           </div>
         </div>
       </div>
@@ -99,44 +92,20 @@ const formattedTemplateContent = computed(() => {
   const lines = content.split('\n').filter(line => line.trim())
   shouldShowToggle.value = lines.length > 6
 
-  // 3) 변수 하이라이트
-  if (props.showVariables) {
-    // 다양한 변수 패턴 처리: {{변수}}, #{변수}, {변수}
-    const varPatterns = [
-      /\{\{([^}]+)\}\}/g,  // {{변수}}
-      /#\{([^}]+)\}/g,      // #{변수}
-      /\{([^}]+)\}/g        // {변수}
-    ]
-    
-    varPatterns.forEach(pattern => {
-      content = content.replace(pattern, (match, varName) => {
-        const variableName = varName.trim()
-        let variableClass = 'variable'
+  // 3) 변수를 항상 회색으로 처리
+  const varPatterns = [
+    /\{\{([^}]+)\}\}/g,  // {{변수}}
+    /#\{([^}]+)\}/g,      // #{변수}
+    /\{([^}]+)\}/g,       // {변수}
+    /\[([^\]]+)\]/g       // [변수] - 대괄호 형태도 변수로 처리
+  ]
 
-        if (props.isRejected && props.rejectedVariables.includes(variableName)) {
-          variableClass = 'variable rejected-highlight'
-        } else {
-          variableClass = 'variable highlighted'
-        }
-
-        return `<span class="${variableClass}" data-variable="${variableName}">#{${variableName}}</span>`
-      })
+  varPatterns.forEach(pattern => {
+    content = content.replace(pattern, (match, varName) => {
+      const variableName = varName.trim()
+      return `<span class="variable-gray">#{${variableName}}</span>`
     })
-  } else {
-    // showVariables가 false일 때는 변수를 회색 처리
-    const varPatterns = [
-      /\{\{([^}]+)\}\}/g,  // {{변수}}
-      /#\{([^}]+)\}/g,      // #{변수}
-      /\{([^}]+)\}/g        // {변수}
-    ]
-    
-    varPatterns.forEach(pattern => {
-      content = content.replace(pattern, (match, varName) => {
-        const variableName = varName.trim()
-        return `<span class="variable-gray">#{${variableName}}</span>`
-      })
-    })
-  }
+  })
 
   // 4) 스마트 포맷팅 - 의미 있는 구조로 변환
   content = formatTemplateContent(content)
@@ -229,47 +198,25 @@ const handleVariableClick = (event: Event) => {
 }
 
 .kakao-preview {
-  background-color: #b2c7da;
+  background-color: transparent;
   border-radius: 0.8rem;
   overflow: hidden;
   box-shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.15);
-  width: 22rem;
+  width: 400px;
   flex-shrink: 0;
   align-self: center;
-  max-height: 70vh;
+  max-height: none;
   display: flex;
   flex-direction: column;
 }
 
-.kakao-header {
-  background-color: #fee500;
-  padding: 0.6rem 1rem;
-  text-align: center;
-}
-
-.kakao-header-text {
-  font-weight: 600;
-  color: #3c1e1e;
-  font-size: 0.9rem;
-}
-
 .kakao-content {
-  padding: 0.8rem;
+  padding: 0;
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  background-color: #b2c7da;
-}
-
-.sender-info {
-  margin-bottom: 0.5rem;
-}
-
-.sender-name {
-  font-size: 0.85rem;
-  color: #2c3e50;
-  font-weight: 600;
+  background-color: transparent;
 }
 
 .message-bubble {
@@ -279,11 +226,21 @@ const handleVariableClick = (event: Event) => {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-.bubble-header {
+.kakao-header {
   background-color: #fee500;
-  padding: 0.7rem 1rem;
-  border-bottom: none;
+  padding: 0.6rem 1rem;
+  text-align: left;
+  border-top-left-radius: 0.8rem;
+  border-top-right-radius: 0.8rem;
 }
+
+.kakao-header-text {
+  font-weight: 600;
+  color: #3c1e1e;
+  font-size: 0.9rem;
+}
+
+
 
 .template-title {
   font-size: 0.9rem;
@@ -307,10 +264,12 @@ const handleVariableClick = (event: Event) => {
 .message-text:not(.expanded) {
   max-height: 8rem;
   overflow: hidden;
+  position: relative;
 }
 
 .message-text.expanded {
   max-height: none;
+  overflow: visible;
 }
 
 .toggle-button {
@@ -333,6 +292,11 @@ const handleVariableClick = (event: Event) => {
   color: #888;
   font-size: 0.7rem;
   transition: transform 0.2s ease;
+  transform: rotate(0deg);
+}
+
+.toggle-icon.expanded {
+  transform: rotate(90deg);
 }
 
 .toggle-text {
