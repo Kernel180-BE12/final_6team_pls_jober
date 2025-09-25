@@ -43,10 +43,14 @@ class SemanticValidator:
         # 1) 두 컬렉션 RAG (병렬 개념, 구현은 순차 호출)
         print("🔍 denied_templates 컬렉션 검색 시작...")
         s_bl = self._rag_stage("denied_templates", text, k=self.denied_SEARCH_K, category_sub=category)
+        # evidence 중복 제거
+        s_bl["evidence"] = self._deduplicate_violations(s_bl.get("evidence", []))
         print(f"denied_templates 결과: {s_bl}")
 
         print("🔍 blacklist 컬렉션 검색 시작...")
         s_dn = self._rag_stage("blacklist", text, k=self.blacklist_SEARCH_K)
+        # evidence 중복 제거
+        s_dn["evidence"] = self._deduplicate_violations(s_dn.get("evidence", []))
         print(f"blacklist 결과: {s_dn}")
 
         # 만약 결과가 없다면 카테고리 필터 때문일 수 있으니 로그 출력
@@ -90,6 +94,9 @@ class SemanticValidator:
                         "evidence": evidence.get('evidence', ''),
                         "score": evidence.get('score', 0)
                     })
+        # violations 중복 제거
+        violations = self._deduplicate_violations(violations)
+
         print(f"\n📋 2차 검증 취합 결과:")
         print(f"   🏷️ 최종 라벨: {final_label}")
         print(f"   📊 위험도 점수: {final_risk}")
@@ -135,6 +142,21 @@ class SemanticValidator:
             warnings=warnings,
             details=details,
         )
+    
+    # 중복 제거
+    def _deduplicate_violations(self, violations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        seen = {}
+        for v in violations:
+            key = (v.get("evidence"), v.get("source"))  # evidence+source 조합으로 중복 판별
+            if key in seen:
+                # 이미 있으면 score 높은 것만 유지
+                if v.get("score", 0) > seen[key].get("score", 0):
+                    seen[key] = v
+            else:
+                seen[key] = v
+        return list(seen.values())
+
+
 
     # ----------------------------- RAG 단계 -----------------------------------
     def _rag_stage(self, collection: str, text: str, k: int = 5, category_sub: str = None) -> Dict[str, Any]:
