@@ -1,4 +1,29 @@
-#!/bin/bash
+# Nginx 컨테이너 헬스체크
+if curl -f http://localhost/health > /dev/null 2>&1; then
+    log_success "Nginx 컨테이너가 정상적으로 실행 중입니다."
+else
+    log_warning "Nginx 컨테이너 헬스체크 실패. 로그를 확인해주세요."
+fi
+
+# SSL 설정
+log_info "SSL 인증서 설정 중..."
+
+# SSL 스크립트가 있고 실행 가능한 경우에만 실행
+if [ -f "./scripts/setup-ssl.sh" ] && [ -x "./scripts/setup-ssl.sh" ]; then
+    if ./scripts/setup-ssl.sh; then
+        log_success "SSL 인증서 설정 완료"
+        # HTTPS로 접근 가능한지 확인
+        if curl -f https://pls-jober.shop/health > /dev/null 2>&1; then
+            log_success "HTTPS 서비스가 정상적으로 실행 중입니다."
+        else
+            log_warning "HTTPS 접근이 아직 불가능합니다. HTTP로 접근하세요."
+        fi
+    else
+        log_warning "SSL 설정에 실패했습니다. HTTP로 서비스를 제공합니다."
+    fi
+else
+    log_info "SSL 설정 스크립트가 없거나 실행 권한이 없습니다. SSL을 사용하려면 chmod +x ./scripts/setup-ssl.sh 를 실행하세요."
+fi#!/bin/bash
 
 # ===================================================================
 #  통합 배포 스크립트
@@ -162,11 +187,25 @@ else
     log_warning "AI 서비스 헬스체크 실패. 로그를 확인해주세요."
 fi
 
-# Nginx 컨테이너 헬스체크
-if curl -f http://localhost/health > /dev/null 2>&1; then
-    log_success "Nginx 컨테이너가 정상적으로 실행 중입니다."
+# SSL 설정
+log_info "SSL 인증서 설정 중..."
+
+# SSL 스크립트가 있고 실행 가능한 경우에만 실행
+if [ -f "./scripts/setup-ssl.sh" ] && [ -x "./scripts/setup-ssl.sh" ]; then
+    if ./scripts/setup-ssl.sh; then
+        log_success "SSL 인증서 설정 완료"
+        # HTTPS로 접근 가능한지 확인
+        if curl -f https://pls-jober.shop/health > /dev/null 2>&1; then
+            log_success "HTTPS 서비스가 정상적으로 실행 중입니다."
+            echo "  프론트엔드 (HTTPS): https://pls-jober.shop"
+        else
+            log_warning "HTTPS 접근이 아직 불가능합니다. HTTP로 접근하세요."
+        fi
+    else
+        log_warning "SSL 설정에 실패했습니다. HTTP로 서비스를 제공합니다."
+    fi
 else
-    log_warning "Nginx 컨테이너 헬스체크 실패. 로그를 확인해주세요."
+    log_info "SSL 설정 스크립트가 없거나 실행 권한이 없습니다. SSL을 사용하려면 chmod +x ./scripts/setup-ssl.sh 를 실행하세요."
 fi
 
 # 서비스 상태 확인
@@ -176,7 +215,11 @@ docker-compose ps
 log_success "배포가 완료되었습니다!"
 echo ""
 echo "서비스 접속 정보:"
-echo "  프론트엔드: http://138.2.119.75"
+echo "  프론트엔드 (HTTP): http://138.2.119.75"
+# HTTPS 체크
+if curl -s -f https://pls-jober.shop/health > /dev/null 2>&1; then
+    echo "  프론트엔드 (HTTPS): https://pls-jober.shop"
+fi
 echo "  백엔드 API: http://138.2.119.75/api"
 echo "  AI 서비스: http://138.2.119.75/ai"
 echo ""
