@@ -51,9 +51,13 @@ const formattedTemplateContent = computed(() => {
       <p>안녕하세요, <span class="variable">${props.variables.recipient ?? ''}</span> 회원님!</p>
       <p><span class="variable">${props.variables.sender ?? ''}</span>입니다.</p>
       <p>회원님께 발급된 쿠폰을 안내드립니다.</p>
+      <p></p>
+      <p></p>
       <p>▶ 쿠폰명 : <span class="variable">${props.variables.couponName ?? ''}</span></p>
       <p>▶ 사용기한 : <span class="variable">${props.variables.expiryDate ?? ''}</span></p>
+      <p></p>
       <p><span class="variable">${props.variables.additionalMessage ?? ''}</span></p>
+      <p></p>
       <p class="disclaimer">* 이 메시지는 이용약관(계약서) 동의에 따라 지급된 쿠폰 안내 메시지입니다.</p>
     `
   }
