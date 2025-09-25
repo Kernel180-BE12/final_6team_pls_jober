@@ -70,11 +70,11 @@ class AlimtalkValidationService:
             
             self.is_initialized = True
             print(">>service<<")
-            print("✅ 알림톡 검증 서비스 초기화 완료")
+            print(" 알림톡 검증 서비스 초기화 완료")
             
         except Exception as e:
             print(">>service<<")
-            print(f"❌ 알림톡 검증 서비스 초기화 실패: {e}")
+            print(f" 알림톡 검증 서비스 초기화 실패: {e}")
             raise
     
     async def validate_template(self, request: ValidationRequest) -> ValidationResponse:
@@ -89,12 +89,12 @@ class AlimtalkValidationService:
             
             # 응답 생성
             if result['final_result'].is_valid:
-                final_message = "✅ 모든 검증을 통과했습니다. 발송 가능합니다."
+                final_message = " 모든 검증을 통과했습니다. 발송 가능합니다."
                 success = True
             else:
                 error_count = len(result['final_result'].errors)
                 warning_count = len(result['final_result'].warnings)
-                final_message = f"❌ 검증 실패: {error_count}개 오류, {warning_count}개 경고"
+                final_message = f" 검증 실패: {error_count}개 오류, {warning_count}개 경고"
                 success = False
             
             # 결과 필터링 (None이 아닌 것만)
@@ -136,6 +136,4 @@ class AlimtalkValidationService:
                 validation_errors=[],
                 alternatives={}
             )
-
-
 
