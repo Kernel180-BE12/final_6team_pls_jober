@@ -248,11 +248,10 @@ def remove_duplicate_templates(templates: List[Dict]) -> List[Dict]:
 
 async def extract_fields_node(state: TemplateGenerationState) -> Dict[str, Any]:
     logger.info("=" * 60)
-    logger.info("✨ 추가 단계: 변수 필드 추출 시작")
-    response = "" # response 변수 초기화
-    clean_response = "" # clean_response 변수 초기화
+    logger.info("✨ 실용적 변수 필드 추출 시작")
+    response = ""
+    clean_response = ""
     try:
-        # state에서 userMessage와 openai_service를 안전하게 가져옵니다.
         user_message = state.get("userMessage")
         openai_service = state.get("openai_service")
 
@@ -269,16 +268,20 @@ async def extract_fields_node(state: TemplateGenerationState) -> Dict[str, Any]:
 
         logger.debug(f"OpenAI API 원본 응답: {response}")
 
-        # 정규 표현식을 사용하여 가장 바깥쪽 JSON 객체 추출
-        # ```json ... ``` 블록 또는 단일 JSON 객체 모두 처리
+        # JSON 추출 로직
         json_match = re.search(r'```json\s*({.*?})\s*```', response, re.DOTALL)
         if json_match:
             clean_response = json_match.group(1)
             logger.debug(f"정규식으로 추출된 JSON 블록: {clean_response}")
         else:
-            # ```json 블록이 없는 경우, 전체 응답에서 JSON 객체 시도
-            clean_response = response.strip()
-            logger.debug(f"정규식 매칭 실패, 전체 응답 시도: {clean_response}")
+            # 중괄호로 둘러싸인 JSON 객체 추출 시도
+            json_match = re.search(r'({.*?})', response, re.DOTALL)
+            if json_match:
+                clean_response = json_match.group(1)
+                logger.debug(f"중괄호 기반 JSON 추출: {clean_response}")
+            else:
+                clean_response = response.strip()
+                logger.debug(f"전체 응답 사용: {clean_response}")
 
         if not clean_response:
             logger.warning("⚠️ 변수 추출 결과가 비어있습니다. 빈 객체를 반환합니다.")
@@ -286,7 +289,6 @@ async def extract_fields_node(state: TemplateGenerationState) -> Dict[str, Any]:
 
         result = json.loads(clean_response)
 
-        # 추출된 필드에 대한 간단한 유효성 검사 (선택 사항)
         if not isinstance(result, dict):
             logger.warning(f"⚠️ 추출된 결과가 딕셔너리 형식이 아닙니다: {result}. 빈 객체를 반환합니다.")
             return {"extracted_fields": {}}
@@ -296,12 +298,13 @@ async def extract_fields_node(state: TemplateGenerationState) -> Dict[str, Any]:
     except json.JSONDecodeError as e:
         logger.error(f"❌ 변수 필드 추출 JSON 파싱 실패: {e}", exc_info=True)
         logger.error(f"   파싱 실패한 원본 응답: {response}")
-        logger.error(f"   파싱 시도한 클린 응답: {clean_response if 'clean_response' in locals() else 'N/A'}")
+        logger.error(f"   파싱 시도한 클린 응답: {clean_response}")
         return {"extracted_fields": {}}
     except Exception as e:
         logger.error(f"❌ 변수 필드 추출 실패: {e}", exc_info=True)
         logger.error(f"   원본 응답: {response}")
         return {"extracted_fields": {}}
+
 
 # 필드 잘 뽑아오는 지 테스트 위한 예시 사용법:
 async def test_extraction():

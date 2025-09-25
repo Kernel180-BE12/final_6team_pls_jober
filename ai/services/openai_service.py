@@ -16,7 +16,7 @@ class OpenAIService:
                 model=model,
                 messages=messages,
                 max_completion_tokens=1000,
-                temperature=0.5
+                temperature=0.4
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -31,7 +31,7 @@ class OpenAIService:
                 model=model,
                 prompt=prompt,
                 max_tokens=1000,
-                temperature=0.7
+                temperature=0.4
             )
             return response.choices[0].text
         except Exception as e:
