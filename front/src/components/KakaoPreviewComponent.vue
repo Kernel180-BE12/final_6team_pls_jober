@@ -163,9 +163,9 @@ const formattedTemplateContent = computed(() => {
 // 템플릿 내용 포맷팅 함수
 const formatTemplateContent = (content: string): string => {
   // 화살표를 제대로된 포인트로 변환
-  content = content.replace(/▶\s*/g, '• ')
-  content = content.replace(/→\s*/g, '• ')
-  content = content.replace(/\-\s+/g, '• ')  // "- " 형식도 처리
+  content = content.replace(/▶\s*/g, '▶ ')
+  content = content.replace(/→\s*/g, '▶ ')
+  content = content.replace(/\-\s+/g, '▶ ')  // "- " 형식도 처리
   
   // 기본 줄바꿈을 먼저 처리
   let lines = content.split('\n')
