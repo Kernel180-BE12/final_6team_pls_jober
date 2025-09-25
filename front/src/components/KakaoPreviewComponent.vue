@@ -27,7 +27,7 @@ interface KakaoPreviewProps {
   templateContent?: string
   templateTitle?: string
   showVariables: boolean
-  variables: Record<string, string>
+  variables: string[]
   isRejected: boolean
   rejectedVariables: string[]
   validationErrors?: any[]
@@ -38,22 +38,22 @@ const emit = defineEmits<{
   variableClick: [variableName: string]
   rejectTemplate: []
   submitTemplate: []
-  updateVariables: [variables: Record<string, string>]
+  updateVariables: [variables: string[]]
 }>()
 
-const editedVariables = ref({ ...props.variables })
+const editedVariables = ref([...props.variables])
 
 // 템플릿 내용을 포맷팅하여 변수를 적절한 스타일로 렌더링
 const formattedTemplateContent = computed(() => {
   // 1) 기본 템플릿
   if (!props.templateContent) {
     return `
-      <p>안녕하세요, <span class="variable">${props.variables.recipient ?? ''}</span> 회원님!</p>
-      <p><span class="variable">${props.variables.sender ?? ''}</span>입니다.</p>
+      <p>안녕하세요, <span class="variable">#{고객명}</span> 회원님!</p>
+      <p><span class="variable">#{발송자}</span>입니다.</p>
       <p>회원님께 발급된 쿠폰을 안내드립니다.</p>
-      <p>▶ 쿠폰명 : <span class="variable">${props.variables.couponName ?? ''}</span></p>
-      <p>▶ 사용기한 : <span class="variable">${props.variables.expiryDate ?? ''}</span></p>
-      <p><span class="variable">${props.variables.additionalMessage ?? ''}</span></p>
+      <p>▶ 쿠폰명 : <span class="variable">#{쿠폰명}</span></p>
+      <p>▶ 사용기한 : <span class="variable">#{사용기한}</span></p>
+      <p><span class="variable">#{추가메시지}</span></p>
       <p class="disclaimer">* 이 메시지는 이용약관(계약서) 동의에 따라 지급된 쿠폰 안내 메시지입니다.</p>
     `
   }
@@ -116,7 +116,7 @@ const formattedTemplateContent = computed(() => {
 
 // props.variables가 변경될 때마다 editedVariables 업데이트
 watch(() => props.variables, (newVariables) => {
-  editedVariables.value = { ...newVariables }
+  editedVariables.value = [...newVariables]
 }, { deep: true })
 
 // 변수 클릭 이벤트 처리

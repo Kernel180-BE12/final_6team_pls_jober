@@ -192,9 +192,9 @@ export const templateApi = {
   },
 
   // 템플릿 저장 (검증 없이 바로 저장)
-  saveTemplate: (templateContent: string, variableList: Record<string, string>, category: string, userMessage: string, templateTitle: string) => {
-    // 변수명만 배열로 변환 (백엔드에서 List<String>을 기대함)
-    const variableNames = Object.keys(variableList)
+  saveTemplate: (templateContent: string, variableList: string[], category: string, userMessage: string, templateTitle: string) => {
+    // variableList가 이미 string[] 형태이므로 그대로 사용
+    const variableNames = variableList
 
     const saveRequest = {
       templateContent: templateContent,

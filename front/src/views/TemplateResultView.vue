@@ -214,8 +214,8 @@ const getRemainingModifications = () => {
     console.log(`세션에서 ${key} 키로 가져온 값:`, storedValue)
     
     if (storedValue === null || storedValue === undefined) {
-      // 세션에 값이 없으면 기본값 3으로 설정하고 반환
-      console.log('세션에 값이 없어서 기본값 3으로 설정')
+      // 세션에 값이 없으면 기본값 10으로 설정하고 반환
+      console.log('세션에 값이 없어서 기본값 10으로 설정')
       sessionStorage.setItem(key, maxCorrections.toString())
       return maxCorrections
     }
@@ -256,8 +256,8 @@ const decrementModificationCount = () => {
 // 수정 횟수 리셋 테스트 함수들 (개발자 도구에서 사용) resetModifications() -> 3으로 리셋
 const testResetModifications = () => {
   const key = getSessionKey()
-  sessionStorage.setItem(key, '3')
-  remainingCorrections.value = 3
+  sessionStorage.setItem(key, '10')
+  remainingCorrections.value = 10
   console.log('✅ 수정 횟수를 리셋했습니다.')
 }
 
@@ -283,7 +283,7 @@ const versions = ref([
 const versionTemplates = ref<Record<number, { content: string, title: string, variableList: string[] }>>({})
 
 // 사용자가 수정할 수 있는 변수 값들
-const editedVariables = ref<Record<string, string>>({})
+const editedVariables = ref<string[]>([])
 
 // 컴포넌트 마운트 시 생성된 템플릿 데이터 로드
 onMounted(() => {
@@ -303,12 +303,8 @@ onMounted(() => {
       templateCategoryId.value = 11 
       userMessage.value = generatedTemplate.value.userMessage
       
-      // 변수 값 초기화 (showVariables가 true이므로 변수값 설정)
-      const initialVariables: Record<string, string> = {}
-      templateVariables.value.forEach((variable: any) => {
-        initialVariables[variable] = `${variable} 값`
-      })
-      editedVariables.value = initialVariables
+      // 변수명 초기화
+      editedVariables.value = [...templateVariables.value]
       
       // 버전 1에 초기 템플릿 저장
       versionTemplates.value[1] = {
@@ -482,11 +478,7 @@ const applyVariableAddition = (alternative: any) => {
   }
 
   // 편집 가능한 변수 업데이트
-  const newVariables: Record<string, string> = {}
-  templateVariables.value.forEach((variable: string) => {
-    newVariables[variable] = `${variable} 값`
-  })
-  editedVariables.value = newVariables
+  editedVariables.value = [...templateVariables.value]
 }
 
 // 템플릿 재작성 적용
@@ -538,11 +530,7 @@ const applyTemplateRewrite = (alternative: any, error: any) => {
   }
 
   // 편집 가능한 변수 업데이트
-  const newVariables: Record<string, string> = {}
-  templateVariables.value.forEach((variable: string) => {
-    newVariables[variable] = `${variable} 값`
-  })
-  editedVariables.value = newVariables
+  editedVariables.value = [...templateVariables.value]
 }
 
 // 일반적인 수정 적용
@@ -590,11 +578,7 @@ const applyGenericFix = (alternative: any, error: any) => {
   }
 
   // 편집 가능한 변수 업데이트
-  const newVariables: Record<string, string> = {}
-  templateVariables.value.forEach((variable: string) => {
-    newVariables[variable] = `${variable} 값`
-  })
-  editedVariables.value = newVariables
+  editedVariables.value = [...templateVariables.value]
 }
 
 // 반려 사이드바 닫기
@@ -610,7 +594,7 @@ const closeRejectionSidebar = () => {
 
 // 변수 업데이트
 const updateVariables = (newVariables: any) => {
-  editedVariables.value = { ...newVariables }
+  editedVariables.value = Array.isArray(newVariables) ? newVariables : [...newVariables]
   
     // 강제로 리렌더링을 위해 nextTick 사용
     nextTick(() => {
@@ -621,12 +605,8 @@ const updateVariables = (newVariables: any) => {
 // 변수 토글 상태 변경 감지
 watch(showVariables, (newValue) => {
   if (newValue && templateVariables.value.length > 0) {
-    // 변수 토글을 활성화했을 때 변수값 설정
-    const initialVariables: Record<string, string> = {}
-      templateVariables.value.forEach((variable: any) => {
-      initialVariables[variable.name] = `${variable.name} 값`
-    })
-    editedVariables.value = initialVariables
+    // 변수 토글을 활성화했을 때 변수명 설정
+    editedVariables.value = [...templateVariables.value]
   }
 })
 
@@ -644,13 +624,11 @@ const submitTemplate = async () => {
   try {
     console.log('템플릿 검증 요청 시작')
     
-    // 제출 전 변수 맵 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
-    if (!editedVariables.value || Object.keys(editedVariables.value).length === 0) {
-      const fallback: Record<string, string> = {}
-        if (Array.isArray(templateVariables.value) && templateVariables.value.length > 0) {
-          templateVariables.value.forEach((variableName: string) => {
-          fallback[variableName] = `${variableName} 값`
-        })
+    // 제출 전 변수 배열 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
+    if (!editedVariables.value || editedVariables.value.length === 0) {
+      const fallback: string[] = []
+      if (Array.isArray(templateVariables.value) && templateVariables.value.length > 0) {
+        fallback.push(...templateVariables.value)
       } else if (templateContent.value) {
         // 변수 배열이 비어 있으면 템플릿 본문에서 변수 패턴을 파싱해 기본값 구성
         const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g]
@@ -662,13 +640,13 @@ const submitTemplate = async () => {
             if (name) found.add(name)
           }
         })
-        found.forEach((name) => { fallback[name] = `${name} 값` })
+        fallback.push(...Array.from(found))
       }
       editedVariables.value = fallback
     }
 
-    // 변수명만 배열로 변환 (백엔드에서 List<String>을 기대함)
-    const variableList = Object.keys(editedVariables.value ?? {})
+    // 변수명 배열 (이미 string[] 형태)
+    const variableList = editedVariables.value ?? []
     // 백엔드로 템플릿 검증 요청
     const response = await templateApi.validateTemplate(
       templateContent.value,
@@ -774,13 +752,11 @@ const saveTemplate = async () => {
       return
     }
     
-    // 제출 전 변수 맵 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
-    if (!editedVariables.value || Object.keys(editedVariables.value).length === 0) {
-      const fallback: Record<string, string> = {}
+    // 제출 전 변수 배열 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
+    if (!editedVariables.value || editedVariables.value.length === 0) {
+      const fallback: string[] = []
       if (Array.isArray(templateVariables.value) && templateVariables.value.length > 0) {
-        templateVariables.value.forEach((variableName: string) => {
-          fallback[variableName] = `${variableName} 값`
-        })
+        fallback.push(...templateVariables.value)
       } else if (templateContent.value) {
         // 변수 배열이 비어 있으면 템플릿 본문에서 변수 패턴을 파싱해 기본값 구성
         const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
@@ -792,13 +768,13 @@ const saveTemplate = async () => {
             if (name) found.add(name)
           }
         })
-        found.forEach((name) => { fallback[name] = `${name} 값` })
+        fallback.push(...Array.from(found))
       }
       console.log('변수 추출 결과:', fallback)
       editedVariables.value = fallback
     }
     
-    console.log('저장 시 변수 목록:', Object.keys(editedVariables.value))
+    console.log('저장 시 변수 목록:', editedVariables.value)
 
     // 1단계: 먼저 템플릿 저장
     console.log('1단계: 템플릿 저장 시작')
@@ -870,8 +846,8 @@ const sendMessage = async () => {
     remainingCorrections.value = newRemainingCount
     
     // 백엔드 API를 통해 AI 서버에 템플릿 수정 요청
-    // editedVariables를 string[] 형태로 변환
-    const variableList = Object.keys(editedVariables.value)
+    // 변수명 배열 (이미 string[] 형태)
+    const variableList = editedVariables.value
     
     const response = await templateApi.modifyTemplate(
       templateContent.value,
@@ -925,14 +901,10 @@ const sendMessage = async () => {
     }
     
     // 변수 목록 업데이트: 응답 변수(없으면 파싱 결과) 기준으로 기본값 세팅
-    const rebuilt: Record<string, string> = {}
     const sourceVars = (Array.isArray(response.data.variables) && response.data.variables.length > 0)
       ? response.data.variables.map((variable: any) => variable.name || variable)
       : templateVariables.value
-    sourceVars.forEach((variableName: string) => {
-      rebuilt[variableName] = variableName
-    })
-    editedVariables.value = rebuilt
+    editedVariables.value = [...sourceVars]
     
     // 새 버전 생성
     const newVersionNumber = versions.value.length + 1
@@ -995,12 +967,8 @@ const selectVersion = (versionNumber: number) => {
     templateTitle.value = versionTemplate.title
     templateVariables.value = versionTemplate.variableList
     
-    // 변수 값 초기화
-    const initialVariables: Record<string, string> = {}
-    versionTemplate.variableList.forEach((variable: any) => {
-      initialVariables[variable.name] = `${variable.name} 값`
-    })
-    editedVariables.value = initialVariables
+    // 변수명 초기화
+    editedVariables.value = [...versionTemplate.variableList]
     
     console.log(`버전 ${versionNumber} 템플릿으로 전환됨`)
   } else {
