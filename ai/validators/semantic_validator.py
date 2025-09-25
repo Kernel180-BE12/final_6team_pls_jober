@@ -15,8 +15,8 @@ class SemanticValidator:
     REVIEW_THRESHOLD = 0.4      # 검토 임계값 (40% 이상)
     VIOLATION_THRESHOLD = 0.4   # 위반 수집 임계값
     
-    APPROVED_SEARCH_K = 6       # 승인 템플릿 검색 개수
-    PUBLIC_SEARCH_K = 5         # 공용 템플릿 검색 개수
+    denied_SEARCH_K = 6       # 승인 템플릿 검색 개수
+    blacklist_SEARCH_K = 5         # 공용 템플릿 검색 개수
     EVIDENCE_LIMIT = 3          # evidence 수집 개수
     VIOLATION_DISPLAY_LIMIT = 3 # 위반 사항 표시 개수
     TEXT_PREVIEW_LENGTH = 100   # 텍스트 미리보기 길이
@@ -41,25 +41,25 @@ class SemanticValidator:
         print(f"카테고리: {category}")
 
         # 1) 두 컬렉션 RAG (병렬 개념, 구현은 순차 호출)
-        print("🔍 approved_templates 컬렉션 검색 시작...")
-        s_bl = self._rag_stage("approved_templates", text, k=self.APPROVED_SEARCH_K, category_sub=category)
-        print(f"approved_templates 결과: {s_bl}")
+        print("🔍 denied_templates 컬렉션 검색 시작...")
+        s_bl = self._rag_stage("denied_templates", text, k=self.denied_SEARCH_K, category_sub=category)
+        print(f"denied_templates 결과: {s_bl}")
 
-        print("🔍 pulblic_templates 컬렉션 검색 시작...")
-        s_dn = self._rag_stage("pulblic_templates", text, k=self.PUBLIC_SEARCH_K)
-        print(f"pulblic_templates 결과: {s_dn}")
+        print("🔍 blacklist 컬렉션 검색 시작...")
+        s_dn = self._rag_stage("blacklist", text, k=self.blacklist_SEARCH_K)
+        print(f"blacklist 결과: {s_dn}")
 
         # 만약 결과가 없다면 카테고리 필터 때문일 수 있으니 로그 출력
         if s_dn.get('score', 0) == 0:
-            print(f"⚠️ pulblic_templates에서 결과 없음. 카테고리: {category}")
+            print(f"⚠️ blacklist에서 결과 없음. 카테고리: {category}")
 
         # 2) 최종 취합 - 실제 RAG 결과를 기반으로 계산
         # 두 단계 결과를 종합하여 최종 판정
-        approved_score = s_bl.get('score', 0.0)
-        public_score = s_dn.get('score', 0.0)
+        denied_score = s_bl.get('score', 0.0)
+        blacklist_score = s_dn.get('score', 0.0)
         
         # 더 높은 위험도를 최종 위험도로 사용
-        final_risk = max(approved_score, public_score)
+        final_risk = max(denied_score, blacklist_score)
         
         # 위험도 기반 최종 라벨 결정
         if final_risk >= self.REJECT_THRESHOLD:
@@ -75,7 +75,8 @@ class SemanticValidator:
             for evidence in s_bl.get('evidence', []):
                 if evidence.get('score', 0) >= self.VIOLATION_THRESHOLD:
                     violations.append({
-                        "source": "approved_templates",
+                        "source": "denied_templates",
+                        "id": evidence.get('id', None),
                         "reason": evidence.get('reason', '승인된 템플릿과 유사'),
                         "evidence": evidence.get('evidence', ''),
                         "score": evidence.get('score', 0)
@@ -85,7 +86,8 @@ class SemanticValidator:
             for evidence in s_dn.get('evidence', []):
                 if evidence.get('score', 0) >= self.VIOLATION_THRESHOLD:
                     violations.append({
-                        "source": "public_templates",
+                        "source": "blacklist",
+                        "id": evidence.get('id', None),
                         "reason": evidence.get('reason', '공용 템플릿과 유사'),
                         "evidence": evidence.get('evidence', ''),
                         "score": evidence.get('score', 0)
@@ -139,14 +141,14 @@ class SemanticValidator:
     # ----------------------------- RAG 단계 -----------------------------------
     def _rag_stage(self, collection: str, text: str, k: int = 5, category_sub: str = None) -> Dict[str, Any]:
         # 직접 chromadb_service 메서드 호출
-        if collection == "approved_templates":
+        if collection == "denied_templates":
             if not category_sub:
-                logger.warning("approved_templates 검색 시 category_sub가 필요합니다.")
+                logger.warning("denied_templates 검색 시 category_sub가 필요합니다.")
                 hits = []
             else:
-                hits, _ = self.chromadb_service.search_approved_templates(query_text=text, category_sub=category_sub, top_k=k)
-        elif collection == "pulblic_templates":
-            hits = self.chromadb_service.search_public_templates(query_text=text, top_k=k)
+                hits, _ = self.chromadb_service.search_denied_templates(query_text=text, category_sub=category_sub, top_k=k)
+        elif collection == "blacklist":
+            hits = self.chromadb_service.search_blacklist_templates(query_text=text, top_k=k)
         else:
             logger.warning(f"알 수 없는 컬렉션 이름입니다: {collection}")
             hits = []
@@ -163,6 +165,7 @@ class SemanticValidator:
                 md = (h.get("metadata") or {})
                 evidence.append({
                     "source": collection,
+                    "id": h.get("id"),
                     "policy_ref": md.get("policy_ref") or md.get("reason_code"),
                     "reason": md.get("reason") or f"Similar {collection}",
                     "evidence": h.get("content") or md.get("chunk") or "",
@@ -184,4 +187,3 @@ class SemanticValidator:
             "thresholds": {"reject": self.REJECT_THRESHOLD, "review": self.REVIEW_THRESHOLD},
             "evidence": evidence,
         }
-
