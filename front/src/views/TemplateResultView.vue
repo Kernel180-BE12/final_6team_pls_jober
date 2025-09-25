@@ -197,7 +197,7 @@ const handlePrimary = () => {
 }
 
 // 정정 횟수 관리 - 세션 기반
-const maxCorrections = 3
+const maxCorrections = 10 // 수정 횟수 10번으로 설정
 const remainingCorrections = ref(maxCorrections) // 초기값을 maxCorrections로 설정, onMounted에서 세션 값으로 업데이트됨
 
 // 세션 키 생성 함수
@@ -258,7 +258,7 @@ const testResetModifications = () => {
   const key = getSessionKey()
   sessionStorage.setItem(key, '3')
   remainingCorrections.value = 3
-  console.log('✅ 수정 횟수를 3으로 리셋했습니다.')
+  console.log('✅ 수정 횟수를 리셋했습니다.')
 }
 
 const testSetModifications = (count: number) => {
@@ -666,12 +666,9 @@ const submitTemplate = async () => {
       }
       editedVariables.value = fallback
     }
-    // 👉👉 여기서 "객체 -> 배열(VariableDto[])" 변환을 합니다.
-    // 백엔드 DTO: List<VariableDto> (variableKey, variableValue)
-    const variableList = Object.entries(editedVariables.value ?? {}).map(([k, v]) => ({
-      variableKey: k,
-      variableValue: String(v ?? ''),
-    }))
+
+    // 변수명만 배열로 변환 (백엔드에서 List<String>을 기대함)
+    const variableList = Object.keys(editedVariables.value ?? {})
     // 백엔드로 템플릿 검증 요청
     const response = await templateApi.validateTemplate(
       templateContent.value,

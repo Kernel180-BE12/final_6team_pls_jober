@@ -41,9 +41,12 @@ async def modify_template(
         chat_context = ""
         if request.chat_history:
             chat_context = "\n".join([
-                f"{msg.get('type', 'user')}: {msg.get('content', '')}"
+                f"[{msg.get('type', 'user')}] {msg.get('content', '')}"
                 for msg in request.chat_history[-6:]  # 최근 6개 메시지만 사용
             ])
+            print(f"채팅 히스토리 ({len(request.chat_history)}개 메시지): {chat_context}")
+        else:
+            print("채팅 히스토리가 없습니다.")
 
         # 프롬프트 빌더 사용
         prompt_builder = TemplateModificationPromptBuilder(

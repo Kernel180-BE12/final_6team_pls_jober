@@ -158,9 +158,9 @@ export const templateApi = {
     aiApi.post('/template/generate', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
-  validateTemplate: (templateContent: string, variableList: Record<string, any>, category?: string, userMessage?: string, templateTitle?: string, templateId?: string) => {
-    // 변수명만 배열로 변환 (백엔드에서 List<String>을 기대함)
-    const variableNames = Object.keys(variableList)
+  validateTemplate: (templateContent: string, variableList: string[], category?: string, userMessage?: string, templateTitle?: string, templateId?: string) => {
+    // variableList가 이미 string[] 형태이므로 그대로 사용
+    const variableNames = variableList
     
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {

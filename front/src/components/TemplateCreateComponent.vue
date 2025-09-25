@@ -84,8 +84,8 @@ const handleSubmit = async () => {
       userMessage: templateStore.userMessage
     }));
     
-    // 새 템플릿 생성 시 수정 횟수 초기화 (3번으로 설정)
-    sessionStorage.setItem('template_modifications_new', '3')
+    // 새 템플릿 생성 시 수정 횟수 초기화 (10번으로 설정)
+    sessionStorage.setItem('template_modifications_new', '10')
     
     router.push({
       name: 'template-result',
