@@ -26,8 +26,10 @@ load_dotenv()
 class ChromaDBService:
     def __init__(self):
         self.client = None
-        self.approved_collection = None
-        self.pulblic_templates = None
+        self.approved_templates = None
+        self.public_templates = None
+        self.denied_templates = None
+        self.blacklist_templates = None
         self._connect()
 
     def _connect(self):
@@ -47,9 +49,11 @@ class ChromaDBService:
                 self.client = chromadb.PersistentClient(path=persist_dir)
                 logger.info(f"✅ 로컬 ChromaDB 연결 성공: {persist_dir}")
 
-            self.approved_collection = self.client.get_or_create_collection("approved_templates")
-            self.pulblic_templates = self.client.get_or_create_collection("pulblic_templates")
-            logger.info("✅ 컬렉션('approved_templates', 'pulblic_templates') 로드 완료")
+            self.approved_templates = self.client.get_or_create_collection("approved_templates")
+            self.public_templates = self.client.get_or_create_collection("public_templates")
+            self.denied_templates = self.client.get_or_create_collection("denied_templates")
+            self.blacklist_templates = self.client.get_or_create_collection("blacklist")
+            logger.info("✅ 컬렉션('approved_templates', 'public_templates', 'denied_templates', 'blacklist_templates') 로드 완료")
             self.is_mock = False
         except Exception as e:
             logger.error(f"❌ ChromaDB 연결 또는 컬렉션 로드 실패: {e}", exc_info=True)
@@ -82,11 +86,11 @@ class ChromaDBService:
 
     def search_public_templates(self, query_text: str, top_k: int = 3) -> List[Dict]:
         logger.info("  - 검색 대상: 공용 템플릿")
-        if not self.pulblic_templates:
-            logger.warning("⚠️ 'pulblic_templates' 컬렉션이 없습니다.")
+        if not self.public_templates:
+            logger.warning("⚠️ 'public_templates' 컬렉션이 없습니다.")
             return []
         try:
-            results = self.pulblic_templates.query(
+            results = self.public_templates.query(
                 query_texts=[query_text], n_results=top_k, include=['documents', 'metadatas', 'distances']
             )
             templates = []
@@ -116,7 +120,7 @@ class ChromaDBService:
             # 카테고리 필터링 조건
             where_condition = None if category_sub is None else {"category_sub": category_sub}
 
-            results = self.approved_collection.query(
+            results = self.approved_templates.query(
                 query_texts=[query_text],
                 n_results=top_k,
                 where=where_condition  # None이면 전체 검색, 값이 있으면 해당 카테고리만
@@ -143,3 +147,69 @@ class ChromaDBService:
         except Exception as e:
             self.logger.error(f"템플릿 검색 중 오류: {e}")
             return [], 0.0
+
+    def search_blacklist_templates(self, query_text: str, top_k: int = 3) -> List[Dict]:
+        logger.info("  - 검색 대상: 공용 템플릿")
+        if not self.blacklist_templates:
+            logger.warning("⚠️ 'blacklist_templates' 컬렉션이 없습니다.")
+            return []
+        try:
+            results = self.blacklist_templates.query(
+                query_texts=[query_text], n_results=top_k, include=['documents', 'metadatas', 'distances']
+            )
+            templates = []
+
+            # 👇 --- 여기가 핵심 수정 사항 --- 👇
+            # ChromaDB의 query 결과는 항상 2차원 리스트이므로, 첫 번째 요소([0])에 접근해야 합니다.
+            if results and results['ids'] and results['ids'][0]:
+                ids = results['ids'][0]
+                documents = results['documents'][0]
+                metadatas = results['metadatas'][0]
+                distances = results['distances'][0]
+
+                for i, (doc, meta, dist) in enumerate(zip(documents, metadatas, distances)):
+                    templates.append({'id': ids[i], 'text': doc, 'metadata': meta, 'similarity': 1.0 - float(dist)})
+
+                templates.sort(key=lambda x: x['similarity'], reverse=True)
+            return templates
+        except Exception as e:
+            logger.error(f"❌ 공용 템플릿 검색 중 오류: {e}", exc_info=True)
+            return []
+
+    def search_denied_templates(self, query_text: str, category_sub: str = None, top_k: int = 3) -> Tuple[List[Dict], float]:
+        """
+        승인된 템플릿 검색 (카테고리 제한 옵션)
+        """
+        try:
+            # 카테고리 필터링 조건
+            where_condition = None if category_sub is None else {"category_sub": category_sub}
+
+            results = self.denied_templates.query(
+                query_texts=[query_text],
+                n_results=top_k,
+                where=where_condition  # None이면 전체 검색, 값이 있으면 해당 카테고리만
+            )
+
+            templates = []
+            max_similarity = 0.0
+
+            if results['ids'] and results['ids'][0]:
+                for i, template_id in enumerate(results['ids'][0]):
+                    metadata = results['metadatas'][0][i] if results['metadatas'] else {}
+                    similarity = 1 - results['distances'][0][i]  # 거리를 유사도로 변환
+
+                    template_data = {
+                        'id': template_id,
+                        'similarity': similarity,
+                        'content': results['documents'][0][i] if results['documents'] else '',
+                        **metadata
+                    }
+                    templates.append(template_data)
+                    max_similarity = max(max_similarity, similarity)
+            return templates, max_similarity
+
+        except Exception as e:
+            self.logger.error(f"템플릿 검색 중 오류: {e}")
+            return [], 0.0
+
+
