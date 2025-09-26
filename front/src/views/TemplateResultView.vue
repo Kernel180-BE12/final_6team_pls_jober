@@ -254,9 +254,7 @@ const decrementModificationCount = () => {
 }
 
 
-<<<<<<< HEAD
-=======
-// 수정 횟수 리셋 테스트 함수들 (개발자 도구에서 사용) resetModifications() -> 3으로 리셋
+// 수정 횟수 리셋 테스트 함수들 (개발자 도구에서 사용) resetModifications() -> 10으로 리셋
 const testResetModifications = () => {
   const key = getSessionKey()
   sessionStorage.setItem(key, '10')
@@ -276,7 +274,6 @@ if (typeof window !== 'undefined') {
   ;(window as any).resetModifications = testResetModifications
   ;(window as any).setModifications = testSetModifications
 }
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
 
 // 버전 관리
 const versions = ref([
@@ -436,7 +433,6 @@ const applyAlternativeToTemplate = (alternative: any, problemArea: any) => {
   }
 }
 
-<<<<<<< HEAD
 // ID 마커 기반 편집 시스템 구현 (다중 수정 지원)
 const applyWithMarkerSystem = (problemArea: any, modifiedText: string): boolean => {
   console.log('=== ID 마커 기반 편집 시스템 시작 (다중 수정 지원) ===')
@@ -819,88 +815,6 @@ const removeExplanatoryText = (text: string): string => {
   })
   
   return cleanedText.trim()
-=======
-// 템플릿에 대안 적용 (새로운 함수)
-const applyAlternativeToTemplate = (alternative: any, error: any) => {
-  console.log('템플릿에 대안 적용:', alternative.text, '오류:', error.reason)
-
-  // 대안에 따라 템플릿 수정 로직 실행
-  if (alternative.text.includes('변수를 추가')) {
-    // 변수 추가 로직
-    applyVariableAddition(alternative)
-  } else if (alternative.text.includes('재작성') || alternative.text.includes('수정')) {
-    // 템플릿 전체 수정 로직
-    applyTemplateRewrite(alternative, error)
-  } else {
-    // 기본 수정 로직
-    applyGenericFix(alternative, error)
-  }
-
-  // 해당 오류를 해결된 것으로 처리
-  const errorIndex = validationErrors.value.findIndex(e => e.reason === error.reason)
-  if (errorIndex > -1) {
-    validationErrors.value.splice(errorIndex, 1)
-  }
-
-  // 모든 오류가 해결되면 반려 상태 해제
-  if (validationErrors.value.length === 0) {
-    isRejected.value = false
-    showRejectionSidebar.value = false
-    rejectedVariables.value = []
-  }
-
-  console.log('대안 적용 완료')
-}
-
-// 변수 추가 적용
-const applyVariableAddition = (alternative: any) => {
-  // 검증 통과 가능한 완전한 템플릿으로 교체
-  if (alternative.text.includes('예약취소 안내')) {
-    templateTitle.value = '예약 취소 안내'
-    templateContent.value = `안녕하세요, #{고객명}님.
-
-#{예약번호} 예약이 #{취소일시}에 취소 처리되었습니다.
-
-취소된 예약 정보:
-- 예약번호: #{예약번호}
-- 취소일시: #{취소일시}
-- 처리상태: 취소 완료
-
-문의사항이 있으시면 고객센터로 연락해 주세요.
-
-감사합니다.`
-
-    templateVariables.value = ['고객명', '예약번호', '취소일시']
-  } else if (alternative.text.includes('개인화된 알림')) {
-    templateTitle.value = '서비스 처리 안내'
-    templateContent.value = `안녕하세요, #{고객명}님.
-
-#{서비스명} 관련 처리가 #{처리일시}에 완료되었습니다.
-
-처리 내용:
-- 서비스: #{서비스명}
-- 처리일시: #{처리일시}
-- 상태: 완료
-
-추가 문의사항이 있으시면 연락 주세요.`
-
-    templateVariables.value = ['고객명', '서비스명', '처리일시']
-  } else {
-    templateTitle.value = '안내 사항'
-    templateContent.value = `안녕하세요, #{고객명}님.
-
-#{내용} 관련하여 안내드립니다.
-
-담당자: #{담당자}
-
-문의사항이 있으시면 연락 주세요.`
-
-    templateVariables.value = ['고객명', '내용', '담당자']
-  }
-
-  // 편집 가능한 변수 업데이트
-  editedVariables.value = [...templateVariables.value]
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
 }
 
 // 의미있는 내용인지 판단하는 함수
@@ -989,7 +903,6 @@ const getPreviewTemplateContent = (): string => {
   return content
 }
 
-<<<<<<< HEAD
 // 다중 수정 시 안정적인 위치 찾기
 const findStablePosition = (problemArea: any): { start: number, end: number } | null => {
   console.log('=== 안정적인 위치 찾기 ===')
@@ -1029,93 +942,6 @@ const findStablePosition = (problemArea: any): { start: number, end: number } | 
   
   console.log('안정적인 위치 찾기 실패')
   return null
-=======
-환불은 #{환불예정일}에 처리될 예정입니다.
-
-문의사항이 있으시면 고객센터로 연락해 주세요.`
-
-    templateVariables.value = ['고객명', '예약번호', '취소일시', '환불예정일']
-  } else if (alternative.text.includes('서비스 안내')) {
-    templateTitle.value = '서비스 이용 안내'
-    templateContent.value = `안녕하세요, #{고객명}님.
-
-#{서비스명} 이용과 관련하여 안내드립니다.
-
-안내 내용:
-- 서비스명: #{서비스명}
-- 처리일시: #{처리일시}
-- 담당자: #{담당자명}
-
-추가 문의사항이 있으시면 연락 주세요.`
-
-    templateVariables.value = ['고객명', '서비스명', '처리일시', '담당자명']
-  } else {
-    templateTitle.value = '고객 안내'
-    templateContent.value = `안녕하세요, #{고객명}님.
-
-#{안내내용}에 대해 안내드립니다.
-
-상세 정보:
-- 처리일시: #{처리일시}
-- 담당부서: #{담당부서}
-- 연락처: #{연락처}
-
-문의사항이 있으시면 언제든 연락해 주세요.`
-
-    templateVariables.value = ['고객명', '안내내용', '처리일시', '담당부서', '연락처']
-  }
-
-  // 편집 가능한 변수 업데이트
-  editedVariables.value = [...templateVariables.value]
-}
-
-// 일반적인 수정 적용
-const applyGenericFix = (alternative: any, error: any) => {
-  if (alternative.text.includes('순수 정보 전달')) {
-    templateTitle.value = '안내 사항'
-    templateContent.value = `안녕하세요, #{고객명}님.
-
-#{안내사항}에 대해 안내드립니다.
-
-상세 내용:
-- 처리일시: #{처리일시}
-- 담당자: #{담당자}
-
-문의사항이 있으시면 연락해 주세요.`
-
-    templateVariables.value = ['고객명', '안내사항', '처리일시', '담당자']
-  } else if (alternative.text.includes('표준 알림톡 구조')) {
-    templateTitle.value = '알림 안내'
-    templateContent.value = `안녕하세요, #{고객명}님.
-
-#{처리내용}이 완료되었습니다.
-
-처리 정보:
-- 처리일시: #{처리일시}
-- 처리결과: #{처리결과}
-
-추가 문의사항이 있으시면 연락해 주세요.`
-
-    templateVariables.value = ['고객명', '처리내용', '처리일시', '처리결과']
-  } else {
-    // 기본 승인 가능한 템플릿
-    templateTitle.value = '서비스 안내'
-    templateContent.value = `안녕하세요, #{고객명}님.
-
-#{서비스내용} 관련하여 안내드립니다.
-
-안내 사항:
-- 처리일시: #{처리일시}
-- 상태: #{처리상태}
-
-문의사항이 있으시면 고객센터로 연락해 주세요.`
-
-    templateVariables.value = ['고객명', '서비스내용', '처리일시', '처리상태']
-  }
-
-  // 편집 가능한 변수 업데이트
-  editedVariables.value = [...templateVariables.value]
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
 }
 
 // 문맥 기반 위치 찾기
@@ -1185,8 +1011,10 @@ const updateMarkerForMultipleEdits = (problemArea: any, modifiedText: string): b
   return false
 }
 
-
-
+// 버전 선택
+const selectVersion = (versionNumber: number) => {
+  currentVersion.value = versionNumber
+}
 
 // 반려 사이드바 닫기
 const closeRejectionSidebar = () => {
@@ -1203,11 +1031,38 @@ const closeRejectionSidebar = () => {
 const updateVariables = (newVariables: any) => {
   editedVariables.value = Array.isArray(newVariables) ? newVariables : [...newVariables]
   
-    // 강제로 리렌더링을 위해 nextTick 사용
-    nextTick(() => {
-      // 변수 업데이트 완료
-    })
+  // 강제로 리렌더링을 위해 nextTick 사용
+  nextTick(() => {
+    // 변수 업데이트 완료
+  })
 }
+
+// 채팅 비활성화 조건 확인
+const isChatDisabled = () => {
+  return remainingCorrections.value <= 0 || isGenerating.value
+}
+
+// 채팅 placeholder 텍스트 결정
+const getChatPlaceholder = () => {
+  if (remainingCorrections.value <= 0) {
+    return '정정 횟수가 모두 소진되었습니다.'
+  } else if (isGenerating.value) {
+    return 'AI가 응답을 생성 중입니다...'
+  } else {
+    return '메시지를 입력하세요...'
+  }
+}
+
+// 알림톡 높이 측정 함수
+const measureAlimtalkHeight = () => {
+  nextTick(() => {
+    if (kakaoPreviewRef.value) {
+      alimtalkHeight.value = kakaoPreviewRef.value.offsetHeight
+      console.log('알림톡 높이 측정:', alimtalkHeight.value)
+    }
+  })
+}
+
 
 // 변수 토글 상태 변경 감지
 watch(showVariables, (newValue) => {
@@ -1251,25 +1106,13 @@ const submitTemplate = async () => {
       }
       editedVariables.value = fallback
     }
-<<<<<<< HEAD
-    // 👉👉 여기서 "객체 -> 배열(VariableDto[])" 변환을 합니다.
-    // 백엔드 DTO: List<VariableDto> (variableKey, variableValue)
-    const variableList = Object.entries(editedVariables.value ?? {}).map(([k, v]) => ({
-      variableKey: k,
-      variableValue: String(v ?? ''),
-    }))
     // 마커 제거 후 최종 템플릿 확정
     const finalTemplate = removeAllMarkers()
     
-=======
-
-    // 변수명 배열 (이미 string[] 형태)
-    const variableList = editedVariables.value ?? []
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
     // 백엔드로 템플릿 검증 요청
     const response = await templateApi.validateTemplate(
       finalTemplate,
-      variableList,
+      editedVariables.value,
       templateCategory.value,
       userMessage.value,
       templateTitle.value
@@ -1579,62 +1422,12 @@ const sendMessage = async () => {
   }
 }
 
-// 버전 선택
-const selectVersion = (versionNumber: number) => {
-  // 이미 선택된 버전이면 아무것도 하지 않음
-  if (currentVersion.value === versionNumber) {
-    return
-  }
-  
-  currentVersion.value = versionNumber
-  
-  // 해당 버전의 템플릿 내용으로 업데이트
-  const versionTemplate = versionTemplates.value[versionNumber]
-  if (versionTemplate) {
-    templateContent.value = versionTemplate.content
-    templateTitle.value = versionTemplate.title
-    templateVariables.value = versionTemplate.variableList
-    
-    // 변수명 초기화
-    editedVariables.value = [...versionTemplate.variableList]
-    
-    console.log(`버전 ${versionNumber} 템플릿으로 전환됨`)
-  } else {
-    console.warn(`버전 ${versionNumber}의 템플릿 데이터를 찾을 수 없습니다`)
-  }
-}
-
-// 채팅 비활성화 조건 확인
-const isChatDisabled = () => {
-  return remainingCorrections.value <= 0 || isGenerating.value
-}
-
-// 채팅 placeholder 텍스트 결정
-const getChatPlaceholder = () => {
-  if (remainingCorrections.value <= 0) {
-    return '정정 횟수가 모두 소진되었습니다.'
-  } else if (isGenerating.value) {
-    return 'AI가 응답을 생성 중입니다...'
-  } else {
-    return '메시지를 입력하세요...'
-  }
-}
 
 // 채팅 자동 스크롤 함수
 const scrollToBottom = () => {
   nextTick(() => {
     if (chatHistoryRef.value) {
       chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
-    }
-  })
-}
-
-// 알림톡 높이 측정 함수
-const measureAlimtalkHeight = () => {
-  nextTick(() => {
-    if (kakaoPreviewRef.value) {
-      alimtalkHeight.value = kakaoPreviewRef.value.offsetHeight
-      console.log('알림톡 높이 측정:', alimtalkHeight.value)
     }
   })
 }
