@@ -114,6 +114,7 @@ public class TemplateController {
             log.info("요청 데이터 - 제목: '{}', 사용자메시지: '{}', 변수개수: {}", 
                     requestDto.getTemplateTitle(), requestDto.getUserMessage(), 
                     requestDto.getVariableList() != null ? requestDto.getVariableList().size() : 0);
+            log.info("변수 목록: {}", requestDto.getVariableList());
             
             if (currentUser == null) {
                 log.error("인증되지 않은 사용자입니다 - currentUser is null");

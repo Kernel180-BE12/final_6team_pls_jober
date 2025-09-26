@@ -33,7 +33,9 @@ api.interceptors.request.use(
       hasToken: !!userStore.accessToken,
       token: userStore.accessToken ? `${userStore.accessToken.substring(0, 20)}...` : 'null',
       isAuthAPI,
-      isLoggedIn: userStore.isLoggedIn
+      isLoggedIn: userStore.isLoggedIn,
+      accountId: userStore.accountId,
+      userName: userStore.userName
     })
     
     if (!userStore.accessToken && !isAuthAPI) {
@@ -206,6 +208,8 @@ export const templateApi = {
     }
 
     console.log('저장 요청 데이터:', saveRequest)
+    console.log('variableList 타입:', typeof variableNames, Array.isArray(variableNames))
+    console.log('variableList 내용:', variableNames)
 
     return api.post('/template/save', saveRequest)
   },

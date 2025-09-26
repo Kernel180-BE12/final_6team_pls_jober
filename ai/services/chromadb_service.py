@@ -75,7 +75,7 @@ class ChromaDBService:
         템플릿 검색 공통 함수
         
         Args:
-            collection_name: 검색할 컬렉션 이름 ('approved_templates' 또는 'pulblic_templates')
+            collection_name: 검색할 컬렉션 이름 ('approved_templates' 또는 'public_templates')
             query_text: 검색 쿼리 텍스트
             top_k: 반환할 결과 개수
             category_sub: 카테고리 필터링 (approved_templates에서만 사용)
@@ -85,18 +85,18 @@ class ChromaDBService:
             List[Dict]: 검색된 템플릿 리스트 (유사도 기준 정렬됨)
         """
 
-        collection = self.collections.get(collection_name)
-        
         # 컬렉션 선택
         if collection_name == "approved_templates":
-            collection = self.approved_collection
+            collection = self.collections.get("approved_templates")
             logger.info("  - 검색 대상: 승인된 템플릿")
-        elif collection_name == "pulblic_templates":
-            collection = self.pulblic_templates
+        elif collection_name == "public_templates":
+            collection = self.collections.get("public_templates")
             logger.info("  - 검색 대상: 공용 템플릿")
         elif collection_name == "blacklist":
+            collection = self.collections.get("blacklist")
             logger.info("  - 검색 대상: 블랙리스트")
         elif collection_name == "denied_templates":
+            collection = self.collections.get("denied_templates")
             logger.info("  - 검색 대상: 반려된 템플릿")
         else:
             logger.error(f"❌ 알 수 없는 컬렉션: {collection_name}")
@@ -136,7 +136,7 @@ class ChromaDBService:
                     similarity = 1.0 - float(dist)
                     
                     # 결과 형식에 따른 데이터 구조 결정
-                    if result_format == "legacy" and collection_name == "pulblic_templates":
+                    if result_format == "legacy" and collection_name == "public_templates":
                         # 공용 템플릿 형식 (text, metadata 필드 사용)
                         template_data = {
                             'id': template_id,

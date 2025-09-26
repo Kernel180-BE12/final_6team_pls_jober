@@ -1206,21 +1206,42 @@ const saveTemplate = async () => {
     isSaving.value = true
     
     // 사용자 상태 디버깅
-    console.log('사용자 상태 확인:', {
+    console.log('=== 템플릿 저장 요청 전 사용자 상태 확인 ===')
+    console.log('사용자 상태:', {
       isLoggedIn: userStore.isLoggedIn,
       hasToken: !!userStore.accessToken,
       accountId: userStore.accountId,
       userName: userStore.userName,
       email: userStore.email,
-      token: userStore.accessToken ? `${userStore.accessToken.substring(0, 20)}...` : 'null'
+      role: userStore.role,
+      loginType: userStore.loginType,
+      token: userStore.accessToken ? `${userStore.accessToken.substring(0, 20)}...` : 'null',
+      tokenLength: userStore.accessToken ? userStore.accessToken.length : 0
+    })
+    
+    // localStorage에서 직접 토큰 확인
+    const storedToken = localStorage.getItem('access_token')
+    console.log('localStorage 토큰 상태:', {
+      hasStoredToken: !!storedToken,
+      storedTokenLength: storedToken ? storedToken.length : 0,
+      storedToken: storedToken ? `${storedToken.substring(0, 20)}...` : 'null'
     })
     
     // 로그인 상태 확인
-    if (!userStore.isLoggedIn) {
-      console.error('사용자가 로그인되지 않음')
-      alert('템플릿을 저장하려면 로그인이 필요합니다. 로그인 페이지로 이동합니다.')
-      router.push('/')
-      return
+    if (!userStore.isLoggedIn || !userStore.accessToken) {
+      console.error('사용자가 로그인되지 않았거나 토큰이 없음')
+      
+      // 사용자 정보 복원 시도
+      userStore.restoreUser()
+      
+      if (!userStore.isLoggedIn || !userStore.accessToken) {
+        console.error('사용자 정보 복원 실패')
+        alert('템플릿을 저장하려면 로그인이 필요합니다. 로그인 페이지로 이동합니다.')
+        router.push('/')
+        return
+      } else {
+        console.log('사용자 정보 복원 성공')
+      }
     }
     
     // 제출 전 변수 배열 보정: 비어있으면 현재 템플릿 변수로 기본값 구성

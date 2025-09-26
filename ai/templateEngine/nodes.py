@@ -116,7 +116,7 @@ async def search_templates_node(state: TemplateGenerationState) -> Dict[str, Any
                 logger.info(f"1단계: 서비스 키워드 '{keyword_query}'로 공용 템플릿 검색")
 
                 public_templates = state["chromadb_service"].search_templates(
-                    collection_name="pulblic_templates",
+                    collection_name="public_templates",
                     query_text=keyword_query,
                     top_k=5,
                     result_format="legacy"
@@ -130,7 +130,7 @@ async def search_templates_node(state: TemplateGenerationState) -> Dict[str, Any
             if generated_title:
                 logger.info(f"2단계: 생성 제목 '{generated_title}'로 공용 템플릿 검색")
                 title_public_templates = state["chromadb_service"].search_templates(
-                    collection_name="pulblic_templates",
+                    collection_name="public_templates",
                     query_text=generated_title,
                     top_k=3,
                     result_format="legacy"
@@ -380,27 +380,27 @@ async def search_public_and_generate_node(state: TemplateGenerationState) -> Dic
     logger.info("=" * 60)
     logger.info("5b단계: 신규 생성 시작")
     try:
-        pulblic_templates = state["chromadb_service"].search_templates(
-            collection_name="pulblic_templates",
+        public_templates = state["chromadb_service"].search_templates(
+            collection_name="public_templates",
             query_text=state["userMessage"],
             top_k=3,
             result_format="legacy"
         )
-        hint = "pulblic_templates_based" if pulblic_templates else "from_scratch"
+        hint = "public_templates_based" if public_templates else "from_scratch"
 
         # 👇 4. user_text -> userMessage로 수정
         prompt_builder = NewTemplatePromptBuilder(
             userMessage=state["userMessage"],
             extracted_fields=state["extracted_fields"],
-            public_templates=pulblic_templates
+            public_templates=public_templates
         )
         messages = prompt_builder.build()
         template = await state["openai_service"].chat_completion(messages)
         logger.info(f"✅ 신규 생성 성공 (방식: {hint})")
-        return {"generated_template": template, "generation_hint": hint, "pulblic_templates": pulblic_templates}
+        return {"generated_template": template, "generation_hint": hint, "public_templates": public_templates}
     except Exception as e:
         logger.error(f"❌ 신규 생성 실패: {e}", exc_info=True)
-        return {"generated_template": "템플릿 생성 중 오류 발생", "generation_hint": "error", "pulblic_templates": []}
+        return {"generated_template": "템플릿 생성 중 오류 발생", "generation_hint": "error", "public_templates": []}
 
 def finalize_result_node(state: TemplateGenerationState) -> Dict[str, Any]:
     logger.info("=" * 60)
@@ -418,7 +418,7 @@ def finalize_result_node(state: TemplateGenerationState) -> Dict[str, Any]:
         "category_analysis": state.get("category_result"),
         "similarity_score": state.get("max_similarity", 0.0),
         "reference_templates": state.get("similar_templates", []),
-        "pulblic_templates": state.get("pulblic_templates", []),
+        "public_templates": state.get("public_templates", []),
     }
     logger.info("✅ 파이프라인 최종 결과 생성 완료.")
     # 👇 --- 최종 생성된 템플릿을 터미널에 명확하게 출력 --- 👇

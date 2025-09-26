@@ -76,6 +76,7 @@ public class JwtTokenProvider {
                     .parseSignedClaims(token);
             return true;
         } catch (Exception e) {
+            System.out.println("JWT 토큰 유효성 검사 실패: " + e.getMessage());
             return false;
         }
     }

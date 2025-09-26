@@ -30,7 +30,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, 
                                   @NonNull FilterChain filterChain) throws ServletException, IOException {
         
+        String requestURI = request.getRequestURI();
         String token = extractTokenFromRequest(request);
+        
+        // 템플릿 저장 요청에 대한 상세 로깅
+        if (requestURI.contains("/template/save")) {
+            System.out.println("=== JWT 인증 필터 - 템플릿 저장 요청 ===");
+            System.out.println("요청 URI: " + requestURI);
+            System.out.println("토큰 존재 여부: " + (token != null));
+            if (token != null) {
+                System.out.println("토큰 길이: " + token.length());
+                System.out.println("토큰 앞 20자: " + token.substring(0, Math.min(20, token.length())));
+            }
+        }
         
         if (token != null && jwtTokenProvider.validateToken(token)) {
             // 토큰 타입 확인 (Access Token만 허용)
@@ -54,8 +66,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     Collections.singletonList(new SimpleGrantedAuthority(account.getRole()))
                                 );
                             SecurityContextHolder.getContext().setAuthentication(auth);
+                            
+                            // 템플릿 저장 요청에 대한 성공 로깅
+                            if (requestURI.contains("/template/save")) {
+                                System.out.println("인증 성공 - 사용자 ID: " + accountId + ", 상태: " + account.getStatus());
+                            }
+                        } else {
+                            // 템플릿 저장 요청에 대한 실패 로깅
+                            if (requestURI.contains("/template/save")) {
+                                System.out.println("인증 실패 - 계정 상태 문제");
+                                if (account == null) {
+                                    System.out.println("계정을 찾을 수 없음 - ID: " + accountId);
+                                } else {
+                                    System.out.println("계정 상태: " + account.getStatus() + " (ACTIVE가 아님)");
+                                }
+                            }
+                        }
+                    } else {
+                        if (requestURI.contains("/template/save")) {
+                            System.out.println("인증 실패 - accountId가 null");
                         }
                     }
+                } else {
+                    if (requestURI.contains("/template/save")) {
+                        System.out.println("인증 실패 - 토큰이 블랙리스트에 있음");
+                    }
+                }
+            } else {
+                if (requestURI.contains("/template/save")) {
+                    System.out.println("인증 실패 - 토큰 타입이 access가 아님: " + tokenType);
+                }
+            }
+        } else {
+            if (requestURI.contains("/template/save")) {
+                if (token == null) {
+                    System.out.println("인증 실패 - 토큰이 없음");
+                } else {
+                    System.out.println("인증 실패 - 토큰 유효성 검사 실패");
                 }
             }
         }

@@ -72,7 +72,7 @@ async def run_template_generation_pipeline(
             "generated_title": None,
             "similar_templates": [],
             "max_similarity": 0.0,
-            "pulblic_templates": [],
+            "public_templates": [],
             "generation_hint": None,
             "generated_template": "",
             "extracted_fields": {},
@@ -91,5 +91,5 @@ async def run_template_generation_pipeline(
             "template_text": "", "template_title": "생성 실패", "variables": [],
             "generation_method": "error", "message_type": None, "category_sub": None,
             "category_analysis": None, "similarity_score": 0.0,
-            "reference_templates": [], "pulblic_templates": [],
+            "reference_templates": [], "public_templates": [],
         }
