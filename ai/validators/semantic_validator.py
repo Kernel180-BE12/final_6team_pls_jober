@@ -86,11 +86,6 @@ class SemanticValidator:
         # violations 중복 제거
         violations = self._deduplicate_violations(violations)
 
-        print(f"\n📋 2차 검증 취합 결과:")
-        print(f"   🏷️ 최종 라벨: {final_label}")
-        print(f"   📊 위험도 점수: {final_risk}")
-        print(f"   🚫 위반 사항: {len(violations)}개")
-
         decision_source = "heuristic"
         needs_review: bool = False
         warnings: List[str] = []
