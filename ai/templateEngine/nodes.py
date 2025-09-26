@@ -347,55 +347,95 @@ def decide_generation_method(state: TemplateGenerationState) -> Literal["with_re
         logger.info(f"⚠️ 결정: 유사도({state['max_similarity']:.3f})가 기준 미만. [신규 생성]으로 진행합니다.")
         return "search_public"
 
-async def generate_with_reference_node(state: TemplateGenerationState) -> Dict[str, Any]:
+async def generate_with_reference_node(state) -> Dict[str, Any]:
+    """참고 템플릿 기반 생성"""
     logger.info("=" * 60)
     logger.info("5a단계: 참고 템플릿 기반 생성 시작")
+
     try:
         prompt_builder = ReferenceBasedTemplatePromptBuilder(
             userMessage=state["userMessage"],
-            reference_templates=state["similar_templates"],
-            extracted_fields=state["extracted_fields"]
+            reference_templates=state.get("similar_templates", []),
+            extracted_fields=state.get("extracted_fields", {})
         )
         messages = prompt_builder.build()
         template = await state["openai_service"].chat_completion(messages)
+
         logger.info("✅ 참고 템플릿 기반 생성 성공")
-        return {"generated_template": template, "generation_hint": "reference_based"}
+        return {"generated_template": template.strip(), "generation_hint": "reference_based"}
     except Exception as e:
-        logger.error(f"❌ 참고 템플릿 기반 생성 실패: {e}", exc_info=True)
+        logger.error(f"❌ 참고 템플릿 기반 생성 실패: {e}")
         return {"generated_template": "템플릿 생성 중 오류 발생", "generation_hint": "error"}
 
-async def search_public_and_generate_node(state: TemplateGenerationState) -> Dict[str, Any]:
+async def search_public_and_generate_node(state) -> Dict[str, Any]:
+    """신규 템플릿 생성"""
     logger.info("=" * 60)
-    logger.info("5b단계: 신규 생성 시작")
-    try:
-        pulblic_templates = state["chromadb_service"].search_public_templates(
-            query_text=state["userMessage"], top_k=3
-        )
-        hint = "pulblic_templates_based" if pulblic_templates else "from_scratch"
+    logger.info("5b단계: 신규 템플릿 생성 시작")
 
-        # 👇 4. user_text -> userMessage로 수정
+    try:
+        # 공용 템플릿 검색
+        public_templates_result = []
+        try:
+            public_templates_result, max_sim = state["chromadb_service"].search_public_templates(
+                query_text=state["userMessage"], top_k=3
+            )
+        except:
+            logger.warning("공용 템플릿 검색 실패, 기본 생성으로 진행")
+
+        hint = "public_templates_based" if public_templates_result else "from_scratch"
+
         prompt_builder = NewTemplatePromptBuilder(
             userMessage=state["userMessage"],
-            extracted_fields=state["extracted_fields"],
-            public_templates=pulblic_templates
+            extracted_fields=state.get("extracted_fields", {}),
+            public_templates=public_templates_result
         )
         messages = prompt_builder.build()
         template = await state["openai_service"].chat_completion(messages)
-        logger.info(f"✅ 신규 생성 성공 (방식: {hint})")
-        return {"generated_template": template, "generation_hint": hint, "pulblic_templates": pulblic_templates}
-    except Exception as e:
-        logger.error(f"❌ 신규 생성 실패: {e}", exc_info=True)
-        return {"generated_template": "템플릿 생성 중 오류 발생", "generation_hint": "error", "pulblic_templates": []}
 
-def finalize_result_node(state: TemplateGenerationState) -> Dict[str, Any]:
+        logger.info(f"✅ 신규 생성 성공 (방식: {hint})")
+        return {
+            "generated_template": template.strip(),
+            "generation_hint": hint,
+            "public_templates": public_templates_result
+        }
+    except Exception as e:
+        logger.error(f"❌ 신규 생성 실패: {e}")
+        return {
+            "generated_template": "템플릿 생성 중 오류 발생",
+            "generation_hint": "error",
+            "public_templates": []
+        }
+
+def extract_json_from_response(response: str) -> str:
+    """응답에서 JSON 추출"""
+    # ```json 블록 찾기
+    json_match = re.search(r'```json\s*({.*?})\s*```', response, re.DOTALL)
+    if json_match:
+        return json_match.group(1)
+
+    # 중괄호로 둘러싸인 JSON 찾기
+    json_match = re.search(r'({.*?})', response, re.DOTALL)
+    if json_match:
+        return json_match.group(1)
+
+    return response.strip()
+
+def finalize_result_node(state) -> Dict[str, Any]:
+    """최종 결과 정리"""
     logger.info("=" * 60)
     logger.info("6단계: 최종 결과 정리")
-    variables = extract_variables_from_template(state.get("generated_template", ""))
+
+    template_text = state.get("generated_template", "")
+    extracted_fields = state.get("extracted_fields", {})
+
+    # 작은따옴표로 감싸진 변수 추출
+    variables = extract_quoted_variables_from_template(template_text)
+
     final_result = {
         "pipeline_success": True,
         "error_message": None,
-        "template_text": state.get("generated_template", ""),
-        "template_title": state.get("generated_title", "제목 없음"),
+        "template_text": template_text,
+        "template_title": state.get("generated_title", "").strip('"'),
         "variables": variables,
         "generation_method": state.get("generation_hint", "unknown"),
         "message_type": state.get("message_type_result", {}).get("type"),
@@ -403,17 +443,47 @@ def finalize_result_node(state: TemplateGenerationState) -> Dict[str, Any]:
         "category_analysis": state.get("category_result"),
         "similarity_score": state.get("max_similarity", 0.0),
         "reference_templates": state.get("similar_templates", []),
-        "pulblic_templates": state.get("pulblic_templates", []),
+        "public_templates": state.get("public_templates", []),
+        "extracted_fields": extracted_fields,
     }
-    logger.info("✅ 파이프라인 최종 결과 생성 완료.")
-    # 👇 --- 최종 생성된 템플릿을 터미널에 명확하게 출력 --- 👇
+
+    logger.info("✅ 파이프라인 완료")
     logger.info("-" * 60)
-    logger.info(">>> 최종 생성된 템플릿 본문 <<<")
-    logger.info(final_result.get("template_text"))
+    logger.info(">>> 최종 생성된 템플릿 <<<")
+    logger.info(template_text)
     logger.info("-" * 60)
+
     return {"final_result": final_result}
 
-def extract_variables_from_template(template_text: str) -> list[str]:
-    if not template_text: return []
-    return sorted(list(set(re.findall(r'#\{([^}]+)\}', template_text))))
+
+def extract_quoted_variables_from_template(template_text: str) -> List[str]:
+    """템플릿에서 작은따옴표로 감싸진 변수들 추출"""
+    if not template_text:
+        return []
+
+    # 작은따옴표로 감싸진 텍스트 모두 찾기
+    quoted_texts = re.findall(r"'([^']+)'", template_text)
+    return sorted(list(set(quoted_texts)))
+
+# API 응답 처리 함수
+
+def extract_variable_mapping_from_template(template_content: str, extracted_fields: Dict[str, str]) -> Dict[str, str]:
+    """템플릿과 추출된 필드를 매핑하여 variable_mapping 생성"""
+    import re
+
+    # 작은따옴표로 감싸진 모든 텍스트 찾기
+    quoted_texts = re.findall(r"'([^']+)'", template_content)
+
+    variable_mapping = {}
+
+    # 추출된 필드와 따옴표 텍스트 매핑
+    for var_name, original_value in extracted_fields.items():
+        for quoted_text in quoted_texts:
+            # 유사도 기반 매칭 (간단한 포함 관계 확인)
+            if (original_value in quoted_text or quoted_text in original_value or
+                    original_value == quoted_text):
+                variable_mapping[var_name] = quoted_text
+                break
+
+    return variable_mapping
 
