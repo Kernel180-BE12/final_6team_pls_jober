@@ -288,6 +288,9 @@ const versionTemplates = ref<Record<number, { content: string, title: string, va
 // 사용자가 수정할 수 있는 변수 값들
 const editedVariables = ref<string[]>([])
 
+// 저장된 템플릿 ID
+const savedTemplateId = ref<string | null>(null)
+
 // 컴포넌트 마운트 시 생성된 템플릿 데이터 로드
 onMounted(() => {
   // 먼저 수정 횟수를 세션에서 가져와서 설정
@@ -862,6 +865,43 @@ const findContextBasedPosition = (problemArea: any): { start: number, end: numbe
   }
   
   return null
+}
+
+// 안정적인 위치 찾기 (다중 수정을 위한 백업 함수)
+const findStablePosition = (problemArea: any): { start: number, end: number } | null => {
+  console.log('=== 안정적인 위치 찾기 시작 ===')
+  
+  // 1. 문맥 기반 위치 찾기 시도
+  const contextPosition = findContextBasedPosition(problemArea)
+  if (contextPosition) {
+    console.log('문맥 기반 위치 찾기 성공')
+    return contextPosition
+  }
+  
+  // 2. 문제 텍스트 직접 매칭 시도
+  const template = templateContent.value
+  const problemText = problemArea.problem_text
+  
+  if (problemText && template.includes(problemText)) {
+    const matchIndex = template.indexOf(problemText)
+    const start = matchIndex
+    const end = matchIndex + problemText.length
+    console.log('문제 텍스트 직접 매칭 성공:', { start, end })
+    return { start, end }
+  }
+  
+  // 3. 위치 정보가 있다면 사용
+  if (problemArea.start_position !== undefined && problemArea.end_position !== undefined) {
+    const start = problemArea.start_position
+    const end = problemArea.end_position
+    console.log('위치 정보 사용:', { start, end })
+    return { start, end }
+  }
+  
+  // 4. 템플릿 중간 위치에 삽입 (최후의 수단)
+  const middlePosition = Math.floor(template.length / 2)
+  console.log('중간 위치에 삽입:', { start: middlePosition, end: middlePosition })
+  return { start: middlePosition, end: middlePosition }
 }
 
 // 다중 수정 시 마커 업데이트
