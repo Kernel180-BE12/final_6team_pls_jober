@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class BasePromptBuilder(ABC):
@@ -132,7 +132,7 @@ class AdvancedFieldsPromptBuilder(BasePromptBuilder):
 
 
 class ExpertTemplateBuilder(BasePromptBuilder):
-    """전문가급 템플릿 생성 빌더"""
+    """전문가급 템플릿 생성 빌더 - 구체적이고 실용적인 템플릿 생성"""
 
     def __init__(self, userMessage: str, extracted_fields: Dict, message_type: str = None, reference_templates: List[Dict] = None):
         super().__init__(userMessage)
@@ -150,9 +150,14 @@ class ExpertTemplateBuilder(BasePromptBuilder):
         # 참고 템플릿 컨텍스트
         reference_context = self._build_reference_context()
 
-        system_prompt = f"""# 카카오 알림톡 마스터 템플릿 생성기
+        system_prompt = f"""# 카카오 알림톡 실전 템플릿 생성 전문가
 
-당신은 카카오 알림톡 심사를 100% 통과하는 템플릿을 생성하는 전문가입니다.
+당신은 실제 비즈니스에서 바로 사용 가능한, 구체적이고 실용적인 카카오 알림톡 템플릿을 생성하는 전문가입니다.
+
+## 핵심 철학: "추상적 ❌ → 구체적 ✅"
+- 일반적인 템플릿이 아닌, 실제 상황에 맞는 구체적인 내용 생성
+- 사용자가 요청한 상황을 정확히 반영한 실용적 템플릿
+- 날짜, 시간, 장소 등 모든 정보를 구체적으로 표현
 
 ## 절대 준수 사항 (위반시 심사 반려)
 1. **문자 수 제한**: 1,300자 이내 (공백, 줄바꿈 포함)
@@ -160,6 +165,12 @@ class ExpertTemplateBuilder(BasePromptBuilder):
 3. **광고성 표현 금지**: 할인, 특가, 이벤트, 프로모션 등 직접 마케팅 용어 금지
 4. **발송 근거 필수**: 하단에 *로 시작하는 법적 근거 명시
 5. **개인정보 보호**: 모든 개인정보는 변수 처리 필수
+
+## 날짜/시간 처리 원칙 (오늘: {datetime.now().strftime('%Y년 %m월 %d일')})
+- **"내일"** → {(datetime.now() + timedelta(days=1)).strftime('%Y년 %m월 %d일')} (구체적 날짜)
+- **"모레"** → {(datetime.now() + timedelta(days=2)).strftime('%Y년 %m월 %d일')} (구체적 날짜)
+- **상대적 표현** → 절대 날짜로 변환
+- **요일 표기**: (월), (화), (수) 등으로 추가
 
 {variable_mapping}
 
@@ -189,12 +200,19 @@ class ExpertTemplateBuilder(BasePromptBuilder):
 
 {reference_context}
 
-## 생성 지침
-1. **구조 최적화**: 메시지 타입에 맞는 최적 구조 선택
-2. **변수 완벽 적용**: 모든 개인정보와 가변 정보를 변수로 처리
-3. **가독성 확보**: 적절한 줄바꿈과 구분자(▶, ■) 활용
-4. **톤앤매너**: 공손하면서도 친근한 어조 유지
-5. **정보 우선순위**: 중요한 정보부터 상단 배치
+## 실전 생성 지침
+1. **상황 분석**: 사용자 요청을 정확히 파악하고 실제 비즈니스 상황 반영
+2. **구체적 정보**: 추상적 표현 금지, 실제 사용할 수 있는 구체적 내용
+3. **완전한 정보**: 관련된 모든 필수 정보 포함 (시간, 장소, 연락처 등)
+4. **실용적 구조**: 받는 사람이 바로 이해할 수 있는 명확한 구조
+5. **비즈니스 요소**: 문의처, 수신거부, 변경/취소 안내 등 실제 필요한 요소 포함
+
+## 업종별 필수 포함 요소
+- **의료**: 예약일시, 진료항목, 위치, 주의사항, 변경/취소 안내
+- **배송**: 발송/도착 정보, 운송장번호, 받는 곳, 연락처
+- **예약**: 예약일시, 장소, 담당자, 준비물, 변경 규정
+- **결제**: 결제 내역, 금액, 일시, 영수증, 문의처
+- **공지**: 제목, 내용, 적용일, 문의처, 추가 안내
 
 ## 품질 검증 체크리스트
 - [ ] 1,300자 이내인가?
