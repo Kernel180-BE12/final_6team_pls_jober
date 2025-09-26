@@ -3,8 +3,6 @@
     <div class="sidebar-header">
       <button v-if="showingAlternatives" class="back-btn" @click="goBack">←</button>
       <h3>{{ showingAlternatives ? '수정이 필요한 내용' : '반려 사유 및 대안' }}</h3>
-      <div v-if="validationStage" class="validation-stage">
-      </div>
       <button class="close-btn" @click="$emit('close')">×</button>
     </div>
     
@@ -16,8 +14,9 @@
         </div>
       </div>
       
-      <h4>대안 선택 (3개)</h4>
+      <h4>대안 선택 ({{ currentAlternatives.length }}개)</h4>
       <div class="alternatives-list">
+        <!-- 대안이 있을 때 -->
         <div 
           v-for="(alternative, index) in currentAlternatives" 
           :key="index"
@@ -26,16 +25,23 @@
         >
           <div class="alternative-content">
             <div class="alternative-text">
-              <p>{{ alternative.text }}</p>
+              <p v-html="formatProblemText(alternative.text)"></p>
             </div>
             <div v-if="alternative.preview" class="alternative-preview">
               <div class="preview-label">미리보기:</div>
-              <div class="preview-content">{{ alternative.preview }}</div>
+              <div class="preview-content" v-html="formatProblemText(alternative.preview)"></div>
             </div>
           </div>
           <div class="alternative-status">
             <span v-if="alternative.selected" class="selected-mark">✓</span>
           </div>
+        </div>
+        
+        <!-- 대안이 없을 때 -->
+        <div v-if="currentAlternatives.length === 0" class="no-alternatives-message">
+          <div class="no-alternatives-icon">⚠️</div>
+          <p>대안을 찾을 수 없습니다.</p>
+          <p class="no-alternatives-hint">수동으로 템플릿을 수정해주세요.</p>
         </div>
       </div>
       
@@ -75,8 +81,7 @@
             </div>
             <div class="area-content">
               <p class="area-location">📍 {{ area.location }}</p>
-              <p class="area-problem-text">{{ area.problem_text }}</p>
-              <p class="area-reason">{{ area.reason }}</p>
+              <p class="area-problem-text" v-html="formatProblemText(area.problem_text)"></p>
               <p class="click-hint">클릭하여 대안 확인 →</p>
             </div>
           </div>
@@ -119,10 +124,8 @@ interface RejectionSidebarProps {
   currentProblemArea: ProblemArea | null
   alternatives: Alternative[]
   problemAreas: ProblemArea[]
-  validationStage?: string
   totalErrors: number
   totalWarnings: number
-  alimtalkHeight?: number
 }
 
 const props = defineProps<RejectionSidebarProps>()
@@ -132,8 +135,6 @@ const emit = defineEmits<{
   applyAlternative: [alternative: Alternative, problemArea: ProblemArea]
 }>()
 
-// 알림톡 높이 계산
-const alimtalkHeight = computed(() => props.alimtalkHeight)
 
 const currentAlternatives = ref<Alternative[]>([])
 const showingAlternatives = ref(false)
@@ -255,6 +256,19 @@ const getSeverityClass = (severity: string) => {
   return severity === 'error' ? 'severity-error' : 'severity-warning'
 }
 
+// 문제 텍스트를 사용자 친화적으로 포맷팅
+const formatProblemText = (text: string) => {
+  if (!text) return ''
+  
+  // #{변수명} 형식을 {변수명}으로 변환
+  let formattedText = text
+    .replace(/#\{([^}]+)\}/g, '<span class="variable-display">{$1}</span>')
+    .replace(/\{\{([^}]+)\}\}/g, '<span class="variable-display">{$1}</span>')
+    .replace(/\[([^\]]+)\]/g, '<span class="variable-display">{$1}</span>')
+  
+  return formattedText
+}
+
 </script>
 
 <style scoped>
@@ -283,10 +297,6 @@ const getSeverityClass = (severity: string) => {
   flex-shrink: 0; /* 헤더 고정 */
 }
 
-.validation-stage {
-  margin-left: auto;
-  margin-right: 0.5rem;
-}
 
 
 .sidebar-header h3 {
@@ -568,12 +578,6 @@ const getSeverityClass = (severity: string) => {
   border-left: 0.2rem solid #1976d2;
 }
 
-.area-reason {
-  margin: 0 0 0.3rem 0;
-  font-size: 0.8rem;
-  color: #666;
-  font-style: italic;
-}
 
 
 .error-reason {
@@ -583,12 +587,6 @@ const getSeverityClass = (severity: string) => {
   font-weight: 500;
 }
 
-.error-suggestion {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #4caf50;
-  font-style: italic;
-}
 
 
 .click-hint {
@@ -596,6 +594,19 @@ const getSeverityClass = (severity: string) => {
   color: #666;
   font-style: italic;
   margin-top: 0.3rem;
+}
+
+/* 변수 표시 스타일 */
+:deep(.variable-display) {
+  color: #6b7280;
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.85em;
+  font-weight: 500;
+  display: inline-block;
+  margin: 0 1px;
 }
 
 .clickable-area {

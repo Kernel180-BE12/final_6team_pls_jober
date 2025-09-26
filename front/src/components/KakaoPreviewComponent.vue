@@ -12,7 +12,6 @@
               class="message-text"
               :class="{ 'expanded': isExpanded }"
               v-html="formattedTemplateContent"
-              @click="handleVariableClick"
             ></div>
           </div>
           <div
@@ -47,13 +46,12 @@ interface ProblemArea {
 
 interface KakaoPreviewProps {
   templateContent?: string
-  templateTitle?: string
   showVariables: boolean
   variables: string[]
   isRejected: boolean
   problemAreas: ProblemArea[]
-  rejectedVariables?: string[]
-  validationErrors?: any[]
+  highlightedProblemArea?: ProblemArea | null
+  modifiedAreas?: string[]
 }
 
 const props = defineProps<KakaoPreviewProps>()
@@ -127,37 +125,53 @@ const formattedTemplateContent = computed(() => {
   varPatterns.forEach(pattern => {
     content = content.replace(pattern, (match, varName) => {
       const variableName = varName.trim()
-      let variableClass = 'variable-gray'
-      
-      if (props.isRejected && props.rejectedVariables && props.rejectedVariables.includes(variableName)) {
-        variableClass += ' rejected-highlight'
-      }
-
-      return `<span class="${variableClass}" data-variable="${variableName}">#{${variableName}}</span>`
+      return `<span class="variable-gray" data-variable="${variableName}">#{${variableName}}</span>`
     })
   })
 
   // 4) 스마트 포맷팅 - 의미 있는 구조로 변환
   content = formatTemplateContent(content)
 
-  // 검증 오류가 있을 때 문제 영역 하이라이트
-  if (props.isRejected && props.validationErrors && props.validationErrors.length > 0) {
-    // 템플릿 전체 문제가 있는 경우 전체 하이라이트
-    const hasTemplateErrors = props.validationErrors.some((error: any) =>
-      error.reason.includes('제목') ||
-      error.reason.includes('내용') ||
-      error.reason.includes('광고성') ||
-      error.reason.includes('정형화') ||
-      error.reason.includes('변수가 전혀 사용되지 않음')
-    )
 
-    if (hasTemplateErrors) {
-      content = `<div class="template-error-highlight">${content}</div>`
-    }
+  // 특정 문제 영역 하이라이트
+  if (props.highlightedProblemArea) {
+    content = highlightProblemArea(content, props.highlightedProblemArea)
+  }
+
+  // 수정된 영역 하이라이트
+  if (props.modifiedAreas && props.modifiedAreas.length > 0) {
+    content = highlightModifiedAreas(content, props.modifiedAreas)
   }
 
   return content
 })
+
+// 문제 영역 하이라이트 함수
+const highlightProblemArea = (content: string, problemArea: ProblemArea): string => {
+  if (!problemArea.problem_text) return content
+  
+  // 문제 텍스트를 찾아서 하이라이트
+  const problemText = problemArea.problem_text.trim()
+  if (problemText && content.includes(problemText)) {
+    const highlightedText = `<span class="problem-highlight" data-problem-id="${problemArea.area_id}">${problemText}</span>`
+    content = content.replace(problemText, highlightedText)
+  }
+  
+  return content
+}
+
+// 수정된 영역 하이라이트 함수
+const highlightModifiedAreas = (content: string, modifiedAreaIds: string[]): string => {
+  // ID 마커로 감싸진 수정된 영역을 찾아서 하이라이트
+  modifiedAreaIds.forEach(areaId => {
+    const markerPattern = new RegExp(`⟦${areaId}⟧([^⟦]*)⟦/${areaId}⟧`, 'g')
+    content = content.replace(markerPattern, (match, text) => {
+      return `<span class="modified-highlight" data-modified-id="${areaId}">${text}</span>`
+    })
+  })
+  
+  return content
+}
 
 // 템플릿 내용 포맷팅 함수
 const formatTemplateContent = (content: string): string => {
@@ -204,37 +218,6 @@ watch(() => props.variables, (newVariables) => {
   editedVariables.value = [...newVariables]
 }, { deep: true })
 
-// 변수 클릭 이벤트 처리
-const handleVariableClick = (event: Event) => {
-  event.preventDefault()
-  event.stopPropagation()
-  
-  const target = event.target as HTMLElement
-  
-  // 변수 클릭 시 변수 편집 모드로 전환하거나 다른 동작 수행
-  if (target.classList.contains('variable-gray') || target.classList.contains('rejected-highlight')) {
-    const variableName = target.getAttribute('data-variable')
-    if (variableName) {
-      console.log('변수 클릭됨:', variableName)
-      // 변수 편집 로직 추가 가능
-    }
-  }
-}
-
-// 문제 영역 클릭 이벤트 처리
-const handleProblemAreaClick = (event: Event) => {
-  event.preventDefault()
-  event.stopPropagation()
-  
-  const target = event.target as HTMLElement
-  
-  // 클릭된 텍스트가 문제 영역에 해당하는지 확인
-  if (props.isRejected && props.problemAreas.length > 0) {
-    // 첫 번째 문제 영역을 클릭한 것으로 처리 (실제로는 더 정교한 매칭이 필요)
-    const problemArea = props.problemAreas[0]
-    emit('problemAreaClick', problemArea)
-  }
-}
 </script>
 
 <style scoped>
@@ -290,12 +273,6 @@ const handleProblemAreaClick = (event: Event) => {
 
 
 
-.template-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #000000;
-  display: block;
-}
 
 .bubble-body {
   padding: 0.8rem 1rem;
@@ -406,48 +383,69 @@ const handleProblemAreaClick = (event: Event) => {
   font-weight: normal;
   display: inline;
   transition: all 0.2s ease;
+  margin: 0 1px;
 }
 
-:deep(.variable.highlighted) {
-  color: #888888 !important;
-  background-color: transparent !important;
-  font-weight: normal !important;
+:deep(.variable-gray:hover) {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
 }
 
-:deep(.variable.rejected-highlight) {
-  background-color: #ffebee;
-  color: #c62828;
-  border: 1px solid #f44336;
+
+/* 문제 영역 하이라이트 */
+:deep(.problem-highlight) {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffc107;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-weight: bold;
+  animation: highlight-pulse 2s infinite;
   cursor: pointer;
-  animation: pulse 2s infinite;
 }
 
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
-  70% { box-shadow: 0 0 0 0.5rem rgba(244, 67, 54, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+@keyframes highlight-pulse {
+  0% { 
+    background-color: #fff3cd;
+    border-color: #ffc107;
+  }
+  50% { 
+    background-color: #ffeaa7;
+    border-color: #fdcb6e;
+  }
+  100% { 
+    background-color: #fff3cd;
+    border-color: #ffc107;
+  }
 }
 
-:deep(.template-error-highlight) {
-  border: 2px solid #ff5252;
-  border-radius: 0.4rem;
-  background: rgba(255, 82, 82, 0.05);
-  padding: 0.3rem;
-  margin: -0.3rem;
-  animation: pulse-red 2s ease-in-out infinite;
+/* 수정된 영역 하이라이트 */
+:deep(.modified-highlight) {
+  background-color: #d4edda;
+  color: #155724;
+  border: 2px solid #28a745;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-weight: bold;
+  animation: modified-pulse 3s infinite;
 }
 
-@keyframes pulse-red {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.4);
+@keyframes modified-pulse {
+  0% { 
+    background-color: #d4edda;
+    border-color: #28a745;
   }
-  70% {
-    box-shadow: 0 0 0 8px rgba(255, 82, 82, 0);
+  50% { 
+    background-color: #c3e6cb;
+    border-color: #20c997;
   }
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 82, 82, 0);
+  100% { 
+    background-color: #d4edda;
+    border-color: #28a745;
   }
 }
+
+
 
 .disclaimer {
   font-size: 0.8rem;

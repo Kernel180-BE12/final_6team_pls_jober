@@ -86,6 +86,8 @@
                   :is-rejected="isRejected"
                   :problem-areas="problemAreas"
                   :rejected-variables="rejectedVariables"
+                  :highlighted-problem-area="currentProblemArea"
+                  :modified-areas="Array.from(modifiedAreas)"
                   @problem-area-click="handleProblemAreaClick"
                   @update-variables="updateVariables"
                   @submit-template="handlePrimary"
@@ -163,14 +165,14 @@ const validationStage = ref<string>('') // 검증 단계 정보 추가
 const totalErrors = ref(0)
 const totalWarnings = ref(0)
 const rejectedVariables = ref<string[]>([]) // 반려된 변수 목록
+const modifiedAreas = ref<Set<string>>(new Set()) // 수정된 영역 ID 추적
 
 const templateContent = ref('')
 const templateTitle = ref('')
 const templateVariables = ref<any[]>([])
 const templateCategory = ref('')
-const templateCategoryId = ref<number>(11) // 기본값: 기타
+const templateCategoryId = ref<number | null>(null) // 백엔드에서 카테고리 이름으로 처리
 const userMessage = ref('')
-const savedTemplateId = ref<string | null>(null) // 저장된 템플릿 ID
 
 // 채팅 관련 변수들
 const chatInput = ref('')
@@ -300,8 +302,8 @@ onMounted(() => {
       templateTitle.value = generatedTemplate.templateTitle || ''
       templateVariables.value = generatedTemplate.variables
       templateCategory.value = generatedTemplate.category
-      // templateCategoryId는 더 이상 사용되지 않지만, 혹시 모를 오류 방지를 위해 기본값 설정
-      templateCategoryId.value = 11 
+      // templateCategoryId는 백엔드에서 카테고리 이름으로 처리되므로 null로 설정
+      templateCategoryId.value = null
       userMessage.value = generatedTemplate.userMessage
       
       // 변수명 초기화
@@ -393,6 +395,10 @@ const applyAlternativeToTemplate = (alternative: any, problemArea: any) => {
     if (replacementSuccessful) {
       console.log('✅ ID 마커 기반 템플릿 수정 성공!')
       console.log('수정된 템플릿 내용:', templateContent.value)
+      
+      // 수정된 영역을 추적에 추가
+      modifiedAreas.value.add(problemArea.area_id)
+      console.log('수정된 영역 추가됨:', problemArea.area_id)
       
       // 해당 문제 영역을 해결된 것으로 처리
       const areaIndex = problemAreas.value.findIndex(area => area.area_id === problemArea.area_id)
@@ -535,11 +541,6 @@ const tryContextAnchorSystem = (problemArea: any, modifiedText: string): { succe
     return { success: true, template: newTemplate }
   }
   
-  // 3. 유사도 기반 매칭 시도
-  const similarityResult = trySimilarityMatching(problemArea, modifiedText)
-  if (similarityResult.success) {
-    return similarityResult
-  }
   
   console.log('백업 앵커 시스템 실패')
   return { success: false, template: template }
@@ -580,86 +581,8 @@ const tryContextBasedMatching = (problemArea: any, modifiedText: string): { succ
   return { success: false, template: template }
 }
 
-// 유사도 기반 매칭
-const trySimilarityMatching = (problemArea: any, modifiedText: string): { success: boolean, template: string } => {
-  console.log('=== 유사도 기반 매칭 시도 ===')
-  
-  const template = templateContent.value
-  const originalText = problemArea.problem_text
-  
-  // 간단한 유사도 계산 (공백 제거 후 비교)
-  const normalizeText = (text: string) => text.replace(/\s+/g, '').toLowerCase()
-  const normalizedOriginal = normalizeText(originalText)
-  
-  // 템플릿을 단어 단위로 분할하여 유사한 부분 찾기
-  const words = template.split(/(\s+)/)
-  let bestMatch = { index: -1, similarity: 0 }
-  
-  for (let i = 0; i < words.length; i++) {
-    let candidate = ''
-    for (let j = i; j < Math.min(i + 10, words.length); j++) {
-      candidate += words[j]
-      const normalizedCandidate = normalizeText(candidate)
-      
-      // 간단한 유사도 계산 (공통 문자 비율)
-      const similarity = calculateSimilarity(normalizedOriginal, normalizedCandidate)
-      if (similarity > bestMatch.similarity && similarity > 0.7) {
-        bestMatch = { index: i, similarity }
-      }
-    }
-  }
-  
-  if (bestMatch.index >= 0) {
-    console.log('유사도 기반 매칭 성공, 유사도:', bestMatch.similarity)
-    // 유사한 부분을 찾아서 교체
-    const beforeIndex = template.indexOf(words[bestMatch.index])
-    const afterIndex = beforeIndex + words.slice(bestMatch.index, bestMatch.index + 10).join('').length
-    const newTemplate = template.substring(0, beforeIndex) + modifiedText + template.substring(afterIndex)
-    return { success: true, template: newTemplate }
-  }
-  
-  return { success: false, template: template }
-}
 
-// 유사도 계산 함수
-const calculateSimilarity = (str1: string, str2: string): number => {
-  const longer = str1.length > str2.length ? str1 : str2
-  const shorter = str1.length > str2.length ? str2 : str1
-  
-  if (longer.length === 0) return 1.0
-  
-  const editDistance = levenshteinDistance(longer, shorter)
-  return (longer.length - editDistance) / longer.length
-}
 
-// 레벤슈타인 거리 계산
-const levenshteinDistance = (str1: string, str2: string): number => {
-  const matrix = []
-  
-  for (let i = 0; i <= str2.length; i++) {
-    matrix[i] = [i]
-  }
-  
-  for (let j = 0; j <= str1.length; j++) {
-    matrix[0][j] = j
-  }
-  
-  for (let i = 1; i <= str2.length; i++) {
-    for (let j = 1; j <= str1.length; j++) {
-      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1]
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1
-        )
-      }
-    }
-  }
-  
-  return matrix[str2.length][str1.length]
-}
 
 // 대안 텍스트에서 실제 수정될 텍스트 추출 (제약사항 태그와 설명 제거)
 const extractModifiedTextFromAlternative = (alternativeText: string): string | null => {
@@ -903,46 +826,6 @@ const getPreviewTemplateContent = (): string => {
   return content
 }
 
-// 다중 수정 시 안정적인 위치 찾기
-const findStablePosition = (problemArea: any): { start: number, end: number } | null => {
-  console.log('=== 안정적인 위치 찾기 ===')
-  
-  const template = templateContent.value
-  const originalText = problemArea.problem_text
-  
-  // 1. 마커 기반 위치 찾기 (가장 안정적)
-  const markerId = problemArea.area_id
-  if (markerId) {
-    const markerPattern = new RegExp(`⟦${markerId}⟧([^⟦]*)⟦/${markerId}⟧`, 'g')
-    const match = markerPattern.exec(template)
-    if (match) {
-      const start = match.index + `⟦${markerId}⟧`.length
-      const end = start + match[1].length
-      console.log('마커 기반 위치 찾기 성공:', { start, end })
-      return { start, end }
-    }
-  }
-  
-  // 2. 문맥 기반 위치 찾기
-  if (problemArea.search_methods) {
-    const contextResult = findContextBasedPosition(problemArea)
-    if (contextResult) {
-      return contextResult
-    }
-  }
-  
-  // 3. 텍스트 기반 위치 찾기
-  const textIndex = template.indexOf(originalText)
-  if (textIndex !== -1) {
-    const start = textIndex
-    const end = textIndex + originalText.length
-    console.log('텍스트 기반 위치 찾기 성공:', { start, end })
-    return { start, end }
-  }
-  
-  console.log('안정적인 위치 찾기 실패')
-  return null
-}
 
 // 문맥 기반 위치 찾기
 const findContextBasedPosition = (problemArea: any): { start: number, end: number } | null => {
