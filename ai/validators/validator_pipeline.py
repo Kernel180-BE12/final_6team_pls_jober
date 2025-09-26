@@ -1,10 +1,14 @@
 """
 검증 파이프라인 - 2단계 검증을 순차적으로 실행
 """
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from typing import Dict, Any
-# 👇 --- try-except 블록을 모두 제거하고, 이렇게 깔끔하게 정리합니다. ---
-from .constraint_validator import ConstraintValidator
-from .semantic_validator import SemanticValidator
+from validators.constraint_validator import ConstraintValidator
+from validators.semantic_validator import SemanticValidator
+from validators.utils import extract_variables_from_template
 from models.alimtalk_models import ValidationResult
 from services.chromadb_service import ChromaDBService
 
@@ -49,10 +53,8 @@ class ValidationPipeline:
         # 템플릿에서 변수 추출하여 template_data에 추가
         template_content = template_data.get('template_content', '')
         if template_content:
-            import re
-            # #{변수명} 패턴만 추출 (통일된 형태)
-            detected_variables = re.findall(r'#\{([^}]+)\}', template_content)
-            template_data['detected_variables'] = list(set(detected_variables))
+            detected_variables = extract_variables_from_template(template_content)
+            template_data['detected_variables'] = detected_variables
         
         # 1차 검증: 제약 검증
         print("🔍 1차 검증: 제약 검증 실행 중...")

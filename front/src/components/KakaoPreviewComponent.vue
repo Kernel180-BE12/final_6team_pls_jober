@@ -12,7 +12,6 @@
               class="message-text"
               :class="{ 'expanded': isExpanded }"
               v-html="formattedTemplateContent"
-              @click="handleVariableClick"
             ></div>
           </div>
           <div
@@ -24,15 +23,6 @@
             <span class="toggle-text">{{ isExpanded ? '접기' : '자세히 보기' }}</span>
           </div>
         </div>
-<<<<<<< HEAD
-
-        <div 
-          class="kakao-message" 
-          v-html="formattedTemplateContent"
-          @click="handleProblemAreaClick"
-        ></div>
-=======
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
       </div>
     </div>
     <!-- 하단 컨트롤은 TemplateResultView에서 처리됨 -->
@@ -56,13 +46,12 @@ interface ProblemArea {
 
 interface KakaoPreviewProps {
   templateContent?: string
-  templateTitle?: string
   showVariables: boolean
   variables: string[]
   isRejected: boolean
   problemAreas: ProblemArea[]
-  rejectedVariables?: string[]
-  validationErrors?: any[]
+  highlightedProblemArea?: ProblemArea | null
+  modifiedAreas?: string[]
 }
 
 const props = defineProps<KakaoPreviewProps>()
@@ -105,9 +94,6 @@ const formattedTemplateContent = computed(() => {
   // 2) 텍스트 정리 및 마커 제거 (미리보기에서는 마커를 보이지 않음)
   let content = props.templateContent ?? ''
   
-  // 디버깅을 위한 로그
-  console.log('=== KakaoPreviewComponent 템플릿 처리 ===')
-  console.log('원본 템플릿:', content)
   
   // 더 정확한 텍스트 정리
   content = content
@@ -116,10 +102,49 @@ const formattedTemplateContent = computed(() => {
     .replace(/\n\s*\n\s*\n/g, '\n\n')                   // 빈 줄 정리
     // 마커 제거 (⟦ID⟧내용⟦/ID⟧ → 내용)
     .replace(/⟦([^⟦]+)⟧([^⟦]*)⟦\/\1⟧/g, '$2')
+    // 고객에게 보이면 안 되는 내부 메시지 제거
+    .replace(/할인율[:\s]*~[^.]*\./g, '')              // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*고객이[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*고객들에게[^.]*\./g, '')     // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*보이면[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*안되는[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*메시지가[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*구체적인[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*언급하지[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*강조하되[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*참여할[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*방법이나[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*혜택을[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/고객이[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/고객들에게[^.]*\./g, '')                 // 기타 내부 지시사항
+    .replace(/보이면[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/안되는[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/메시지가[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/구체적인[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/언급하지[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/강조하되[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/참여할[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/방법이나[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/혜택을[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/이\s*내용이[^.]*\./g, '')                // 기술적 설명
+    .replace(/이\s*부분이[^.]*\./g, '')                // 기술적 설명
+    .replace(/이\s*텍스트가[^.]*\./g, '')              // 기술적 설명
+    .replace(/이\s*문장이[^.]*\./g, '')                // 기술적 설명
+    .replace(/미리보기에[^.]*\./g, '')                 // 기술적 설명
+    .replace(/사용자가\s*보는건[^.]*\./g, '')          // 기술적 설명
+    .replace(/사용자에게\s*보이는[^.]*\./g, '')        // 기술적 설명
+    .replace(/화면에\s*표시되는[^.]*\./g, '')          // 기술적 설명
+    .replace(/잘하자\s*/g, '')                         // 작업 지시사항
+    .replace(/주의하자\s*/g, '')                       // 작업 지시사항
+    .replace(/기억하자\s*/g, '')                       // 작업 지시사항
+    .replace(/명심하자\s*/g, '')                       // 작업 지시사항
+    .replace(/주의\s*/g, '')                           // 작업 지시사항
+    .replace(/기억\s*/g, '')                           // 작업 지시사항
+    .replace(/명심\s*/g, '')                           // 작업 지시사항
+    .replace(/\s+/g, ' ')                              // 연속된 공백 정리
+    .replace(/\n\s*\n/g, '\n')                         // 연속된 줄바꿈 정리
     .trim()
   
-  console.log('정리된 템플릿:', content)
-  console.log('================================')
 
   // 내용 길이 체크 (줄 수 기준)
   const lines = content.split('\n').filter(line => line.trim())
@@ -133,42 +158,84 @@ const formattedTemplateContent = computed(() => {
     /\[([^\]]+)\]/g       // [변수] - 대괄호 형태도 변수로 처리
   ]
 
-<<<<<<< HEAD
-      if (props.isRejected && props.rejectedVariables && props.rejectedVariables.includes(variableName)) {
-        variableClass += ' rejected-highlight'
-      }
-
-      return `<span class="${variableClass}" data-variable="${variableName}">{${variableName}}</span>`
-=======
   varPatterns.forEach(pattern => {
     content = content.replace(pattern, (match, varName) => {
       const variableName = varName.trim()
-      return `<span class="variable-gray">#{${variableName}}</span>`
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
+      return `<span class="variable-gray" data-variable="${variableName}">#{${variableName}}</span>`
     })
   })
 
   // 4) 스마트 포맷팅 - 의미 있는 구조로 변환
   content = formatTemplateContent(content)
 
-  // 검증 오류가 있을 때 문제 영역 하이라이트
-  if (props.isRejected && props.validationErrors && props.validationErrors.length > 0) {
-    // 템플릿 전체 문제가 있는 경우 전체 하이라이트
-    const hasTemplateErrors = props.validationErrors.some((error: any) =>
-      error.reason.includes('제목') ||
-      error.reason.includes('내용') ||
-      error.reason.includes('광고성') ||
-      error.reason.includes('정형화') ||
-      error.reason.includes('변수가 전혀 사용되지 않음')
-    )
 
-    if (hasTemplateErrors) {
-      content = `<div class="template-error-highlight">${content}</div>`
-    }
+  // 특정 문제 영역 하이라이트
+  if (props.highlightedProblemArea) {
+    content = highlightProblemArea(content, props.highlightedProblemArea)
+  }
+
+  // 수정된 영역 하이라이트
+  if (props.modifiedAreas && props.modifiedAreas.length > 0) {
+    content = highlightModifiedAreas(content, props.modifiedAreas)
   }
 
   return content
 })
+
+// 문제 영역 하이라이트 함수 (개선된 버전)
+const highlightProblemArea = (content: string, problemArea: ProblemArea): string => {
+  if (!problemArea.problem_text) return content
+  
+  
+  // 문제 텍스트를 찾아서 하이라이트
+  const problemText = problemArea.problem_text.trim()
+  if (!problemText) {
+    return content
+  }
+  
+  // 1. 정확한 텍스트 매칭 시도
+  if (content.includes(problemText)) {
+    const highlightedText = `<span class="problem-highlight" data-problem-id="${problemArea.area_id}">${problemText}</span>`
+    content = content.replace(problemText, highlightedText)
+    return content
+  }
+  
+  // 2. 부분 매칭 시도 (공백 무시)
+  const normalizedProblemText = problemText.replace(/\s+/g, ' ').trim()
+  const normalizedContent = content.replace(/\s+/g, ' ')
+  
+  if (normalizedContent.includes(normalizedProblemText)) {
+    // 원본 콘텐츠에서 해당 부분을 찾아서 하이라이트
+    const regex = new RegExp(problemText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+    content = content.replace(regex, `<span class="problem-highlight" data-problem-id="${problemArea.area_id}">${problemText}</span>`)
+    return content
+  }
+  
+  // 3. 키워드 기반 매칭 시도
+  const keywords = problemText.split(/\s+/).filter(word => word.length > 1)
+  if (keywords.length > 0) {
+    keywords.forEach(keyword => {
+      if (content.includes(keyword)) {
+        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g')
+        content = content.replace(regex, `<span class="problem-highlight" data-problem-id="${problemArea.area_id}">${keyword}</span>`)
+      }
+    })
+  }
+  return content
+}
+
+// 수정된 영역 하이라이트 함수
+const highlightModifiedAreas = (content: string, modifiedAreaIds: string[]): string => {
+  // ID 마커로 감싸진 수정된 영역을 찾아서 하이라이트
+  modifiedAreaIds.forEach(areaId => {
+    const markerPattern = new RegExp(`⟦${areaId}⟧([^⟦]*)⟦/${areaId}⟧`, 'g')
+    content = content.replace(markerPattern, (match, text) => {
+      return `<span class="modified-highlight" data-modified-id="${areaId}">${text}</span>`
+    })
+  })
+  
+  return content
+}
 
 // 템플릿 내용 포맷팅 함수
 const formatTemplateContent = (content: string): string => {
@@ -215,20 +282,6 @@ watch(() => props.variables, (newVariables) => {
   editedVariables.value = [...newVariables]
 }, { deep: true })
 
-// 문제 영역 클릭 이벤트 처리
-const handleProblemAreaClick = (event: Event) => {
-  event.preventDefault()
-  event.stopPropagation()
-  
-  const target = event.target as HTMLElement
-  
-  // 클릭된 텍스트가 문제 영역에 해당하는지 확인
-  if (props.isRejected && props.problemAreas.length > 0) {
-    // 첫 번째 문제 영역을 클릭한 것으로 처리 (실제로는 더 정교한 매칭이 필요)
-    const problemArea = props.problemAreas[0]
-    emit('problemAreaClick', problemArea)
-  }
-}
 </script>
 
 <style scoped>
@@ -284,12 +337,6 @@ const handleProblemAreaClick = (event: Event) => {
 
 
 
-.template-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #000000;
-  display: block;
-}
 
 .bubble-body {
   padding: 0.8rem 1rem;
@@ -400,48 +447,69 @@ const handleProblemAreaClick = (event: Event) => {
   font-weight: normal;
   display: inline;
   transition: all 0.2s ease;
+  margin: 0 1px;
 }
 
-:deep(.variable.highlighted) {
-  color: #888888 !important;
-  background-color: transparent !important;
-  font-weight: normal !important;
+:deep(.variable-gray:hover) {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
 }
 
-:deep(.variable.rejected-highlight) {
-  background-color: #ffebee;
-  color: #c62828;
-  border: 1px solid #f44336;
+
+/* 문제 영역 하이라이트 */
+:deep(.problem-highlight) {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffc107;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-weight: bold;
+  animation: highlight-pulse 2s infinite;
   cursor: pointer;
-  animation: pulse 2s infinite;
 }
 
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
-  70% { box-shadow: 0 0 0 0.5rem rgba(244, 67, 54, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+@keyframes highlight-pulse {
+  0% { 
+    background-color: #fff3cd;
+    border-color: #ffc107;
+  }
+  50% { 
+    background-color: #ffeaa7;
+    border-color: #fdcb6e;
+  }
+  100% { 
+    background-color: #fff3cd;
+    border-color: #ffc107;
+  }
 }
 
-:deep(.template-error-highlight) {
-  border: 2px solid #ff5252;
-  border-radius: 0.4rem;
-  background: rgba(255, 82, 82, 0.05);
-  padding: 0.3rem;
-  margin: -0.3rem;
-  animation: pulse-red 2s ease-in-out infinite;
+/* 수정된 영역 하이라이트 */
+:deep(.modified-highlight) {
+  background-color: #d4edda;
+  color: #155724;
+  border: 2px solid #28a745;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-weight: bold;
+  animation: modified-pulse 3s infinite;
 }
 
-@keyframes pulse-red {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.4);
+@keyframes modified-pulse {
+  0% { 
+    background-color: #d4edda;
+    border-color: #28a745;
   }
-  70% {
-    box-shadow: 0 0 0 8px rgba(255, 82, 82, 0);
+  50% { 
+    background-color: #c3e6cb;
+    border-color: #20c997;
   }
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 82, 82, 0);
+  100% { 
+    background-color: #d4edda;
+    border-color: #28a745;
   }
 }
+
+
 
 .disclaimer {
   font-size: 0.8rem;

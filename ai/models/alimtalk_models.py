@@ -152,7 +152,7 @@ class ValidationResponse(BaseModel):
     class Config:
         # JSON 직렬화 시 필드명을 그대로 유지
         alias_generator = None
-        allow_population_by_field_name = True
+        validate_by_name = True
     
     def dict(self, **kwargs):
         """JSON 직렬화를 위한 dict 메서드 오버라이드"""

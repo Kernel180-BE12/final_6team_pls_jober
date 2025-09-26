@@ -35,10 +35,8 @@ async def classify_message_type_node(state: TemplateGenerationState) -> Dict[str
     except Exception as e:
         logger.error(f"❌ 메시지 유형 분류 실패: {e}", exc_info=True)
         return {"message_type_result": {"type": "BASIC", "explain_type": "분류 실패로 기본값 적용"}}
-
+ 
 async def parallel_title_category_node(state: TemplateGenerationState) -> Dict[str, Any]:
-    logger.info("=" * 60)
-    logger.info("2단계: 제목 생성 및 카테고리 분류 (병렬) 시작")
     try:
         async def generate_title_task():
             title_builder = TemplateTitlePromptBuilder(state["userMessage"])
@@ -46,30 +44,23 @@ async def parallel_title_category_node(state: TemplateGenerationState) -> Dict[s
             return await state["openai_service"].chat_completion(messages)
 
         async def classify_or_create_category_task():
-            logger.info("카테고리 분류/생성 작업 시작")
-            logger.info("1차: 기존 카테고리 내에서 분류 시도...")
             category_builder = CategoryPromptBuilder(state["userMessage"], state["category_sub_list"])
             messages = category_builder.build()
             response = await state["openai_service"].chat_completion(messages)
             first_attempt_result = json.loads(response)
-            logger.info(f"기존 카테고리 사용 1차 시도 결과: 적합성={first_attempt_result.get('is_appropriate')}, 신뢰도={first_attempt_result.get('confidence')}%")
 
             CONFIDENCE_THRESHOLD = 70
             if first_attempt_result.get("is_appropriate") and first_attempt_result.get("confidence", 0) >= CONFIDENCE_THRESHOLD:
-                logger.info("✅ 1차 분류 성공. 기존 카테고리를 사용합니다.")
                 return {
                     "category_sub": first_attempt_result.get("category_sub"), "confidence": first_attempt_result.get("confidence"),
                     "selection_reason": first_attempt_result.get("selection_reason"), "generation_source": "classified_existing"
                 }
             else:
-                logger.warning("⚠️ 1차 분류 실패 또는 신뢰도 낮음. 신규 카테고리 생성을 시도합니다.")
-                logger.info(f"사유: {first_attempt_result.get('selection_reason')}")
                 new_category_builder = NewCategoryPromptBuilder(state["userMessage"], state["category_sub_list"])
                 messages = new_category_builder.build()
                 response = await state["openai_service"].chat_completion(messages)
                 new_category_result = json.loads(response)
                 new_category = new_category_result.get("new_category")
-                logger.info(f"✨ 생성된 신규 카테고리: '{new_category}'")
                 return {
                     "category_sub": new_category, "confidence": 95,
                     "selection_reason": f"기존 리스트에 적합한 카테고리가 없어 '{new_category}'를 새로 생성함.", "generation_source": "created_new"
@@ -82,9 +73,6 @@ async def parallel_title_category_node(state: TemplateGenerationState) -> Dict[s
         clean_title = clean_title.strip('"\'')  # 앞뒤 따옴표 제거
         clean_title = clean_title.replace('"', '').replace("'", '')  # 중간 따옴표도 제거
 
-        logger.info("병렬 작업 완료")
-        logger.info(f"✅ 제목 생성 성공: '{clean_title}'")
-        logger.info(f"✅ 카테고리 분류 성공: {category_result.get('category_sub')}")
 
         return {"generated_title": clean_title, "category_result": category_result}
     except Exception as e:
@@ -93,8 +81,6 @@ async def parallel_title_category_node(state: TemplateGenerationState) -> Dict[s
 
 
 async def search_templates_node(state: TemplateGenerationState) -> Dict[str, Any]:
-    logger.info("=" * 60)
-    logger.info("3단계: RAG - 스마트 템플릿 검색 시작")
 
     user_message = state["userMessage"]
     generated_title = state.get("title_result", {}).get("title", "")
@@ -107,16 +93,13 @@ async def search_templates_node(state: TemplateGenerationState) -> Dict[str, Any
 
         # 신규 카테고리 생성 시 공용 템플릿 우선 검색
         if is_new_category:
-            logger.info(f"🆕 신규 카테고리 '{category_sub}' 감지 - 공용 템플릿 우선 검색")
 
             # 1. 서비스 키워드로 공용 템플릿 검색
             service_keywords = extract_service_keywords(user_message)
             if service_keywords:
                 keyword_query = " ".join(service_keywords)
-                logger.info(f"1단계: 서비스 키워드 '{keyword_query}'로 공용 템플릿 검색")
-
                 public_templates = state["chromadb_service"].search_templates(
-                    collection_name="pulblic_templates",
+                    collection_name="public_templates",
                     query_text=keyword_query,
                     top_k=5,
                     result_format="legacy"
@@ -124,13 +107,11 @@ async def search_templates_node(state: TemplateGenerationState) -> Dict[str, Any
                 all_templates.extend(public_templates)
                 public_max_sim = max(t['similarity'] for t in public_templates) if public_templates else 0.0
                 max_similarity = max(max_similarity, public_max_sim)
-                logger.info(f"   공용 템플릿 검색 결과: {len(public_templates)}개, 최대 유사도: {public_max_sim:.3f}")
 
             # 2. 생성된 제목으로 공용 템플릿 검색
             if generated_title:
-                logger.info(f"2단계: 생성 제목 '{generated_title}'로 공용 템플릿 검색")
                 title_public_templates = state["chromadb_service"].search_templates(
-                    collection_name="pulblic_templates",
+                    collection_name="public_templates",
                     query_text=generated_title,
                     top_k=3,
                     result_format="legacy"
@@ -138,14 +119,11 @@ async def search_templates_node(state: TemplateGenerationState) -> Dict[str, Any
                 all_templates.extend(title_public_templates)
                 title_public_sim = max(t['similarity'] for t in title_public_templates) if title_public_templates else 0.0
                 max_similarity = max(max_similarity, title_public_sim)
-                logger.info(f"   제목 기반 공용 템플릿 검색 결과: {len(title_public_templates)}개, 최대 유사도: {title_public_sim:.3f}")
 
         else:
             # 기존 카테고리 매칭 시 승인된 템플릿 우선 검색
-            logger.info(f"📁 기존 카테고리 '{category_sub}' 매칭 - 승인된 템플릿 우선 검색")
 
             # 1. 해당 카테고리 내 승인된 템플릿 검색
-            logger.info(f"1단계: 카테고리 '{category_sub}' 내에서 승인된 템플릿 검색")
             category_templates = state["chromadb_service"].search_templates(
                 collection_name="approved_templates",
                 query_text=user_message,
@@ -380,27 +358,27 @@ async def search_public_and_generate_node(state: TemplateGenerationState) -> Dic
     logger.info("=" * 60)
     logger.info("5b단계: 신규 생성 시작")
     try:
-        pulblic_templates = state["chromadb_service"].search_templates(
-            collection_name="pulblic_templates",
+        public_templates = state["chromadb_service"].search_templates(
+            collection_name="public_templates",
             query_text=state["userMessage"],
             top_k=3,
             result_format="legacy"
         )
-        hint = "pulblic_templates_based" if pulblic_templates else "from_scratch"
+        hint = "public_templates_based" if public_templates else "from_scratch"
 
         # 👇 4. user_text -> userMessage로 수정
         prompt_builder = NewTemplatePromptBuilder(
             userMessage=state["userMessage"],
             extracted_fields=state["extracted_fields"],
-            public_templates=pulblic_templates
+            public_templates=public_templates
         )
         messages = prompt_builder.build()
         template = await state["openai_service"].chat_completion(messages)
         logger.info(f"✅ 신규 생성 성공 (방식: {hint})")
-        return {"generated_template": template, "generation_hint": hint, "pulblic_templates": pulblic_templates}
+        return {"generated_template": template, "generation_hint": hint, "public_templates": public_templates}
     except Exception as e:
         logger.error(f"❌ 신규 생성 실패: {e}", exc_info=True)
-        return {"generated_template": "템플릿 생성 중 오류 발생", "generation_hint": "error", "pulblic_templates": []}
+        return {"generated_template": "템플릿 생성 중 오류 발생", "generation_hint": "error", "public_templates": []}
 
 def finalize_result_node(state: TemplateGenerationState) -> Dict[str, Any]:
     logger.info("=" * 60)
@@ -418,7 +396,7 @@ def finalize_result_node(state: TemplateGenerationState) -> Dict[str, Any]:
         "category_analysis": state.get("category_result"),
         "similarity_score": state.get("max_similarity", 0.0),
         "reference_templates": state.get("similar_templates", []),
-        "pulblic_templates": state.get("pulblic_templates", []),
+        "public_templates": state.get("public_templates", []),
     }
     logger.info("✅ 파이프라인 최종 결과 생성 완료.")
     # 👇 --- 최종 생성된 템플릿을 터미널에 명확하게 출력 --- 👇

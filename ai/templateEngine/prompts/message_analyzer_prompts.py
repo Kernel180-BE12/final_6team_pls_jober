@@ -27,9 +27,6 @@ class BasePromptBuilder(ABC):
         """프롬프트 빌드 로직은 구체 빌더가 구현"""
         pass
 
-
-<<<<<<< HEAD
-=======
 class TypePromptBuilder(BasePromptBuilder):
     def __init__(self, user_text: str):
         super().__init__(user_text)
@@ -336,8 +333,6 @@ class TemplateGenerationPromptBuilder:
 - 카카오톡 알림톡 가이드라인 준수
 """
 
-
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
 class TemplateModificationPromptBuilder:
     def __init__(self, current_template: str, user_message: str, chat_context: str = ""):
         self.current_template = current_template
@@ -347,22 +342,18 @@ class TemplateModificationPromptBuilder:
     def build(self) -> str:
         """템플릿 수정 프롬프트 생성"""
         return f"""
-<<<<<<< HEAD
-        현재 알림톡 템플릿:
+
+        당신은 카카오톡 알림톡 템플릿 수정 전문가입니다.
+
+        ## 작업 지침
+        1. 이전 대화 내용을 참고하여 사용자의 의도를 정확히 파악합니다.
+        2. 사용자 요청을 분석하여 템플릿을 적절히 수정합니다.
+        3. 변수 형식 `#{{변수명}}`은 반드시 유지합니다.
+        4. 템플릿의 기본 구조와 톤앤매너는 유지합니다.
+        5. 수정이 필요하지 않으면 현재 템플릿을 그대로 반환합니다.
+
+        ## 현재 템플릿:
         {self.current_template}
-=======
-당신은 카카오톡 알림톡 템플릿 수정 전문가입니다.
-
-## 작업 지침
-1. 이전 대화 내용을 참고하여 사용자의 의도를 정확히 파악합니다.
-2. 사용자 요청을 분석하여 템플릿을 적절히 수정합니다.
-3. 변수 형식 `#{{변수명}}`은 반드시 유지합니다.
-4. 템플릿의 기본 구조와 톤앤매너는 유지합니다.
-5. 수정이 필요하지 않으면 현재 템플릿을 그대로 반환합니다.
-
-## 현재 템플릿:
-{self.current_template}
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
 
         채팅 히스토리:
         {self.chat_context}
@@ -378,7 +369,7 @@ class TemplateModificationPromptBuilder:
         4. 설명, 해설, 변경사항 설명 등은 절대 포함하지 마세요
         5. "수정된 템플릿:", "설명:", "변경사항:" 등의 헤더도 사용하지 마세요
 
-<<<<<<< HEAD
+        ## 수정된 템플릿:
         응답 형식:
         수정된 템플릿:
         [수정된 템플릿 내용만 여기에 작성]
@@ -387,16 +378,6 @@ class TemplateModificationPromptBuilder:
         수정된 템플릿:
         안녕하세요! #{{고객명}}님, 주문이 완료되었습니다. 감사합니다.
         """
-=======
-## 수정된 템플릿:
-응답 형식:
-수정된 템플릿:
-[수정된 템플릿 내용만 여기에 작성]
-
-예시:
-수정된 템플릿:
-안녕하세요! #{{고객명}}님, 주문이 완료되었습니다. 감사합니다.
-"""
 
 
 class ReferenceBasedTemplatePromptBuilder:
@@ -407,40 +388,40 @@ class ReferenceBasedTemplatePromptBuilder:
     def build(self) -> str:
         """참고 템플릿 기반 생성 프롬프트"""
         return f"""
-다음은 승인받은 카카오톡 알림톡 템플릿입니다:
+        다음은 승인받은 카카오톡 알림톡 템플릿입니다:
 
-=== 참고 템플릿 ===
-제목: {self.reference_template['metadata'].get('auto_generated_title', '')}
-분류: {self.reference_template['metadata'].get('category_primary', '')} > {self.reference_template['metadata'].get('category_secondary', '')}
-템플릿: {self.reference_template['text']}
-업종: {self.reference_template['metadata'].get('industry', '')}
-목적: {self.reference_template['metadata'].get('purpose', '')}
+        === 참고 템플릿 ===
+        제목: {self.reference_template['metadata'].get('auto_generated_title', '')}
+        분류: {self.reference_template['metadata'].get('category_primary', '')} > {self.reference_template['metadata'].get('category_secondary', '')}
+        템플릿: {self.reference_template['text']}
+        업종: {self.reference_template['metadata'].get('industry', '')}
+        목적: {self.reference_template['metadata'].get('purpose', '')}
 
-=== 새 템플릿 요청 정보 ===
-카테고리 대분류: {self.request.category_main}
-카테고리 소분류: {self.request.category_sub}
-메시지 유형: {self.request.type}
-채널 링크 여부: {self.request.has_channel_link}
-부가 설명 여부: {self.request.has_extra_info}
-라벨: {self.request.label}
-사용 사례: {self.request.use_case}
-의도 유형: {self.request.intent_type}
-수신자 범위: {self.request.recipient_scope}
-링크 허용: {self.request.links_allowed}
-변수: {self.request.variables}
-원본 사용자 텍스트: {self.request.user_text}
+        === 새 템플릿 요청 정보 ===
+        카테고리 대분류: {self.request.category_main}
+        카테고리 소분류: {self.request.category_sub}
+        메시지 유형: {self.request.type}
+        채널 링크 여부: {self.request.has_channel_link}
+        부가 설명 여부: {self.request.has_extra_info}
+        라벨: {self.request.label}
+        사용 사례: {self.request.use_case}
+        의도 유형: {self.request.intent_type}
+        수신자 범위: {self.request.recipient_scope}
+        링크 허용: {self.request.links_allowed}
+        변수: {self.request.variables}
+        원본 사용자 텍스트: {self.request.user_text}
 
-위 참고 템플릿의 구조와 스타일을 따라하되, 새 요청 정보에 맞게 카카오톡 알림톡 템플릿을 생성해주세요.
+        위 참고 템플릿의 구조와 스타일을 따라하되, 새 요청 정보에 맞게 카카오톡 알림톡 템플릿을 생성해주세요.
 
-중요 규칙:
-1. 변수는 #{{변수명}} 형태로 표현
-2. 광고성 내용 금지, 정보성/안내성 내용만 포함
-3. 발송 근거를 템플릿 하단에 명시 (*표시로 시작)
-4. 참고 템플릿과 유사한 톤앤매너 유지
-5. 버튼이 필요한 경우 #{{버튼명}} 형태로 표시
+        중요 규칙:
+        1. 변수는 #{{변수명}} 형태로 표현
+        2. 광고성 내용 금지, 정보성/안내성 내용만 포함
+        3. 발송 근거를 템플릿 하단에 명시 (*표시로 시작)
+        4. 참고 템플릿과 유사한 톤앤매너 유지
+        5. 버튼이 필요한 경우 #{{버튼명}} 형태로 표시
 
-템플릿만 생성해주세요:
-"""
+        템플릿만 생성해주세요:
+        """
 
 
 class PolicyGuidedTemplatePromptBuilder:
@@ -451,28 +432,28 @@ class PolicyGuidedTemplatePromptBuilder:
     def build(self) -> str:
         """정책 가이드라인 기반 생성 프롬프트"""
         return f"""
-=== 알림톡 정책 가이드라인 ===
-{self.guidelines_text}
+        === 알림톡 정책 가이드라인 ===
+        {self.guidelines_text}
 
-=== 템플릿 생성 요청 ===
-카테고리: {self.request.category_main} > {self.request.category_sub}
-사용 사례: {self.request.use_case}
-의도 유형: {self.request.intent_type}
-수신자 범위: {self.request.recipient_scope}
-원본 메시지: {self.request.user_text}
+        === 템플릿 생성 요청 ===
+        카테고리: {self.request.category_main} > {self.request.category_sub}
+        사용 사례: {self.request.use_case}
+        의도 유형: {self.request.intent_type}
+        수신자 범위: {self.request.recipient_scope}
+        원본 메시지: {self.request.user_text}
 
-위 정책 가이드라인을 엄격히 준수하여 카카오톡 알림톡 템플릿을 생성해주세요.
+        위 정책 가이드라인을 엄격히 준수하여 카카오톡 알림톡 템플릿을 생성해주세요.
 
-중요 사항:
-1. 가이드라인에 명시된 금지사항 절대 포함 금지
-2. 허용된 카테고리와 목적에만 부합하는 내용
-3. 변수는 #{{변수명}} 형태로 표현
-4. 발송 근거를 템플릿 하단에 명시
-5. **절대 변수 목록이나 변수 설명을 템플릿 내용에 포함하지 마세요**
-6. **템플릿은 실제 발송될 메시지 내용만 포함해야 합니다**
+        중요 사항:
+        1. 가이드라인에 명시된 금지사항 절대 포함 금지
+        2. 허용된 카테고리와 목적에만 부합하는 내용
+        3. 변수는 #{{변수명}} 형태로 표현
+        4. 발송 근거를 템플릿 하단에 명시
+        5. **절대 변수 목록이나 변수 설명을 템플릿 내용에 포함하지 마세요**
+        6. **템플릿은 실제 발송될 메시지 내용만 포함해야 합니다**
 
-템플릿만 생성해주세요:
-"""
+        템플릿만 생성해주세요:
+        """
 
 
 class NewTemplatePromptBuilder:
@@ -482,35 +463,35 @@ class NewTemplatePromptBuilder:
     def build(self) -> str:
         """새 템플릿 생성 프롬프트"""
         return f"""
-다음 정보를 바탕으로 카카오톡 알림톡 템플릿을 생성해주세요:
+        다음 정보를 바탕으로 카카오톡 알림톡 템플릿을 생성해주세요:
 
-=== 템플릿 요청 정보 ===
-라벨: {self.request.label}
-카테고리: {self.request.category_main} > {self.request.category_sub}
-사용 사례: {self.request.use_case}
-의도 유형: {self.request.intent_type}
-수신자 범위: {self.request.recipient_scope}
-링크 허용: {self.request.links_allowed}
-변수: {self.request.variables}
-원본 메시지: {self.request.user_text}
+        === 템플릿 요청 정보 ===
+        라벨: {self.request.label}
+        카테고리: {self.request.category_main} > {self.request.category_sub}
+        사용 사례: {self.request.use_case}
+        의도 유형: {self.request.intent_type}
+        수신자 범위: {self.request.recipient_scope}
+        링크 허용: {self.request.links_allowed}
+        변수: {self.request.variables}
+        원본 메시지: {self.request.user_text}
 
-카카오톡 알림톡 규정에 맞는 템플릿을 생성해주세요.
+        카카오톡 알림톡 규정에 맞는 템플릿을 생성해주세요.
 
-중요 규칙:
-1. 변수는 #{{변수명}} 형태로 표현
-2. 광고성 내용 금지, 정보성/안내성 내용만 포함
-3. 발송 근거를 템플릿 하단에 명시 (*표시로 시작)
-4. 명확하고 간결한 안내 메시지
-5. 버튼이 필요한 경우 #{{버튼명}} 형태로 표시
-6. 수신자가 요청했거나 관련 서비스를 이용하는 경우에만 발송되는 내용
-7. **절대 변수 목록이나 변수 설명을 템플릿 내용에 포함하지 마세요**
-8. **템플릿은 실제 발송될 메시지 내용만 포함해야 합니다**
+        중요 규칙:
+        1. 변수는 #{{변수명}} 형태로 표현
+        2. 광고성 내용 금지, 정보성/안내성 내용만 포함
+        3. 발송 근거를 템플릿 하단에 명시 (*표시로 시작)
+        4. 명확하고 간결한 안내 메시지
+        5. 버튼이 필요한 경우 #{{버튼명}} 형태로 표시
+        6. 수신자가 요청했거나 관련 서비스를 이용하는 경우에만 발송되는 내용
+        7. **절대 변수 목록이나 변수 설명을 템플릿 내용에 포함하지 마세요**
+        8. **템플릿은 실제 발송될 메시지 내용만 포함해야 합니다**
 
-템플릿만 생성해주세요:
-"""
+        템플릿만 생성해주세요:
+        """
 
 
-class TemplateTitlePromptBuilder:
+class TemplateTitlePromptBuilder: 
     def __init__(self, request, template_text):
         self.request = request
         self.template_text = template_text
@@ -518,17 +499,16 @@ class TemplateTitlePromptBuilder:
     def build(self) -> str:
         """템플릿 제목 생성 프롬프트"""
         return f"""
-다음 카카오톡 알림톡 템플릿에 대한 간단한 제목을 생성해주세요:
+        다음 카카오톡 알림톡 템플릿에 대한 간단한 제목을 생성해주세요:
 
-템플릿: {self.template_text}
-카테고리: {self.request.category_main} > {self.request.category_sub}
-사용 사례: {self.request.use_case}
+        템플릿: {self.template_text}
+        카테고리: {self.request.category_main} > {self.request.category_sub}
+        사용 사례: {self.request.use_case}
 
-제목 규칙:
-1. 10자 이내의 간단한 제목
-2. 템플릿의 주요 목적을 나타내는 제목
-3. "안내", "알림", "발송" 등의 단어 활용
+        제목 규칙:
+        1. 10자 이내의 간단한 제목
+        2. 템플릿의 주요 목적을 나타내는 제목
+        3. "안내", "알림", "발송" 등의 단어 활용
 
-제목만 생성해주세요:
-"""
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
+        제목만 생성해주세요:
+        """

@@ -118,6 +118,10 @@ export const useUserStore = defineStore('user', {
       const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
       const userInfoStr = localStorage.getItem(USER_INFO_KEY)
       
+      console.log('=== 사용자 정보 복원 시도 ===')
+      console.log('저장된 토큰 존재:', !!accessToken)
+      console.log('저장된 사용자 정보 존재:', !!userInfoStr)
+      
       if (accessToken && userInfoStr) {
         try {
           const userInfo = JSON.parse(userInfoStr)
@@ -128,10 +132,21 @@ export const useUserStore = defineStore('user', {
           this.accessToken = accessToken
           this.refreshToken = refreshToken
           this.loginType = userInfo.loginType || 'email' // 기본값은 email
+          
+          console.log('사용자 정보 복원 성공:', {
+            accountId: this.accountId,
+            userName: this.userName,
+            email: this.email,
+            role: this.role,
+            loginType: this.loginType,
+            hasToken: !!this.accessToken
+          })
         } catch (error) {
           console.error('사용자 정보 복원 실패:', error)
           this.clearUser()
         }
+      } else {
+        console.log('저장된 토큰이나 사용자 정보가 없어 복원할 수 없음')
       }
     },
     

@@ -16,14 +16,4 @@ public class TemplateRequestDto {
     private String category;
     private List<Object> chatHistory;
     private List<String> variableList;
-<<<<<<< HEAD
-=======
-    
-    @Getter
-    @Setter
-    public static class VariableDto {
-        private String variableKey;
-        private String variableValue;
-    }
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
 }
