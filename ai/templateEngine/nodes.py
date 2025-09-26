@@ -77,11 +77,16 @@ async def parallel_title_category_node(state: TemplateGenerationState) -> Dict[s
 
         title_result, category_result = await asyncio.gather(generate_title_task(), classify_or_create_category_task())
 
+        # 제목에서 따옴표 제거 및 정리
+        clean_title = title_result.strip()
+        clean_title = clean_title.strip('"\'')  # 앞뒤 따옴표 제거
+        clean_title = clean_title.replace('"', '').replace("'", '')  # 중간 따옴표도 제거
+
         logger.info("병렬 작업 완료")
-        logger.info(f"✅ 제목 생성 성공: '{title_result.strip()}'")
+        logger.info(f"✅ 제목 생성 성공: '{clean_title}'")
         logger.info(f"✅ 카테고리 분류 성공: {category_result.get('category_sub')}")
 
-        return {"generated_title": title_result.strip(), "category_result": category_result}
+        return {"generated_title": clean_title, "category_result": category_result}
     except Exception as e:
         logger.error(f"❌ 병렬 처리 실패: {e}", exc_info=True)
         return {"generated_title": "제목 생성 실패", "category_result": {"category_sub": "기타", "selection_reason": "분류 실패"}}

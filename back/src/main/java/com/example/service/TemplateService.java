@@ -25,6 +25,80 @@ public class TemplateService {
     private final AIService aiService; // FastAPI 통신을 전담할 서비스 주입
 
 
+    // 수정에서 제출하기 버튼 클릭 시 템플릿 저장
+    @Transactional
+    public TemplateSaveResponseDto saveTemplate(TemplateSaveRequestDto requestDto, UserDto currentUser) {
+        try {
+            // 요청 데이터 로깅
+            log.info("템플릿 저장 요청 데이터 - 제목: '{}', 사용자메시지: '{}', 카테고리: '{}'",
+                    requestDto.getTemplateTitle(), requestDto.getUserMessage(), requestDto.getCategory());
+
+            // 사용자 계정 조회
+            Account account = accountRepository.findById(currentUser.getAccountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+            log.info("사용자 계정 조회 완료 - account: {}", account);
+
+            // 카테고리 조회
+            log.info("카테고리 조회 시작 - categoryName: {}", requestDto.getCategory());
+            Category category = findCategoryByName(requestDto.getCategory());
+            log.info("카테고리 조회 완료 - category: {}", category);
+
+            // Template 생성
+            Template template = Template.builder()
+                    .account(account)
+                    .templateContent(requestDto.getTemplateContent())
+                    .category(category)
+                    .userMessage(requestDto.getUserMessage()) // 사용자 원본 요청 저장
+                    .autoTitle(requestDto.getTemplateTitle()) // 템플릿 제목 저장
+                    .status("검증 중")
+                    .build();
+
+                    if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
+                        // 유효한 변수만 필터링 (null이 아니고, 공백이 아닌 변수만)
+                        List<String> validVariables = requestDto.getVariableList().stream()
+                                .filter(variableName -> variableName != null && !variableName.trim().isEmpty())
+                                .toList();
+                        
+                    if (!validVariables.isEmpty()) {
+                        log.info("변수 목록 저장 시작 - 유효한 변수 개수: {}", validVariables.size());
+                        for (String variableName : validVariables) {
+                            log.info("변수 저장: {}", variableName);
+                            Var variable = Var.builder()
+                                .variableKey(variableName.trim()) // 앞뒤 공백 제거
+                                .build();
+                            template.addVariable(variable);
+                            }
+                        } else {
+                            log.warn("유효한 변수가 없습니다. 모든 변수가 null이거나 공백입니다.");
+                        }
+                    } else {
+                        log.warn("변수 목록이 비어있습니다. requestDto.getVariableList(): {}", requestDto.getVariableList());
+                    }
+
+            // DB 저장
+            Template savedTemplate = templateRepository.save(template);
+            log.info("템플릿 저장 완료: {}", savedTemplate.getTemplateId());
+            log.info("저장된 템플릿 상세 - 제목: '{}', 사용자메시지: '{}', 내용: '{}'",
+                    savedTemplate.getAutoTitle(), savedTemplate.getUserMessage(),
+                    savedTemplate.getTemplateContent() != null ? savedTemplate.getTemplateContent().substring(0, Math.min(50, savedTemplate.getTemplateContent().length())) : "null");
+            log.info("저장된 변수 개수: {}", savedTemplate.getVariables().size());
+            
+            // 카테고리 사용량 증가
+            incrementCategoryUsageCount(requestDto.getCategory());
+            
+            log.info("=== TemplateService.saveTemplate 완료 ===");
+
+            return TemplateSaveResponseDto.success(savedTemplate.getTemplateId().toString());
+        } catch (Exception e) {
+            log.error("=== TemplateService.saveTemplate 오류 발생 ===");
+            log.error("오류 타입: {}", e.getClass().getSimpleName());
+            log.error("오류 메시지: {}", e.getMessage());
+            log.error("오류 스택 트레이스:", e);
+            return TemplateSaveResponseDto.failure("템플릿 저장 중 오류가 발생했습니다: "+e.getMessage());
+        }
+    }
+
+
 
     /**
      * 템플릿을 검증합니다.
@@ -41,16 +115,25 @@ public class TemplateService {
             validationRequest.put("category", requestDto.getCategory());
             validationRequest.put("userMessage", requestDto.getUserMessage());
             validationRequest.put("templateTitle", requestDto.getTemplateTitle());
-            
+            if (requestDto.getTemplateId() != null) {
+                validationRequest.put("templateId", requestDto.getTemplateId());
+                log.info("AI 서버로 전달할 검증 요청에 templateId 포함: {}", requestDto.getTemplateId());
+            } else {
+                log.warn("검증 요청에 templateId가 없습니다");
+            }
+
+            log.info("AI 서버 검증 요청 데이터: {}", validationRequest);
+
             // AI 서버 검증 호출 (실제로는 AIService를 통해 호출)
             Map<String, Object> aiValidationResult = aiService.validateTemplateWithFastAPI(validationRequest);
 
             boolean isValid = isValidationSuccessful(aiValidationResult);
             log.info("AI 검증 결과 - 성공 여부: {}", isValid);
 
-            if (isValid) {
-                return handleApproval(requestDto, currentUser);
-            }
+            // 검증 성공 시에도 저장하지 않음 - 수정에서만 저장
+            // if (isValid) {
+            //     return handleApproval(requestDto, currentUser);
+            // }
 
             RejectionDetails rejectionDetails = extractRejectionDetails(aiValidationResult);
             log.info("검증 실패, 반려된 변수: {}, 오류 정보: {}, 검증 단계: {}",
@@ -91,32 +174,33 @@ public class TemplateService {
         return false;
     }
 
-    private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, UserDto currentUser) {
-        // UserDto에서 가져온 accountId로 기존 Account 엔티티 참조
-        Account account = accountRepository.findById(currentUser.getAccountId())
-                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + currentUser.getAccountId()));
+    // 검증에서 저장 기능 제거됨 - 수정에서만 저장
+    // private TemplateValidationResponseDto handleApproval(TemplateValidationRequestDto requestDto, UserDto currentUser) {
+    //     // UserDto에서 가져온 accountId로 기존 Account 엔티티 참조
+    //     Account account = accountRepository.findById(currentUser.getAccountId())
+    //             .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + currentUser.getAccountId()));
 
-        Template template = Template.builder()
-                .account(account)
-                .templateContent(requestDto.getTemplateContent())
-                .category(findCategoryByName(requestDto.getCategory()))
-                .status("APPROVED")
-                .build();
+    //     Template template = Template.builder()
+    //             .account(account)
+    //             .templateContent(requestDto.getTemplateContent())
+    //             .category(findCategoryByName(requestDto.getCategory()))
+    //             .status("APPROVED")
+    //             .build();
 
-        if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
-            for (TemplateValidationRequestDto.VariableDto variableDto : requestDto.getVariableList()) {
-                Var variable = Var.builder()
-                        .variableKey(variableDto.getVariableKey())
-                        .variableValue(variableDto.getVariableValue())
-                        .build();
-                template.addVariable(variable);
-            }
-        }
+    //     if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
+    //         for (TemplateValidationRequestDto.VariableDto variableDto : requestDto.getVariableList()) {
+    //             Var variable = Var.builder()
+    //                     .variableKey(variableDto.getVariableKey())
+    //                     .variableValue(variableDto.getVariableValue())
+    //                     .build();
+    //             template.addVariable(variable);
+    //         }
+    //     }
 
-        Template savedTemplate = templateRepository.save(template);
-        log.info("검증 성공, 템플릿 및 변수 저장 완료: {}", savedTemplate.getTemplateId());
-        return TemplateValidationResponseDto.success(savedTemplate.getTemplateId().toString());
-    }
+    //     Template savedTemplate = templateRepository.save(template);
+    //     log.info("검증 성공, 템플릿 및 변수 저장 완료: {}", savedTemplate.getTemplateId());
+    //     return TemplateValidationResponseDto.success(savedTemplate.getTemplateId().toString());
+    // }
 
     private RejectionDetails extractRejectionDetails(Map<String, Object> aiValidationResult) {
         log.info("AI 검증 실패 응답 전체: {}", aiValidationResult);
@@ -276,11 +360,50 @@ public class TemplateService {
 
     /**
      * 주어진 이름으로 Category 엔티티를 조회합니다.
+     * 카테고리가 존재하지 않으면 자동으로 생성합니다.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public Category findCategoryByName(String categoryName) {
-        return categoryRepository.findByName(categoryName)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with name: " + categoryName));
+        // 카테고리 이름 유효성 검사
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            throw new IllegalArgumentException("카테고리 이름이 비어있습니다.");
+        }
+        
+        // 앞뒤 공백 제거하여 정규화
+        String trimmedCategoryName = categoryName.trim();
+        
+        return categoryRepository.findByName(trimmedCategoryName)
+                .orElseGet(() -> {
+                    try {
+                        log.info("새로운 카테고리 생성: {}", trimmedCategoryName);
+                        Category newCategory = Category.builder()
+                                .name(trimmedCategoryName)
+                                .isActive(true)
+                                .createdBy("AI")
+                                .build();
+                        Category savedCategory = categoryRepository.save(newCategory);
+                        log.info("새로운 카테고리 생성 완료: {} (ID: {})", trimmedCategoryName, savedCategory.getId());
+                        return savedCategory;
+                    } catch (Exception e) {
+                        log.error("새로운 카테고리 생성 실패: {}", trimmedCategoryName, e);
+                        throw new RuntimeException("카테고리 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
+                    }
+                });
+    }
+
+    /**
+     * 카테고리 사용량을 증가시킵니다.
+     */
+    @Transactional
+    public void incrementCategoryUsageCount(String categoryName) {
+        try {
+            Category category = findCategoryByName(categoryName);
+            category.setUsageCount(category.getUsageCount() + 1);
+            categoryRepository.save(category);
+            log.info("카테고리 사용량 증가: {} (현재 사용량: {})", categoryName, category.getUsageCount());
+        } catch (Exception e) {
+            log.error("카테고리 사용량 증가 실패: {}", categoryName, e);
+        }
     }
 
     /**

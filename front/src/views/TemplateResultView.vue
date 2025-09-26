@@ -89,7 +89,7 @@
                   :validation-errors="validationErrors"
                   @variable-click="handleVariableClick"
                   @update-variables="updateVariables"
-                  @submit-template="submitTemplate"
+                  @submit-template="handlePrimary"
                 />
               </div>
               
@@ -113,15 +113,15 @@
             <div class="action-buttons-container">
               <div class="correction-count">남은 정정 횟수: {{ remainingCorrections }}/{{ maxCorrections }}</div>
               <div class="action-buttons">
-                <button 
-                  class="btn-submit" 
-                  @click="submitTemplate"
-                  :disabled="isValidating"
+                <button
+                  class="btn-submit"
+                  @click="handlePrimary"
+                  :disabled="isBusy"
                 >
-                  <span v-if="!isValidating">제출하기</span>
+                  <span v-if="!isBusy">{{ primaryLabel }}</span>
                   <span v-else class="loading-content">
                     <span class="spinner"></span>
-                    검증 중...
+                    {{ stage === 'edit' ? '저장 중...' : '검증/제출 중...' }}
                   </span>
                 </button>
               </div>
@@ -136,14 +136,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 import KakaoPreviewComponent from '@/components/KakaoPreviewComponent.vue'
 import RejectionSidebarComponent from '@/components/RejectionSidebarComponent.vue'
 import { templateApi } from '@/api'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 // 컴포넌트 refs
 const chatHistoryRef = ref<HTMLElement | null>(null)
@@ -167,6 +169,7 @@ const templateVariables = ref<any[]>([])
 const templateCategory = ref('')
 const templateCategoryId = ref<number>(11) // 기본값: 기타
 const userMessage = ref('')
+const savedTemplateId = ref<string | null>(null) // 저장된 템플릿 ID
 
 // 채팅 관련 변수들
 const chatInput = ref('')
@@ -174,9 +177,27 @@ const currentVersion = ref(1)
 const chatHistory = ref<any[]>([])
 const isGenerating = ref(false)
 const isValidating = ref(false) // 검증 중 상태 추가
+const isSaving = ref(false) // 저장 중 상태 추가
+
+// 단계 플래그: 채팅수정(edit) vs 검증(validate)
+type Stage = 'edit' | 'validate'
+// 기본은 채팅 단계. 검증 화면이라면 라우트로 'validate'를 주입해도 됨.
+const stage = ref<Stage>(
+  (router.currentRoute.value.query.stage as Stage) || 'edit'
+)
+
+// 공통 버튼 레이블/상태
+const primaryLabel = computed(() => stage.value === 'edit' ? '저장하기' : '제출하기')
+const isBusy = computed(() => stage.value === 'edit' ? isSaving.value : isValidating.value)
+
+// 공통 버튼 핸들러
+const handlePrimary = () => {
+  if (stage.value === 'edit') return saveTemplate()
+  else return submitTemplate()
+}
 
 // 정정 횟수 관리 - 세션 기반
-const maxCorrections = 3
+const maxCorrections = 10 // 수정 횟수 10번으로 설정
 const remainingCorrections = ref(maxCorrections) // 초기값을 maxCorrections로 설정, onMounted에서 세션 값으로 업데이트됨
 
 // 세션 키 생성 함수
@@ -193,8 +214,8 @@ const getRemainingModifications = () => {
     console.log(`세션에서 ${key} 키로 가져온 값:`, storedValue)
     
     if (storedValue === null || storedValue === undefined) {
-      // 세션에 값이 없으면 기본값 3으로 설정하고 반환
-      console.log('세션에 값이 없어서 기본값 3으로 설정')
+      // 세션에 값이 없으면 기본값 10으로 설정하고 반환
+      console.log('세션에 값이 없어서 기본값 10으로 설정')
       sessionStorage.setItem(key, maxCorrections.toString())
       return maxCorrections
     }
@@ -235,9 +256,9 @@ const decrementModificationCount = () => {
 // 수정 횟수 리셋 테스트 함수들 (개발자 도구에서 사용) resetModifications() -> 3으로 리셋
 const testResetModifications = () => {
   const key = getSessionKey()
-  sessionStorage.setItem(key, '3')
-  remainingCorrections.value = 3
-  console.log('✅ 수정 횟수를 3으로 리셋했습니다.')
+  sessionStorage.setItem(key, '10')
+  remainingCorrections.value = 10
+  console.log('✅ 수정 횟수를 리셋했습니다.')
 }
 
 const testSetModifications = (count: number) => {
@@ -262,7 +283,7 @@ const versions = ref([
 const versionTemplates = ref<Record<number, { content: string, title: string, variableList: string[] }>>({})
 
 // 사용자가 수정할 수 있는 변수 값들
-const editedVariables = ref<Record<string, string>>({})
+const editedVariables = ref<string[]>([])
 
 // 컴포넌트 마운트 시 생성된 템플릿 데이터 로드
 onMounted(() => {
@@ -282,12 +303,8 @@ onMounted(() => {
       templateCategoryId.value = 11 
       userMessage.value = generatedTemplate.value.userMessage
       
-      // 변수 값 초기화 (showVariables가 true이므로 변수값 설정)
-      const initialVariables: Record<string, string> = {}
-      templateVariables.value.forEach((variable: any) => {
-        initialVariables[variable] = `${variable} 값`
-      })
-      editedVariables.value = initialVariables
+      // 변수명 초기화
+      editedVariables.value = [...templateVariables.value]
       
       // 버전 1에 초기 템플릿 저장
       versionTemplates.value[1] = {
@@ -323,7 +340,7 @@ onMounted(() => {
     router.push('/')
   }
 })
- 
+
 
 
 // 변수 클릭 처리
@@ -385,7 +402,7 @@ const applySelectedAlternative = (alternative: any) => {
 // 템플릿에 대안 적용 (새로운 함수)
 const applyAlternativeToTemplate = (alternative: any, error: any) => {
   console.log('템플릿에 대안 적용:', alternative.text, '오류:', error.reason)
-  
+
   // 대안에 따라 템플릿 수정 로직 실행
   if (alternative.text.includes('변수를 추가')) {
     // 변수 추가 로직
@@ -397,20 +414,20 @@ const applyAlternativeToTemplate = (alternative: any, error: any) => {
     // 기본 수정 로직
     applyGenericFix(alternative, error)
   }
-  
+
   // 해당 오류를 해결된 것으로 처리
   const errorIndex = validationErrors.value.findIndex(e => e.reason === error.reason)
   if (errorIndex > -1) {
     validationErrors.value.splice(errorIndex, 1)
   }
-  
+
   // 모든 오류가 해결되면 반려 상태 해제
   if (validationErrors.value.length === 0) {
     isRejected.value = false
     showRejectionSidebar.value = false
     rejectedVariables.value = []
   }
-  
+
   console.log('대안 적용 완료')
 }
 
@@ -431,7 +448,7 @@ const applyVariableAddition = (alternative: any) => {
 문의사항이 있으시면 고객센터로 연락해 주세요.
 
 감사합니다.`
-    
+
     templateVariables.value = ['고객명', '예약번호', '취소일시']
   } else if (alternative.text.includes('개인화된 알림')) {
     templateTitle.value = '서비스 처리 안내'
@@ -445,7 +462,7 @@ const applyVariableAddition = (alternative: any) => {
 - 상태: 완료
 
 추가 문의사항이 있으시면 연락 주세요.`
-    
+
     templateVariables.value = ['고객명', '서비스명', '처리일시']
   } else {
     templateTitle.value = '안내 사항'
@@ -456,16 +473,12 @@ const applyVariableAddition = (alternative: any) => {
 담당자: #{담당자}
 
 문의사항이 있으시면 연락 주세요.`
-    
+
     templateVariables.value = ['고객명', '내용', '담당자']
   }
-  
+
   // 편집 가능한 변수 업데이트
-  const newVariables: Record<string, string> = {}
-  templateVariables.value.forEach((variable: string) => {
-    newVariables[variable] = `${variable} 값`
-  })
-  editedVariables.value = newVariables
+  editedVariables.value = [...templateVariables.value]
 }
 
 // 템플릿 재작성 적용
@@ -484,7 +497,7 @@ const applyTemplateRewrite = (alternative: any, error: any) => {
 환불은 #{환불예정일}에 처리될 예정입니다.
 
 문의사항이 있으시면 고객센터로 연락해 주세요.`
-    
+
     templateVariables.value = ['고객명', '예약번호', '취소일시', '환불예정일']
   } else if (alternative.text.includes('서비스 안내')) {
     templateTitle.value = '서비스 이용 안내'
@@ -498,7 +511,7 @@ const applyTemplateRewrite = (alternative: any, error: any) => {
 - 담당자: #{담당자명}
 
 추가 문의사항이 있으시면 연락 주세요.`
-    
+
     templateVariables.value = ['고객명', '서비스명', '처리일시', '담당자명']
   } else {
     templateTitle.value = '고객 안내'
@@ -512,16 +525,12 @@ const applyTemplateRewrite = (alternative: any, error: any) => {
 - 연락처: #{연락처}
 
 문의사항이 있으시면 언제든 연락해 주세요.`
-    
+
     templateVariables.value = ['고객명', '안내내용', '처리일시', '담당부서', '연락처']
   }
-  
+
   // 편집 가능한 변수 업데이트
-  const newVariables: Record<string, string> = {}
-  templateVariables.value.forEach((variable: string) => {
-    newVariables[variable] = `${variable} 값`
-  })
-  editedVariables.value = newVariables
+  editedVariables.value = [...templateVariables.value]
 }
 
 // 일반적인 수정 적용
@@ -537,7 +546,7 @@ const applyGenericFix = (alternative: any, error: any) => {
 - 담당자: #{담당자}
 
 문의사항이 있으시면 연락해 주세요.`
-    
+
     templateVariables.value = ['고객명', '안내사항', '처리일시', '담당자']
   } else if (alternative.text.includes('표준 알림톡 구조')) {
     templateTitle.value = '알림 안내'
@@ -550,7 +559,7 @@ const applyGenericFix = (alternative: any, error: any) => {
 - 처리결과: #{처리결과}
 
 추가 문의사항이 있으시면 연락해 주세요.`
-    
+
     templateVariables.value = ['고객명', '처리내용', '처리일시', '처리결과']
   } else {
     // 기본 승인 가능한 템플릿
@@ -564,16 +573,12 @@ const applyGenericFix = (alternative: any, error: any) => {
 - 상태: #{처리상태}
 
 문의사항이 있으시면 고객센터로 연락해 주세요.`
-    
+
     templateVariables.value = ['고객명', '서비스내용', '처리일시', '처리상태']
   }
-  
+
   // 편집 가능한 변수 업데이트
-  const newVariables: Record<string, string> = {}
-  templateVariables.value.forEach((variable: string) => {
-    newVariables[variable] = `${variable} 값`
-  })
-  editedVariables.value = newVariables
+  editedVariables.value = [...templateVariables.value]
 }
 
 // 반려 사이드바 닫기
@@ -589,7 +594,7 @@ const closeRejectionSidebar = () => {
 
 // 변수 업데이트
 const updateVariables = (newVariables: any) => {
-  editedVariables.value = { ...newVariables }
+  editedVariables.value = Array.isArray(newVariables) ? newVariables : [...newVariables]
   
     // 강제로 리렌더링을 위해 nextTick 사용
     nextTick(() => {
@@ -600,12 +605,8 @@ const updateVariables = (newVariables: any) => {
 // 변수 토글 상태 변경 감지
 watch(showVariables, (newValue) => {
   if (newValue && templateVariables.value.length > 0) {
-    // 변수 토글을 활성화했을 때 변수값 설정
-    const initialVariables: Record<string, string> = {}
-      templateVariables.value.forEach((variable: any) => {
-      initialVariables[variable.name] = `${variable.name} 값`
-    })
-    editedVariables.value = initialVariables
+    // 변수 토글을 활성화했을 때 변수명 설정
+    editedVariables.value = [...templateVariables.value]
   }
 })
 
@@ -623,13 +624,11 @@ const submitTemplate = async () => {
   try {
     console.log('템플릿 검증 요청 시작')
     
-    // 제출 전 변수 맵 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
-    if (!editedVariables.value || Object.keys(editedVariables.value).length === 0) {
-      const fallback: Record<string, string> = {}
-        if (Array.isArray(templateVariables.value) && templateVariables.value.length > 0) {
-          templateVariables.value.forEach((variableName: string) => {
-          fallback[variableName] = `${variableName} 값`
-        })
+    // 제출 전 변수 배열 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
+    if (!editedVariables.value || editedVariables.value.length === 0) {
+      const fallback: string[] = []
+      if (Array.isArray(templateVariables.value) && templateVariables.value.length > 0) {
+        fallback.push(...templateVariables.value)
       } else if (templateContent.value) {
         // 변수 배열이 비어 있으면 템플릿 본문에서 변수 패턴을 파싱해 기본값 구성
         const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g]
@@ -641,16 +640,13 @@ const submitTemplate = async () => {
             if (name) found.add(name)
           }
         })
-        found.forEach((name) => { fallback[name] = `${name} 값` })
+        fallback.push(...Array.from(found))
       }
       editedVariables.value = fallback
     }
-    // 👉👉 여기서 "객체 -> 배열(VariableDto[])" 변환을 합니다.
-    // 백엔드 DTO: List<VariableDto> (variableKey, variableValue)
-    const variableList = Object.entries(editedVariables.value ?? {}).map(([k, v]) => ({
-      variableKey: k,
-      variableValue: String(v ?? ''),
-    }))
+
+    // 변수명 배열 (이미 string[] 형태)
+    const variableList = editedVariables.value ?? []
     // 백엔드로 템플릿 검증 요청
     const response = await templateApi.validateTemplate(
       templateContent.value,
@@ -732,6 +728,90 @@ const submitTemplate = async () => {
   }
 }
 
+// 수정 완료 후 템플릿 저장 (저장 → 검증 순서)
+const saveTemplate = async () => {
+  try {
+    console.log('템플릿 저장 요청 시작')
+    isSaving.value = true
+    
+    // 사용자 상태 디버깅
+    console.log('사용자 상태 확인:', {
+      isLoggedIn: userStore.isLoggedIn,
+      hasToken: !!userStore.accessToken,
+      accountId: userStore.accountId,
+      userName: userStore.userName,
+      email: userStore.email,
+      token: userStore.accessToken ? `${userStore.accessToken.substring(0, 20)}...` : 'null'
+    })
+    
+    // 로그인 상태 확인
+    if (!userStore.isLoggedIn) {
+      console.error('사용자가 로그인되지 않음')
+      alert('템플릿을 저장하려면 로그인이 필요합니다. 로그인 페이지로 이동합니다.')
+      router.push('/')
+      return
+    }
+    
+    // 제출 전 변수 배열 보정: 비어있으면 현재 템플릿 변수로 기본값 구성
+    if (!editedVariables.value || editedVariables.value.length === 0) {
+      const fallback: string[] = []
+      if (Array.isArray(templateVariables.value) && templateVariables.value.length > 0) {
+        fallback.push(...templateVariables.value)
+      } else if (templateContent.value) {
+        // 변수 배열이 비어 있으면 템플릿 본문에서 변수 패턴을 파싱해 기본값 구성
+        const patterns = [/\{\{([^}]+)\}\}/g, /#\{([^}]+)\}/g, /\{([^}]+)\}/g]
+        const found = new Set<string>()
+        patterns.forEach((re) => {
+          let m
+          while ((m = re.exec(templateContent.value)) !== null) {
+            const name = (m[1] || '').trim()
+            if (name) found.add(name)
+          }
+        })
+        fallback.push(...Array.from(found))
+      }
+      console.log('변수 추출 결과:', fallback)
+      editedVariables.value = fallback
+    }
+    
+    console.log('저장 시 변수 목록:', editedVariables.value)
+
+    // 1단계: 먼저 템플릿 저장
+    console.log('1단계: 템플릿 저장 시작')
+    const saveResponse = await templateApi.saveTemplate(
+      templateContent.value,
+      editedVariables.value,
+      templateCategory.value,
+      userMessage.value,
+      templateTitle.value
+    )
+    
+    console.log('템플릿 저장 응답:', saveResponse.data)
+    
+    if (!saveResponse.data.success) {
+      console.error('템플릿 저장 실패:', saveResponse.data.message)
+      alert('템플릿 저장에 실패했습니다: ' + saveResponse.data.message)
+      return
+    }
+    
+    const templateId = saveResponse.data.templateId
+    console.log('템플릿 저장 성공, 저장된 템플릿 ID:', templateId)
+    savedTemplateId.value = templateId // 저장된 템플릿 ID 저장
+    
+    // 저장 성공 후 검증 단계로 전환
+    stage.value = 'validate'
+    
+    // 검증 프로세스 시작
+    await submitTemplate()
+    
+  } catch (error: any) {
+    console.error('템플릿 저장 중 오류 발생:', error)
+    alert('템플릿 저장 중 오류가 발생했습니다. 다시 시도해주세요.')
+  } finally {
+    isSaving.value = false // 저장 완료
+  }
+}
+
 // 채팅 메시지 전송
 const sendMessage = async () => {
   if (!chatInput.value.trim() || isGenerating.value) return
@@ -766,8 +846,8 @@ const sendMessage = async () => {
     remainingCorrections.value = newRemainingCount
     
     // 백엔드 API를 통해 AI 서버에 템플릿 수정 요청
-    // editedVariables를 string[] 형태로 변환
-    const variableList = Object.keys(editedVariables.value)
+    // 변수명 배열 (이미 string[] 형태)
+    const variableList = editedVariables.value
     
     const response = await templateApi.modifyTemplate(
       templateContent.value,
@@ -821,14 +901,10 @@ const sendMessage = async () => {
     }
     
     // 변수 목록 업데이트: 응답 변수(없으면 파싱 결과) 기준으로 기본값 세팅
-    const rebuilt: Record<string, string> = {}
     const sourceVars = (Array.isArray(response.data.variables) && response.data.variables.length > 0)
       ? response.data.variables.map((variable: any) => variable.name || variable)
       : templateVariables.value
-    sourceVars.forEach((variableName: string) => {
-      rebuilt[variableName] = variableName
-    })
-    editedVariables.value = rebuilt
+    editedVariables.value = [...sourceVars]
     
     // 새 버전 생성
     const newVersionNumber = versions.value.length + 1
@@ -891,12 +967,8 @@ const selectVersion = (versionNumber: number) => {
     templateTitle.value = versionTemplate.title
     templateVariables.value = versionTemplate.variableList
     
-    // 변수 값 초기화
-    const initialVariables: Record<string, string> = {}
-    versionTemplate.variableList.forEach((variable: any) => {
-      initialVariables[variable.name] = `${variable.name} 값`
-    })
-    editedVariables.value = initialVariables
+    // 변수명 초기화
+    editedVariables.value = [...versionTemplate.variableList]
     
     console.log(`버전 ${versionNumber} 템플릿으로 전환됨`)
   } else {
@@ -1416,7 +1488,9 @@ const scrollToBottom = () => {
 }
 
 /* 공통 버튼 스타일 */
-.btn-submit {
+.btn-submit,
+.btn-validate,
+.btn-reject {
   background-color: #6c757d;
   color: white;
   border: none;

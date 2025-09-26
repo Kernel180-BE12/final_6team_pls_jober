@@ -15,6 +15,7 @@ public class TemplateValidationRequestDto {
     private String category;
     private String userMessage;
     private String templateTitle;
+    private String templateId; // 템플릿 ID 추가
     
     // 변수 정보를 저장하기 위한 필드
     @NotNull(message = "변수 정보는 필수입니다.")

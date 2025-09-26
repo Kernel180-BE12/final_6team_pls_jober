@@ -24,8 +24,23 @@ api.interceptors.request.use(
   (config) => {
     // user store에서 토큰 가져오기
     const userStore = useUserStore()
-    if (userStore.accessToken) {
+
+    // 로그인 관련 API는 토큰이 필요하지 않음
+    const isAuthAPI = config.url?.includes('/auth/')
+    
+    console.log('API 요청 인터셉터 - URL:', config.url)
+    console.log('API 요청 인터셉터 - 사용자 토큰 상태:', {
+      hasToken: !!userStore.accessToken,
+      token: userStore.accessToken ? `${userStore.accessToken.substring(0, 20)}...` : 'null',
+      isAuthAPI,
+      isLoggedIn: userStore.isLoggedIn
+    })
+    
+    if (!userStore.accessToken && !isAuthAPI) {
+      console.warn('API 요청 시 토큰이 없습니다. 로그인이 필요할 수 있습니다.')
+    } else if (userStore.accessToken) {
       config.headers.Authorization = `Bearer ${userStore.accessToken}`
+      console.log('Authorization 헤더 설정됨:', `Bearer ${userStore.accessToken.substring(0, 20)}...`)
     }
     return config
   },
@@ -55,8 +70,8 @@ api.interceptors.response.use(
     return response
   },
   async (error) => {
-    // 401 에러 시 자동 로그아웃
-    if (error.response?.status === 401) {
+    // 401, 403 에러 시 자동 로그아웃
+    if (error.response?.status === 401 ) {
       const userStore = useUserStore()
       userStore.logout()
     }
@@ -143,20 +158,18 @@ export const templateApi = {
     aiApi.post('/template/generate', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
-  validateTemplate: (templateContent: string, variableList: VariableDto[], category?: string, userMessage?: string, templateTitle?: string) => {
-    // 백엔드가 기대하는 VariableDto 배열 형식으로 변환
-    // const variableArray = Object.entries(variableList).map(([key, value]) => ({
-    //   variableKey: key,
-    //   variableValue: String(value)
-    // }))
-    //
+  validateTemplate: (templateContent: string, variableList: string[], category?: string, userMessage?: string, templateTitle?: string, templateId?: string) => {
+    // variableList가 이미 string[] 형태이므로 그대로 사용
+    const variableNames = variableList
+    
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {
-      templateContent,
-      variableList,
-      category,
-      userMessage,
-      templateTitle,
+      templateContent: templateContent,
+      variableList: variableNames,
+      category: category,
+      userMessage: userMessage,
+      templateTitle: templateTitle,
+      templateId: templateId
     }
     
     console.log('검증 요청 데이터:', validationRequest)
@@ -176,6 +189,24 @@ export const templateApi = {
     }
     
     return api.post('/template/modify', modificationRequest)
+  },
+
+  // 템플릿 저장 (검증 없이 바로 저장)
+  saveTemplate: (templateContent: string, variableList: string[], category: string, userMessage: string, templateTitle: string) => {
+    // variableList가 이미 string[] 형태이므로 그대로 사용
+    const variableNames = variableList
+
+    const saveRequest = {
+      templateContent: templateContent,
+      variableList: variableNames,  // 문자열 배열로 직접 전달
+      category: category,
+      userMessage: userMessage,
+      templateTitle: templateTitle
+    }
+
+    console.log('저장 요청 데이터:', saveRequest)
+
+    return api.post('/template/save', saveRequest)
   },
 }
 

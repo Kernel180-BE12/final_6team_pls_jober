@@ -26,6 +26,7 @@ public class MyPageController {
         return ResponseEntity.ok(myPageService.getMe(userDto));
     }
 
+
     // 이름 수정: 값이 있을 때만 반영
     @PutMapping("/name")
     public ResponseEntity<MyPageDto.UserInfoResponse> updateName(
