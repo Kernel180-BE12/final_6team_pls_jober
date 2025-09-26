@@ -46,6 +46,7 @@ class ChromaDBService:
                 "public_templates",   # 오타 pulblic → public
                 "denied_templates",
                 "blacklist",
+                "rejection_reasons",  # 반려 사유 컬렉션 추가
             ]
             for col in required_collections:
                 self.collections[col] = self.client.get_or_create_collection(col)
@@ -98,6 +99,9 @@ class ChromaDBService:
         elif collection_name == "denied_templates":
             collection = self.collections.get("denied_templates")
             logger.info("  - 검색 대상: 반려된 템플릿")
+        elif collection_name == "rejection_reasons":
+            collection = self.collections.get("rejection_reasons")
+            logger.info("  - 검색 대상: 반려 사유")
         else:
             logger.error(f"❌ 알 수 없는 컬렉션: {collection_name}")
             return []
