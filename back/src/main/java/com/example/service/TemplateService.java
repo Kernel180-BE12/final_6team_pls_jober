@@ -46,20 +46,21 @@ public class TemplateService {
                     .status("검증 중")
                     .build();
 
-                    if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
-                        // 유효한 변수만 필터링 (null이 아니고, 공백이 아닌 변수만)
-                        List<String> validVariables = requestDto.getVariableList().stream()
-                                .filter(variableName -> variableName != null && !variableName.trim().isEmpty())
-                                .toList();
-                        
-                    if (!validVariables.isEmpty()) {
-                        for (String variableName : validVariables) {
-                            Var variable = Var.builder()
-                                .variableKey(variableName.trim()) // 앞뒤 공백 제거
-                                .build();
-                            template.addVariable(variable);
-                        }
+            if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
+                // 유효한 변수만 필터링 (null이 아니고, 공백이 아닌 변수만)
+                List<String> validVariables = requestDto.getVariableList().stream()
+                        .filter(variableName -> variableName != null && !variableName.trim().isEmpty())
+                        .toList();
+                
+                if (!validVariables.isEmpty()) {
+                    for (String variableName : validVariables) {
+                        Var variable = Var.builder()
+                            .variableKey(variableName.trim()) // 앞뒤 공백 제거
+                            .build();
+                        template.addVariable(variable);
                     }
+                }
+            }
 
             // DB 저장
             Template savedTemplate = templateRepository.save(template);
@@ -98,9 +99,8 @@ public class TemplateService {
             // AI 서버 검증 호출 (실제로는 AIService를 통해 호출)
             Map<String, Object> aiValidationResult = aiService.validateTemplateWithFastAPI(validationRequest);
 
-            boolean isValid = isValidationSuccessful(aiValidationResult);
-
             // 검증 성공 시에도 저장하지 않음 - 수정에서만 저장
+            // boolean isValid = isValidationSuccessful(aiValidationResult);
             // if (isValid) {
             //     return handleApproval(requestDto, currentUser);
             // }
