@@ -105,6 +105,47 @@ const formattedTemplateContent = computed(() => {
     .replace(/\n\s*\n\s*\n/g, '\n\n')                   // 빈 줄 정리
     // 마커 제거 (⟦ID⟧내용⟦/ID⟧ → 내용)
     .replace(/⟦([^⟦]+)⟧([^⟦]*)⟦\/\1⟧/g, '$2')
+    // 고객에게 보이면 안 되는 내부 메시지 제거
+    .replace(/할인율[:\s]*~[^.]*\./g, '')              // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*고객이[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*고객들에게[^.]*\./g, '')     // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*보이면[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*안되는[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*메시지가[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*구체적인[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*언급하지[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*강조하되[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*참여할[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*방법이나[^.]*\./g, '')       // 할인율 관련 내부 메시지
+    .replace(/할인율[:\s]*혜택을[^.]*\./g, '')         // 할인율 관련 내부 메시지
+    .replace(/고객이[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/고객들에게[^.]*\./g, '')                 // 기타 내부 지시사항
+    .replace(/보이면[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/안되는[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/메시지가[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/구체적인[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/언급하지[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/강조하되[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/참여할[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/방법이나[^.]*\./g, '')                   // 기타 내부 지시사항
+    .replace(/혜택을[^.]*\./g, '')                     // 기타 내부 지시사항
+    .replace(/이\s*내용이[^.]*\./g, '')                // 기술적 설명
+    .replace(/이\s*부분이[^.]*\./g, '')                // 기술적 설명
+    .replace(/이\s*텍스트가[^.]*\./g, '')              // 기술적 설명
+    .replace(/이\s*문장이[^.]*\./g, '')                // 기술적 설명
+    .replace(/미리보기에[^.]*\./g, '')                 // 기술적 설명
+    .replace(/사용자가\s*보는건[^.]*\./g, '')          // 기술적 설명
+    .replace(/사용자에게\s*보이는[^.]*\./g, '')        // 기술적 설명
+    .replace(/화면에\s*표시되는[^.]*\./g, '')          // 기술적 설명
+    .replace(/잘하자\s*/g, '')                         // 작업 지시사항
+    .replace(/주의하자\s*/g, '')                       // 작업 지시사항
+    .replace(/기억하자\s*/g, '')                       // 작업 지시사항
+    .replace(/명심하자\s*/g, '')                       // 작업 지시사항
+    .replace(/주의\s*/g, '')                           // 작업 지시사항
+    .replace(/기억\s*/g, '')                           // 작업 지시사항
+    .replace(/명심\s*/g, '')                           // 작업 지시사항
+    .replace(/\s+/g, ' ')                              // 연속된 공백 정리
+    .replace(/\n\s*\n/g, '\n')                         // 연속된 줄바꿈 정리
     .trim()
   
   console.log('정리된 템플릿:', content)
@@ -146,17 +187,59 @@ const formattedTemplateContent = computed(() => {
   return content
 })
 
-// 문제 영역 하이라이트 함수
+// 문제 영역 하이라이트 함수 (개선된 버전)
 const highlightProblemArea = (content: string, problemArea: ProblemArea): string => {
   if (!problemArea.problem_text) return content
   
+  console.log('=== 문제 영역 하이라이트 시작 ===')
+  console.log('문제 영역 ID:', problemArea.area_id)
+  console.log('문제 텍스트:', problemArea.problem_text)
+  console.log('현재 콘텐츠:', content)
+  
   // 문제 텍스트를 찾아서 하이라이트
   const problemText = problemArea.problem_text.trim()
-  if (problemText && content.includes(problemText)) {
-    const highlightedText = `<span class="problem-highlight" data-problem-id="${problemArea.area_id}">${problemText}</span>`
-    content = content.replace(problemText, highlightedText)
+  if (!problemText) {
+    console.log('문제 텍스트가 비어있음')
+    return content
   }
   
+  // 1. 정확한 텍스트 매칭 시도
+  if (content.includes(problemText)) {
+    console.log('정확한 텍스트 매칭 성공')
+    const highlightedText = `<span class="problem-highlight" data-problem-id="${problemArea.area_id}">${problemText}</span>`
+    content = content.replace(problemText, highlightedText)
+    console.log('하이라이트 적용 완료')
+    return content
+  }
+  
+  // 2. 부분 매칭 시도 (공백 무시)
+  const normalizedProblemText = problemText.replace(/\s+/g, ' ').trim()
+  const normalizedContent = content.replace(/\s+/g, ' ')
+  
+  if (normalizedContent.includes(normalizedProblemText)) {
+    console.log('정규화된 텍스트 매칭 성공')
+    // 원본 콘텐츠에서 해당 부분을 찾아서 하이라이트
+    const regex = new RegExp(problemText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+    content = content.replace(regex, `<span class="problem-highlight" data-problem-id="${problemArea.area_id}">${problemText}</span>`)
+    console.log('정규화된 하이라이트 적용 완료')
+    return content
+  }
+  
+  // 3. 키워드 기반 매칭 시도
+  const keywords = problemText.split(/\s+/).filter(word => word.length > 1)
+  if (keywords.length > 0) {
+    console.log('키워드 기반 매칭 시도:', keywords)
+    keywords.forEach(keyword => {
+      if (content.includes(keyword)) {
+        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g')
+        content = content.replace(regex, `<span class="problem-highlight" data-problem-id="${problemArea.area_id}">${keyword}</span>`)
+        console.log(`키워드 "${keyword}" 하이라이트 적용`)
+      }
+    })
+  }
+  
+  console.log('하이라이트 처리 완료')
+  console.log('================================')
   return content
 }
 

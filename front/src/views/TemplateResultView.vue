@@ -392,6 +392,46 @@ const applyAlternativeToTemplate = (alternative: any, problemArea: any) => {
       return
     }
     
+    // 범용적인 불릿 포인트 삭제 처리
+    if (modifiedText.startsWith('REMOVE_') && modifiedText.endsWith('_BULLET')) {
+      const bulletType = modifiedText.replace('REMOVE_', '').replace('_BULLET', '')
+      console.log(`${bulletType} 불릿 포인트 삭제 처리`)
+      const removeSuccessful = removeBulletPoint(bulletType, problemArea)
+      if (removeSuccessful) {
+        console.log(`✅ ${bulletType} 불릿 포인트 삭제 성공!`)
+        
+        // 수정된 영역을 추적에 추가
+        modifiedAreas.value.add(problemArea.area_id)
+        console.log('수정된 영역 추가됨:', problemArea.area_id)
+        
+        // 해당 문제 영역을 해결된 것으로 처리
+        const areaIndex = problemAreas.value.findIndex(area => area.area_id === problemArea.area_id)
+        if (areaIndex > -1) {
+          problemAreas.value.splice(areaIndex, 1)
+          console.log('문제 영역 제거됨:', problemArea.area_id)
+        }
+        
+        // 모든 문제 영역이 해결되면 반려 상태 해제
+        if (problemAreas.value.length === 0) {
+          isRejected.value = false
+          showRejectionSidebar.value = false
+          console.log('모든 문제 영역 해결됨, 반려 상태 해제')
+        }
+        
+        // 사용자에게 성공 메시지 표시
+        setTimeout(() => {
+          alert(`✅ ${bulletType} 불릿 포인트가 성공적으로 삭제되었습니다!`)
+        }, 100)
+        return
+      } else {
+        console.error(`❌ ${bulletType} 불릿 포인트 삭제 실패`)
+        setTimeout(() => {
+          alert(`❌ ${bulletType} 불릿 포인트 삭제에 실패했습니다. 수동으로 수정해주세요.`)
+        }, 100)
+        return
+      }
+    }
+    
     // ID 마커 기반 교체 시도
     const replacementSuccessful = applyWithMarkerSystem(problemArea, modifiedText)
     
@@ -487,6 +527,9 @@ const applyWithMarkerSystem = (problemArea: any, modifiedText: string): boolean 
 // ID 마커로 감싸기 (권장 최우선 방법)
 const tryMarkerWrapping = (markerId: string, originalText: string, modifiedText: string, problemArea?: any): { success: boolean, template: string } => {
   console.log('=== ID 마커로 감싸기 시도 ===')
+  console.log('마커 ID:', markerId)
+  console.log('원본 텍스트:', originalText)
+  console.log('수정된 텍스트:', modifiedText)
   
   const template = templateContent.value
   const markerStart = `⟦${markerId}⟧`
@@ -500,22 +543,45 @@ const tryMarkerWrapping = (markerId: string, originalText: string, modifiedText:
     return { success: true, template: newTemplate }
   }
   
-  // 2. 원본 텍스트를 마커로 감싸기
+  // 2. 원본 텍스트를 마커로 감싸기 (정확한 매칭)
   if (template.includes(originalText)) {
     console.log('원본 텍스트를 마커로 감싸기')
-    const newTemplate = template.replace(originalText, `${markerStart}${originalText}${markerEnd}`)
-    // 마커 내부를 수정된 텍스트로 교체
-    const finalTemplate = newTemplate.replace(`${markerStart}${originalText}${markerEnd}`, `${markerStart}${modifiedText}${markerEnd}`)
-    return { success: true, template: finalTemplate }
+    const newTemplate = template.replace(originalText, `${markerStart}${modifiedText}${markerEnd}`)
+    return { success: true, template: newTemplate }
   }
   
-  // 3. 위치 기반으로 마커 삽입 시도
+  // 3. 정규화된 텍스트 매칭 시도 (공백 차이 무시)
+  const normalizedOriginal = originalText.replace(/\s+/g, ' ').trim()
+  const normalizedTemplate = template.replace(/\s+/g, ' ')
+  
+  if (normalizedTemplate.includes(normalizedOriginal)) {
+    console.log('정규화된 텍스트 매칭으로 마커 적용')
+    // 원본 템플릿에서 해당 부분을 찾아서 교체
+    const regex = new RegExp(originalText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+    const newTemplate = template.replace(regex, `${markerStart}${modifiedText}${markerEnd}`)
+    return { success: true, template: newTemplate }
+  }
+  
+  // 4. 위치 기반으로 마커 삽입 시도
   if (problemArea && problemArea.start_position !== undefined && problemArea.end_position !== undefined) {
     console.log('위치 기반 마커 삽입 시도')
     const beforeText = template.substring(0, problemArea.start_position)
     const afterText = template.substring(problemArea.end_position)
     const newTemplate = beforeText + `${markerStart}${modifiedText}${markerEnd}` + afterText
     return { success: true, template: newTemplate }
+  }
+  
+  // 5. 키워드 기반 삽입 시도
+  const keywords = originalText.split(/\s+/).filter(word => word.length > 2)
+  if (keywords.length > 0) {
+    console.log('키워드 기반 마커 삽입 시도:', keywords)
+    for (const keyword of keywords) {
+      if (template.includes(keyword)) {
+        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g')
+        const newTemplate = template.replace(regex, `${markerStart}${modifiedText}${markerEnd}`)
+        return { success: true, template: newTemplate }
+      }
+    }
   }
   
   console.log('ID 마커로 감싸기 실패')
@@ -601,7 +667,17 @@ const extractModifiedTextFromAlternative = (alternativeText: string): string | n
   // 3. 스마트 설명형 텍스트 제거 (패턴 기반)
   cleanText = removeExplanatoryText(cleanText)
   
-  // 4. 콜론(:) 기반 추출 시도
+  // 4. 고객에게 보이면 안 되는 메시지 패턴 제거
+  cleanText = removeInternalMessages(cleanText)
+  
+  // 5. 범용적인 불릿 포인트 특별 처리
+  const bulletResult = handleBulletPointAlternative(cleanText)
+  if (bulletResult) {
+    console.log('불릿 포인트 관련 대안 처리 결과:', bulletResult)
+    return bulletResult
+  }
+  
+  // 6. 콜론(:) 기반 추출 시도
   const colonIndex = cleanText.indexOf(':')
   if (colonIndex !== -1) {
     const extractedText = cleanText.substring(colonIndex + 1).trim()
@@ -614,7 +690,7 @@ const extractModifiedTextFromAlternative = (alternativeText: string): string | n
     }
   }
   
-  // 5. 다양한 패턴으로 추출 시도
+  // 7. 다양한 패턴으로 추출 시도
   const patterns = [
     /대안\d+-\d+:\s*(.+)/,  // "대안1-1: 텍스트" 형식
     /대안\d+:\s*(.+)/,      // "대안1: 텍스트" 형식
@@ -640,16 +716,326 @@ const extractModifiedTextFromAlternative = (alternativeText: string): string | n
     }
   }
   
-  // 6. 정리된 텍스트가 의미있는 내용인지 확인
+  // 8. 정리된 텍스트가 의미있는 내용인지 확인
   const finalText = cleanText.trim()
   if (isMeaningfulContent(finalText)) {
     console.log('정리된 텍스트 반환:', finalText)
     return finalText
   }
   
-  // 7. 모든 방법이 실패하면 원본 텍스트를 그대로 반환 (최후의 수단)
+  // 9. 모든 방법이 실패하면 원본 텍스트를 그대로 반환 (최후의 수단)
   console.log('모든 패턴 실패, 원본 텍스트 반환:', alternativeText)
   return alternativeText.trim()
+}
+
+// 범용적인 불릿 포인트 삭제 함수
+const removeBulletPoint = (bulletType: string, problemArea: any): boolean => {
+  console.log(`=== ${bulletType} 불릿 포인트 삭제 시작 ===`)
+  console.log('문제 영역:', problemArea)
+  
+  const template = templateContent.value
+  const problemText = problemArea.problem_text || ''
+  
+  console.log('현재 템플릿:', template)
+  console.log('문제 텍스트:', problemText)
+  
+  // 불릿 포인트 타입별 키워드 매핑
+  const bulletTypeKeywords: Record<string, string[]> = {
+    '할인율': ['할인율', '할인'],
+    '문의': ['문의', '연락처', '전화', '번호'],
+    '장소': ['장소', '위치', '지점', '매장'],
+    '기간': ['기간', '일정', '날짜', '시간'],
+    '테마': ['테마', '주제', '이벤트']
+  }
+  
+  const keywords = bulletTypeKeywords[bulletType] || [bulletType.toLowerCase()]
+  console.log(`${bulletType} 키워드:`, keywords)
+  
+  // 1. 키워드별 불릿 포인트 패턴들 생성
+  const bulletPatterns = keywords.map((keyword: string) => [
+    new RegExp(`•\\s*${keyword}[:\\s]*[^\\n]*\\n?`, 'g'),           // "• 키워드: ..."
+    new RegExp(`•\\s*${keyword}[^•\\n]*\\n?`, 'g'),                // "• 키워드..." (더 넓은 범위)
+  ]).flat()
+  
+  let newTemplate = template
+  let foundAndRemoved = false
+  
+  // 2. 각 패턴으로 불릿 포인트 찾아서 삭제
+  for (const pattern of bulletPatterns) {
+    if (pattern.test(newTemplate)) {
+      console.log(`${bulletType} 불릿 포인트 패턴 발견:`, pattern)
+      newTemplate = newTemplate.replace(pattern, '')
+      foundAndRemoved = true
+      console.log(`${bulletType} 불릿 포인트 삭제됨`)
+    }
+  }
+  
+  // 3. 문제 텍스트가 포함된 줄 전체 삭제 시도
+  if (!foundAndRemoved && problemText) {
+    console.log('문제 텍스트 기반 삭제 시도')
+    const lines = newTemplate.split('\n')
+    const filteredLines = lines.filter(line => {
+      const normalizedLine = line.replace(/\s+/g, ' ').trim()
+      const normalizedProblem = problemText.replace(/\s+/g, ' ').trim()
+      
+      // 문제 텍스트가 포함된 줄이거나 해당 키워드 관련 줄인지 확인
+      const containsProblem = normalizedLine.includes(normalizedProblem)
+      const isKeywordLine = keywords.some((keyword: string) => 
+        normalizedLine.toLowerCase().includes(keyword.toLowerCase())
+      )
+      
+      if (containsProblem || isKeywordLine) {
+        console.log('삭제할 줄 발견:', line)
+        return false
+      }
+      return true
+    })
+    
+    if (filteredLines.length < lines.length) {
+      newTemplate = filteredLines.join('\n')
+      foundAndRemoved = true
+      console.log('문제 텍스트 기반 삭제 완료')
+    }
+  }
+  
+  // 4. 템플릿 업데이트
+  if (foundAndRemoved) {
+    // 연속된 빈 줄 정리
+    newTemplate = newTemplate
+      .replace(/\n\s*\n\s*\n/g, '\n\n')  // 연속된 빈 줄을 2개로 제한
+      .replace(/\n\s*\n$/, '\n')         // 마지막 빈 줄 제거
+      .trim()
+    
+    templateContent.value = newTemplate
+    console.log(`✅ ${bulletType} 불릿 포인트 삭제 성공`)
+    console.log('수정된 템플릿:', newTemplate)
+    return true
+  }
+  
+  console.log(`❌ ${bulletType} 불릿 포인트를 찾을 수 없음`)
+  return false
+}
+
+// 범용적인 불릿 포인트 대안 처리
+const handleBulletPointAlternative = (text: string): string | null => {
+  console.log('=== 범용 불릿 포인트 대안 처리 시작 ===')
+  console.log('입력 텍스트:', text)
+  
+  // 불릿 포인트 타입별 매핑
+  const bulletPointTypes = {
+    '할인율': {
+      keywords: ['할인율', '할인'],
+      removePatterns: [
+        /구체적인\s*할인율은\s*언급하지\s*않는다?/i,
+        /할인율은\s*언급하지\s*않는다?/i,
+        /구체적인\s*할인율은\s*말하지\s*않는다?/i,
+        /할인율은\s*말하지\s*않는다?/i,
+        /할인율\s*제거/i,
+        /할인율\s*삭제/i,
+        /할인율\s*부분\s*삭제/i,
+        /할인율\s*부분\s*제거/i,
+        /할인율.*삭제/i,
+        /할인율.*제거/i
+      ],
+      modifyPatterns: [
+        /방법이나\s*혜택을\s*강조하되/i,
+        /혜택을\s*강조하되/i,
+        /방법을\s*강조하되/i,
+        /혜택을\s*강조/i,
+        /방법을\s*강조/i,
+        /강조하되/i
+      ],
+      defaultModify: '• 혜택: 다양한 할인 혜택을 제공합니다'
+    },
+    '문의': {
+      keywords: ['문의', '연락처', '전화', '번호'],
+      removePatterns: [
+        /문의.*없어야\s*한다/i,
+        /문의.*삭제/i,
+        /문의.*제거/i,
+        /문의.*없애/i,
+        /연락처.*없어야\s*한다/i,
+        /전화.*없어야\s*한다/i,
+        /번호.*없어야\s*한다/i
+      ],
+      modifyPatterns: [
+        /문의.*추가/i,
+        /연락처.*추가/i,
+        /전화.*추가/i,
+        /번호.*추가/i
+      ],
+      defaultModify: '• 문의: 고객센터로 연락해주세요'
+    },
+    '장소': {
+      keywords: ['장소', '위치', '지점', '매장'],
+      removePatterns: [
+        /장소.*없어야\s*한다/i,
+        /장소.*삭제/i,
+        /장소.*제거/i,
+        /위치.*없어야\s*한다/i,
+        /지점.*없어야\s*한다/i,
+        /매장.*없어야\s*한다/i
+      ],
+      modifyPatterns: [
+        /장소.*추가/i,
+        /위치.*추가/i,
+        /지점.*추가/i,
+        /매장.*추가/i
+      ],
+      defaultModify: '• 장소: 자세한 위치는 문의해주세요'
+    },
+    '기간': {
+      keywords: ['기간', '일정', '날짜', '시간'],
+      removePatterns: [
+        /기간.*없어야\s*한다/i,
+        /기간.*삭제/i,
+        /기간.*제거/i,
+        /일정.*없어야\s*한다/i,
+        /날짜.*없어야\s*한다/i,
+        /시간.*없어야\s*한다/i
+      ],
+      modifyPatterns: [
+        /기간.*추가/i,
+        /일정.*추가/i,
+        /날짜.*추가/i,
+        /시간.*추가/i
+      ],
+      defaultModify: '• 기간: 자세한 일정은 문의해주세요'
+    },
+    '테마': {
+      keywords: ['테마', '주제', '이벤트'],
+      removePatterns: [
+        /테마.*없어야\s*한다/i,
+        /테마.*삭제/i,
+        /테마.*제거/i,
+        /주제.*없어야\s*한다/i,
+        /이벤트.*없어야\s*한다/i
+      ],
+      modifyPatterns: [
+        /테마.*추가/i,
+        /주제.*추가/i,
+        /이벤트.*추가/i
+      ],
+      defaultModify: '• 테마: 특별한 이벤트를 진행합니다'
+    }
+  }
+  
+  // 각 불릿 포인트 타입별로 처리
+  for (const [type, config] of Object.entries(bulletPointTypes)) {
+    console.log(`${type} 타입 처리 시도`)
+    
+    // 키워드가 포함되어 있는지 확인
+    const hasKeyword = config.keywords.some(keyword => 
+      text.toLowerCase().includes(keyword.toLowerCase())
+    )
+    
+    if (!hasKeyword) {
+      continue
+    }
+    
+    console.log(`${type} 키워드 발견`)
+    
+    // 제거 지시 확인
+    const hasRemoveInstruction = config.removePatterns.some(pattern => pattern.test(text))
+    if (hasRemoveInstruction) {
+      console.log(`${type} 제거 지시 감지됨`)
+      return `REMOVE_${type.toUpperCase()}_BULLET`
+    }
+    
+    // 수정 지시 확인
+    const hasModifyInstruction = config.modifyPatterns.some(pattern => pattern.test(text))
+    if (hasModifyInstruction) {
+      console.log(`${type} 수정 지시 감지됨`)
+      return config.defaultModify
+    }
+    
+    // 특정 내용 추출 시도
+    for (const keyword of config.keywords) {
+      const pattern = new RegExp(`${keyword}[:\s]*([^.]*)`, 'i')
+      const match = text.match(pattern)
+      if (match && match[1]) {
+        const extractedText = match[1].trim()
+        if (extractedText && extractedText.length > 0) {
+          console.log(`${type} 관련 텍스트 추출:`, extractedText)
+          return `• ${type}: ${extractedText}`
+        }
+      }
+    }
+  }
+  
+  console.log('범용 불릿 포인트 특별 처리 없음')
+  return null
+}
+
+// 고객에게 보이면 안 되는 내부 메시지 제거
+const removeInternalMessages = (text: string): string => {
+  console.log('=== 내부 메시지 제거 시작 ===')
+  console.log('원본 텍스트:', text)
+  
+  // 고객에게 보이면 안 되는 패턴들
+  const internalPatterns = [
+    // 할인율 관련 내부 메시지
+    /할인율[:\s]*~[^.]*\./g,
+    /할인율[:\s]*고객이[^.]*\./g,
+    /할인율[:\s]*고객들에게[^.]*\./g,
+    /할인율[:\s]*보이면[^.]*\./g,
+    /할인율[:\s]*안되는[^.]*\./g,
+    /할인율[:\s]*메시지가[^.]*\./g,
+    /할인율[:\s]*구체적인[^.]*\./g,
+    /할인율[:\s]*언급하지[^.]*\./g,
+    /할인율[:\s]*강조하되[^.]*\./g,
+    /할인율[:\s]*참여할[^.]*\./g,
+    /할인율[:\s]*방법이나[^.]*\./g,
+    /할인율[:\s]*혜택을[^.]*\./g,
+    
+    // 기타 내부 지시사항
+    /고객이[^.]*\./g,
+    /고객들에게[^.]*\./g,
+    /보이면[^.]*\./g,
+    /안되는[^.]*\./g,
+    /메시지가[^.]*\./g,
+    /구체적인[^.]*\./g,
+    /언급하지[^.]*\./g,
+    /강조하되[^.]*\./g,
+    /참여할[^.]*\./g,
+    /방법이나[^.]*\./g,
+    /혜택을[^.]*\./g,
+    
+    // 기술적 설명
+    /이\s*내용이[^.]*\./g,
+    /이\s*부분이[^.]*\./g,
+    /이\s*텍스트가[^.]*\./g,
+    /이\s*문장이[^.]*\./g,
+    /미리보기에[^.]*\./g,
+    /사용자가\s*보는건[^.]*\./g,
+    /사용자에게\s*보이는[^.]*\./g,
+    /화면에\s*표시되는[^.]*\./g,
+    
+    // 작업 지시사항
+    /잘하자\s*/g,
+    /주의하자\s*/g,
+    /기억하자\s*/g,
+    /명심하자\s*/g,
+    /주의\s*/g,
+    /기억\s*/g,
+    /명심\s*/g
+  ]
+  
+  let cleanedText = text
+  internalPatterns.forEach(pattern => {
+    cleanedText = cleanedText.replace(pattern, '')
+  })
+  
+  // 연속된 공백과 줄바꿈 정리
+  cleanedText = cleanedText
+    .replace(/\s+/g, ' ')
+    .replace(/\n\s*\n/g, '\n')
+    .trim()
+  
+  console.log('정리된 텍스트:', cleanedText)
+  console.log('================================')
+  
+  return cleanedText
 }
 
 // 설명형 텍스트를 제거하는 스마트한 함수
@@ -819,12 +1205,29 @@ const removeAllMarkers = (): string => {
 const getPreviewTemplateContent = (): string => {
   let content = templateContent.value
   
+  console.log('=== 미리보기 템플릿 내용 생성 ===')
+  console.log('원본 템플릿:', content)
+  
   // 마커 제거 (⟦ID⟧내용⟦/ID⟧ → 내용)
   const markerPattern = /⟦([^⟦]+)⟧([^⟦]*)⟦\/\1⟧/g
   content = content.replace(markerPattern, '$2')
   
+  // 고객에게 보이면 안 되는 내부 메시지 제거
+  content = removeInternalMessages(content)
+  
   // 설명성 텍스트 제거
   content = removeExplanatoryText(content)
+  
+  // 템플릿 구조 정리 (줄바꿈과 공백 정리)
+  content = content
+    .replace(/\n\s*\n\s*\n/g, '\n\n')  // 연속된 빈 줄을 2개로 제한
+    .replace(/[ \t]+/g, ' ')           // 연속된 공백을 하나로
+    .replace(/\n[ \t]+/g, '\n')        // 줄 시작의 공백 제거
+    .replace(/[ \t]+\n/g, '\n')        // 줄 끝의 공백 제거
+    .trim()
+  
+  console.log('정리된 미리보기 템플릿:', content)
+  console.log('================================')
   
   return content
 }
