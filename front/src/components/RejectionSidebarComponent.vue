@@ -1,5 +1,5 @@
 <template>
-  <div v-if="show" class="rejection-sidebar" :style="{ height: alimtalkHeight ? `${alimtalkHeight}px` : '100%' }">
+  <div v-if="show" class="rejection-sidebar" style="height: 30rem;">
     <div class="sidebar-header">
       <button v-if="showingAlternatives" class="back-btn" @click="goBack">←</button>
       <h3>{{ showingAlternatives ? '수정이 필요한 내용' : '반려 사유 및 대안' }}</h3>
@@ -271,7 +271,7 @@ const getSeverityClass = (severity: string) => {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  max-height: 60vh; /* 카카오 프리뷰와 동일한 최대 높이 */
+  height: 30rem; /* 고정 높이 */
 }
 
 .sidebar-header {
