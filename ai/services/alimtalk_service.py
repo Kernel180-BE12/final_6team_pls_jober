@@ -326,14 +326,29 @@ class AlimtalkValidationService:
             
             if 'alternatives' in data:
                 print(f"JSON에서 alternatives 키 발견: {list(data['alternatives'].keys())}")
-                for error in errors:
-                    # 오류 내용과 정확히 일치하는 키 찾기
+                alternative_keys = list(data['alternatives'].keys())
+                
+                for i, error in enumerate(errors):
                     found_alternatives = None
+                    
+                    # 1. 정확한 키 매칭 시도
                     for key, alternatives in data['alternatives'].items():
                         if error in key or key in error:
                             found_alternatives = alternatives
-                            print(f"오류 '{error}'에 대한 대안 찾음: {alternatives}")
+                            print(f"오류 '{error}'에 대한 대안 찾음 (정확 매칭): {alternatives}")
                             break
+                    
+                    # 2. 정확한 매칭이 안되면 순서대로 매칭 (오류 메시지 1, 2, 3...)
+                    if not found_alternatives and i < len(alternative_keys):
+                        key = alternative_keys[i]
+                        found_alternatives = data['alternatives'][key]
+                        print(f"오류 '{error}'에 대한 대안 찾음 (순서 매칭): {found_alternatives}")
+                    
+                    # 3. 여전히 없으면 첫 번째 대안 사용
+                    if not found_alternatives and len(alternative_keys) > 0:
+                        key = alternative_keys[0]
+                        found_alternatives = data['alternatives'][key]
+                        print(f"오류 '{error}'에 대한 대안 찾음 (첫 번째 사용): {found_alternatives}")
                     
                     if found_alternatives:
                         alternatives_dict[error] = found_alternatives
