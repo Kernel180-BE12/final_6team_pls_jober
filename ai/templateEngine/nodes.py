@@ -349,6 +349,23 @@ def decide_generation_method(state: TemplateGenerationState) -> Literal["with_re
         logger.info(f"⚠️ 결정: 유사도({state['max_similarity']:.3f})가 기준 미만. [신규 생성]으로 진행합니다.")
         return "search_public"
 
+def clean_template_response(response: str) -> str:
+    """템플릿 응답에서 코드 블록 마커 제거"""
+    if not response:
+        return response
+
+    # ```로 시작하고 끝나는 코드 블록 제거
+    cleaned = response.strip()
+    if cleaned.startswith('```') and cleaned.endswith('```'):
+        # 첫 번째 줄 제거 (```로 시작하는 줄)
+        lines = cleaned.split('\n')
+        if len(lines) > 2:
+            cleaned = '\n'.join(lines[1:-1])  # 처음과 마지막 줄 제거
+        else:
+            cleaned = cleaned.replace('```', '').strip()
+
+    return cleaned.strip()
+
 async def generate_with_reference_node(state: TemplateGenerationState) -> Dict[str, Any]:
     logger.info("=" * 60)
     logger.info("5a단계: 참고 템플릿 기반 생성 시작")
@@ -359,7 +376,8 @@ async def generate_with_reference_node(state: TemplateGenerationState) -> Dict[s
             extracted_fields=state["extracted_fields"]
         )
         messages = prompt_builder.build()
-        template = await state["openai_service"].chat_completion(messages)
+        raw_template = await state["openai_service"].chat_completion(messages)
+        template = clean_template_response(raw_template)
         logger.info("✅ 참고 템플릿 기반 생성 성공")
         return {"generated_template": template, "generation_hint": "reference_based"}
     except Exception as e:
@@ -382,7 +400,8 @@ async def search_public_and_generate_node(state: TemplateGenerationState) -> Dic
             public_templates=pulblic_templates
         )
         messages = prompt_builder.build()
-        template = await state["openai_service"].chat_completion(messages)
+        raw_template = await state["openai_service"].chat_completion(messages)
+        template = clean_template_response(raw_template)
         logger.info(f"✅ 신규 생성 성공 (방식: {hint})")
         return {"generated_template": template, "generation_hint": hint, "pulblic_templates": pulblic_templates}
     except Exception as e:
