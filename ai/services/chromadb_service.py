@@ -21,8 +21,7 @@ load_dotenv()
 class ChromaDBService:
     def __init__(self):
         self.client = None
-        self.approved_collection = None
-        self.pulblic_templates = None
+        self.collections: Dict[str, Any] = {}
         self._connect()
 
     def _connect(self):
@@ -42,10 +41,15 @@ class ChromaDBService:
                 self.client = chromadb.PersistentClient(path=persist_dir)
                 logger.info(f"✅ 로컬 ChromaDB 연결 성공: {persist_dir}")
 
-            self.approved_collection = self.client.get_or_create_collection("approved_templates")
-            self.pulblic_templates = self.client.get_or_create_collection("pulblic_templates")
-            logger.info("✅ 컬렉션('approved_templates', 'pulblic_templates') 로드 완료")
-            self.is_mock = False
+            required_collections = [
+                "approved_templates",
+                "public_templates",   # 오타 pulblic → public
+                "denied_templates",
+                "blacklist",
+            ]
+            for col in required_collections:
+                self.collections[col] = self.client.get_or_create_collection(col)
+                logger.info(f"✅ 컬렉션 준비 완료: {col}")
         except Exception as e:
             logger.error(f"❌ ChromaDB 연결 또는 컬렉션 로드 실패: {e}", exc_info=True)
             self.client = None
@@ -80,6 +84,9 @@ class ChromaDBService:
         Returns:
             List[Dict]: 검색된 템플릿 리스트 (유사도 기준 정렬됨)
         """
+
+        collection = self.collections.get(collection_name)
+        
         # 컬렉션 선택
         if collection_name == "approved_templates":
             collection = self.approved_collection
@@ -87,6 +94,10 @@ class ChromaDBService:
         elif collection_name == "pulblic_templates":
             collection = self.pulblic_templates
             logger.info("  - 검색 대상: 공용 템플릿")
+        elif collection_name == "blacklist":
+            logger.info("  - 검색 대상: 블랙리스트")
+        elif collection_name == "denied_templates":
+            logger.info("  - 검색 대상: 반려된 템플릿")
         else:
             logger.error(f"❌ 알 수 없는 컬렉션: {collection_name}")
             return []
