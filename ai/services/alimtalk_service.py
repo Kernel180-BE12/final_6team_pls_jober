@@ -8,17 +8,18 @@ import re
 from pathlib import Path
 from typing import Dict, Any, List, Union
 
-from .chromadb_service import ChromaDBService
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from services.chromadb_service import ChromaDBService
 
 try:
-    from .openai_service import OpenAIService
+    from services.openai_service import OpenAIService
     HAS_OPENAI_SERVICE = True
 except ImportError:
     HAS_OPENAI_SERVICE = False
     print("Warning: OpenAI 서비스를 로드할 수 없습니다. Mock 모드로 실행됩니다.")
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.alimtalk_models import (
     ValidationRequest, ValidationResponse, ValidationResult, ProblemArea

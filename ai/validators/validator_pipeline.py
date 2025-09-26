@@ -1,10 +1,14 @@
 """
 검증 파이프라인 - 2단계 검증을 순차적으로 실행
 """
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from typing import Dict, Any
-from .constraint_validator import ConstraintValidator
-from .semantic_validator import SemanticValidator
-from .utils import extract_variables_from_template
+from validators.constraint_validator import ConstraintValidator
+from validators.semantic_validator import SemanticValidator
+from validators.utils import extract_variables_from_template
 from models.alimtalk_models import ValidationResult
 from services.chromadb_service import ChromaDBService
 

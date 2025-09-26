@@ -12,12 +12,16 @@ from typing import Dict, Any, List
 import json
 import logging
 
-from ..models.alimtalk_models import ValidationResult
-from ..services.openai_service import OpenAIService
-from .prompts.informational_message_prompt import get_informational_message_validation_prompt
-from .prompts.variable_usage_prompt import get_variable_usage_validation_prompt
-from .prompts.template_writing_prompt import get_template_writing_validation_prompt
-from .prompts.system_prompts import get_system_prompt
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from models.alimtalk_models import ValidationResult
+from services.openai_service import OpenAIService
+from validators.prompts.informational_message_prompt import get_informational_message_validation_prompt
+from validators.prompts.variable_usage_prompt import get_variable_usage_validation_prompt
+from validators.prompts.template_writing_prompt import get_template_writing_validation_prompt
+from validators.prompts.system_prompts import get_system_prompt
 
 logger = logging.getLogger(__name__)
 
