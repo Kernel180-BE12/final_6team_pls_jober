@@ -35,7 +35,7 @@ async def classify_message_type_node(state: TemplateGenerationState) -> Dict[str
     except Exception as e:
         logger.error(f"❌ 메시지 유형 분류 실패: {e}", exc_info=True)
         return {"message_type_result": {"type": "BASIC", "explain_type": "분류 실패로 기본값 적용"}}
-
+ 
 async def parallel_title_category_node(state: TemplateGenerationState) -> Dict[str, Any]:
     logger.info("=" * 60)
     logger.info("2단계: 제목 생성 및 카테고리 분류 (병렬) 시작")
