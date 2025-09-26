@@ -28,21 +28,10 @@ api.interceptors.request.use(
     // 로그인 관련 API는 토큰이 필요하지 않음
     const isAuthAPI = config.url?.includes('/auth/')
     
-    console.log('API 요청 인터셉터 - URL:', config.url)
-    console.log('API 요청 인터셉터 - 사용자 토큰 상태:', {
-      hasToken: !!userStore.accessToken,
-      token: userStore.accessToken ? `${userStore.accessToken.substring(0, 20)}...` : 'null',
-      isAuthAPI,
-      isLoggedIn: userStore.isLoggedIn,
-      accountId: userStore.accountId,
-      userName: userStore.userName
-    })
-    
     if (!userStore.accessToken && !isAuthAPI) {
       console.warn('API 요청 시 토큰이 없습니다. 로그인이 필요할 수 있습니다.')
     } else if (userStore.accessToken) {
       config.headers.Authorization = `Bearer ${userStore.accessToken}`
-      console.log('Authorization 헤더 설정됨:', `Bearer ${userStore.accessToken.substring(0, 20)}...`)
     }
     return config
   },
@@ -65,10 +54,6 @@ aiApi.interceptors.request.use(
 // 백엔드 API 응답 인터셉터
 api.interceptors.response.use(
   (response) => {
-    // 카카오 로그인 응답에 대한 디버깅
-    if (response.config.url?.includes('/auth/kakao/login')) {
-      console.log('카카오 로그인 API 응답:', response.data)
-    }
     return response
   },
   async (error) => {
@@ -174,8 +159,6 @@ export const templateApi = {
       templateId: templateId
     }
     
-    console.log('검증 요청 데이터:', validationRequest)
-    console.log('요청 URL:', aiApi.defaults.baseURL + '/template/validate')
     
     return aiApi.post('/template/validate', validationRequest)
   },
@@ -207,9 +190,6 @@ export const templateApi = {
       templateTitle: templateTitle
     }
 
-    console.log('저장 요청 데이터:', saveRequest)
-    console.log('variableList 타입:', typeof variableNames, Array.isArray(variableNames))
-    console.log('variableList 내용:', variableNames)
 
     return api.post('/template/save', saveRequest)
   },
