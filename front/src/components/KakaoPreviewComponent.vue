@@ -24,15 +24,6 @@
             <span class="toggle-text">{{ isExpanded ? '접기' : '자세히 보기' }}</span>
           </div>
         </div>
-<<<<<<< HEAD
-
-        <div 
-          class="kakao-message" 
-          v-html="formattedTemplateContent"
-          @click="handleProblemAreaClick"
-        ></div>
-=======
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
       </div>
     </div>
     <!-- 하단 컨트롤은 TemplateResultView에서 처리됨 -->
@@ -133,18 +124,16 @@ const formattedTemplateContent = computed(() => {
     /\[([^\]]+)\]/g       // [변수] - 대괄호 형태도 변수로 처리
   ]
 
-<<<<<<< HEAD
+  varPatterns.forEach(pattern => {
+    content = content.replace(pattern, (match, varName) => {
+      const variableName = varName.trim()
+      let variableClass = 'variable-gray'
+      
       if (props.isRejected && props.rejectedVariables && props.rejectedVariables.includes(variableName)) {
         variableClass += ' rejected-highlight'
       }
 
-      return `<span class="${variableClass}" data-variable="${variableName}">{${variableName}}</span>`
-=======
-  varPatterns.forEach(pattern => {
-    content = content.replace(pattern, (match, varName) => {
-      const variableName = varName.trim()
-      return `<span class="variable-gray">#{${variableName}}</span>`
->>>>>>> c1e1ee42278c5f8af972b279cbf33ee431ac001f
+      return `<span class="${variableClass}" data-variable="${variableName}">#{${variableName}}</span>`
     })
   })
 
@@ -214,6 +203,23 @@ const toggleExpansion = () => {
 watch(() => props.variables, (newVariables) => {
   editedVariables.value = [...newVariables]
 }, { deep: true })
+
+// 변수 클릭 이벤트 처리
+const handleVariableClick = (event: Event) => {
+  event.preventDefault()
+  event.stopPropagation()
+  
+  const target = event.target as HTMLElement
+  
+  // 변수 클릭 시 변수 편집 모드로 전환하거나 다른 동작 수행
+  if (target.classList.contains('variable-gray') || target.classList.contains('rejected-highlight')) {
+    const variableName = target.getAttribute('data-variable')
+    if (variableName) {
+      console.log('변수 클릭됨:', variableName)
+      // 변수 편집 로직 추가 가능
+    }
+  }
+}
 
 // 문제 영역 클릭 이벤트 처리
 const handleProblemAreaClick = (event: Event) => {
