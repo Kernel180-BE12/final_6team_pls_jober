@@ -27,7 +27,7 @@ class ChromaDBService:
     def __init__(self):
         self.client = None
         self.approved_collection = None
-        self.pulblic_templates = None
+        self.public_templates = None
         self._connect()
 
     def _connect(self):
@@ -48,8 +48,8 @@ class ChromaDBService:
                 logger.info(f"✅ 로컬 ChromaDB 연결 성공: {persist_dir}")
 
             self.approved_collection = self.client.get_or_create_collection("approved_templates")
-            self.pulblic_templates = self.client.get_or_create_collection("pulblic_templates")
-            logger.info("✅ 컬렉션('approved_templates', 'pulblic_templates') 로드 완료")
+            self.public_templates = self.client.get_or_create_collection("pulblic_templates")
+            logger.info("✅ 컬렉션('approved_templates', 'public_templates') 로드 완료")
             self.is_mock = False
         except Exception as e:
             logger.error(f"❌ ChromaDB 연결 또는 컬렉션 로드 실패: {e}", exc_info=True)
@@ -97,11 +97,11 @@ class ChromaDBService:
 
     def search_public_templates(self, query_text: str, top_k: int = 3) -> List[Dict]:
         logger.info("  - 검색 대상: 공용 템플릿")
-        if not self.pulblic_templates:
-            logger.warning("⚠️ 'pulblic_templates' 컬렉션이 없습니다.")
+        if not self.public_templates:
+            logger.warning("⚠️ 'public_templates' 컬렉션이 없습니다.")
             return []
         try:
-            results = self.pulblic_templates.query(
+            results = self.public_templates.query(
                 query_texts=[query_text], n_results=top_k, include=['documents', 'metadatas', 'distances']
             )
             templates = []

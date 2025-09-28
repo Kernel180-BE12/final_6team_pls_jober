@@ -61,11 +61,11 @@ class SemanticValidator:
             return
         try:
             logger.info("🔍 컬렉션 디버깅 시작...")
-            # 이제 approved_collection과 pulblic_templates는 항상 존재합니다.
+            # 이제 approved_collection과 public_templates는 항상 존재합니다.
             bl_count = self.chromadb_service.approved_collection.count()
-            dn_count = self.chromadb_service.pulblic_templates.count()
+            dn_count = self.chromadb_service.public_templates.count()
             logger.info(f"📊 approved_templates 컬렉션: {bl_count}개 문서")
-            logger.info(f"📊 pulblic_templates 컬렉션: {dn_count}개 문서")
+            logger.info(f"📊 public_templates 컬렉션: {dn_count}개 문서")
         except Exception as e:
             logger.error(f"❌ 컬렉션 디버깅 중 오류: {e}")
 
@@ -91,7 +91,7 @@ class SemanticValidator:
                 return []
             results, _ = self.chromadb_service.search_approved_templates(query_text=text, category_sub=category_sub, top_k=n_results)
             return results
-        elif collection_name == "pulblic_templates":
+        elif collection_name == "public_templates":
             results = self.chromadb_service.search_public_templates(query_text=text, top_k=n_results)
             return results
         else:

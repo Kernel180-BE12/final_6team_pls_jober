@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 from datetime import datetime
-from templateEngine.state import TemplateGenerationState
 
 
 class BasePromptBuilder(ABC):
@@ -22,52 +21,110 @@ class BasePromptBuilder(ABC):
         pass
 
 class FieldsPromptBuilder(BasePromptBuilder):
-    """핵심 변수 추출 - 간단하고 명확한 key-value 매핑"""
+    """메시지에서 변수로 처리할 필드를 추출하는 프롬프트 빌더"""
     def build(self) -> List[Dict]:
+        # 오늘 날짜를 YYYY-MM-DD 형식으로 가져옵니다.
         today_str = datetime.now().strftime('%Y-%m-%d')
 
-        system_prompt = f"""당신은 '핵심 변수 추출 전문가'입니다.
-사용자 메시지에서 **템플릿 생성에 필요한 핵심 정보만** 추출하여 key-value로 매핑합니다.
+        system_prompt = f"""당신은 텍스트에서 변수를 추출하고 정제하는 '데이터 엔지니어'입니다.
+주어진 본문에서 **템플릿화할 수 있는 모든 정보**를 찾아 변수로 추출해야 합니다.
 
 **오늘 날짜: {today_str}**
 
-**추출할 핵심 변수 (5가지):**
-1. `customer_title`: 고객 호칭 (고객님, 회원님 등)
-2. `company_name`: 회사명/브랜드명  
-3. `main_content`: 핵심 안내 메시지 (가장 중요한 내용 1-2문장)
-4. `contact_info`: 연락처/문의 정보 전체
-5. `closing_message`: 마무리 인사/메시지
+**변수 추출 기준:**
+- 개인 정보: 이름, 전화번호, 주소, 주문번호 등
+- 호칭/대명사: "고객님", "회원님", 특정 이름 등 **개인화 가능한 모든 호칭**  
+- 날짜/시간: 특정 날짜, 기간, 시간 등
+- 금액/수치: 가격, 할인율, 수량 등  
+- 이벤트 정보: 테마, 장소, 상품명, 브랜드명 등
+- 연락처 정보: 전화번호, 이메일 등
+- **템플릿에서 다른 값으로 치환될 가능성이 있는 모든 구체적인 정보**
 
-**추출 원칙:**
-- 각 키에 해당하는 **전체 내용**을 value로 매핑
-- 중복되는 내용은 가장 적합한 하나의 키에만 매핑
-- 없는 정보는 추출하지 않음
-- 핵심적이고 변경 가능한 부분만 추출
+**변수 추출 및 정제 규칙:**
+1. **날짜 추론:** '오늘', '내일', '모레'와 같은 상대적인 날짜 표현이 나오면, **오늘 날짜({today_str})를 기준**으로 실제 날짜(YYYY-MM-DD)를 계산하여 값으로 사용해야 합니다.
+   - 예: 오늘이 2024-01-15이고 본문에 '내일'이 있으면, 값은 '2024-01-16'이 됩니다.
 
-**완벽한 예시:**
-입력: "장수돌침대를 아껴주시는 고객님께 감사드립니다. 겨울철 A/S 및 사전점검을 안내드립니다. 1599-9988로 연락주세요. 감사합니다."
+2. **변수명 규칙:**
+   - **영문 소문자**와 **스네이크 케이스(snake_case)**만 사용해야 합니다.
+   - 표준 변수명 사용:
+     * 고객 이름: `customer_name`
+     * 고객 호칭: `customer_title` (예: "고객님", "회원님")
+     * 전화번호: `phone_number`  
+     * 도착 예정일: `arrival_date`
+     * 주문번호: `order_id`
+     * 금액: `amount`
+     * 할인율: `discount_rate`
+     * 장소: `location`
+     * 테마/제목: `theme` 또는 `title`
+     * 브랜드명: `brand_name`
+     * 기간: `event_period` 또는 `start_date`, `end_date`
 
-출력:
+3. **추출 대상:** 이름, 날짜, 시간, 금액, 주문번호, 할인율, 장소, 상품명, 전화번호, 주소, 테마, 브랜드명, 기간 등 **구체적이고 변경 가능한 모든 정보**를 빠짐없이 추출해야 합니다.
+   
+   **⚠️ 특별 주의사항:**
+   - "고객님", "회원님" 등의 **호칭도 반드시 변수로 추출**하세요 (개인 이름으로 변경 가능)
+   - 아무리 일반적인 표현이라도 **개인화 가능한 모든 호칭**은 변수로 처리하세요
+
+**출력 형식:**
+- 추출된 값과 그에 해당하는 변수명을 JSON 형식으로 매핑하세요.
+- 변수화할 필드가 전혀 없으면, 반드시 빈 JSON 객체를 반환하세요: {{}}
+
+**완벽한 예시 1:**
+- 본문: "김철수님, 주문번호 ORD-123이 50,000원 결제 완료되었습니다."
+- 응답:
 {{
-    "customer_title": "고객님",
-    "company_name": "장수돌침대",
-    "main_content": "겨울철 A/S 및 사전점검을 안내드립니다",
-    "contact_info": "1599-9988로 연락주세요",
-    "closing_message": "감사합니다"
+    "customer_name": "김철수",
+    "order_id": "ORD-123", 
+    "amount": "50,000원"
 }}
 
-**출력 형식:** JSON 객체만 반환하세요.
+**완벽한 예시 2:**
+- 오늘 날짜: 2024-01-15
+- 본문: "고객님의 상품이 내일 도착 예정입니다."
+- 응답:
+{{
+    "arrival_date": "2024-01-16"
+}}
+
+**완벽한 예시 3:**
+- 본문: "나이키 브랜드 세일 50% 할인! 강남점 1층에서 진행중입니다. 문의: 02-1234-5678"  
+- 응답:
+{{
+    "brand_name": "나이키",
+    "discount_rate": "50%",
+    "location": "강남점 1층",
+    "phone_number": "02-1234-5678"
+}}
+
+**완벽한 예시 4:**
+- 본문: "오일릴리 이월행사가 2021년 10월 06일부터 10월 10일까지 롯데백화점 광주점 9층에서 진행됩니다."
+- 응답:
+{{
+    "brand_name": "오일릴리",
+    "theme": "이월행사", 
+    "start_date": "2021년 10월 06일",
+    "end_date": "2021년 10월 10일",
+    "location": "롯데백화점 광주점 9층"
+}}
+
+**완벽한 예시 5:**
+- 본문: "안녕하세요 고객님, 롯데백화점에서 특별 할인 행사를 진행합니다."
+- 응답:
+{{
+    "customer_title": "고객님",
+    "location": "롯데백화점"
+}}
 """
 
         messages = [
             {"role": "system", "content": system_prompt},
-            *self._build_hint_messages(),
+            *self._build_hint_messages(), # 힌트가 있다면 여기에 추가됨
             {"role": "user", "content": f"분석할 본문:\n{self.userMessage}"}
         ]
         return messages
 
-
 class CategoryPromptBuilder(BasePromptBuilder):
+    """카테고리 분류 프롬프트 빌더 - 적합성 판단 기능 추가"""
     def __init__(self, userMessage: str, category_sub_list: List[str]):
         super().__init__(userMessage)
         self.category_sub_list = category_sub_list
@@ -89,6 +146,13 @@ class CategoryPromptBuilder(BasePromptBuilder):
                 "confidence": 85,
                 "selection_reason": "최종 선택 근거 상세 설명"
             }}
+            // 또는, 적합한 것이 없을 경우:
+            {{
+                "is_appropriate": false,
+                "category_sub": null,
+                "confidence": 30,
+                "selection_reason": "예: '사전 점검 및 AS 안내'는 단순 '방문서비스'나 '이용안내'와는 성격이 달라 적합한 후보가 없습니다."
+            }}
             """
         messages = [
             {"role": "system", "content": system_prompt},
@@ -98,6 +162,7 @@ class CategoryPromptBuilder(BasePromptBuilder):
 
 
 class NewCategoryPromptBuilder(BasePromptBuilder):
+    """신규 카테고리 생성 프롬프트 빌더"""
     def __init__(self, userMessage: str, existing_categories: List[str]):
         super().__init__(userMessage)
         self.existing_categories = existing_categories
@@ -108,12 +173,12 @@ class NewCategoryPromptBuilder(BasePromptBuilder):
             다음 메시지 내용의 핵심을 가장 잘 나타내는 새로운 카테고리명을 1개 생성해주세요.
             
             생성 규칙:
-            1. 기존 카테고리들의 스타일과 형식을 반드시 따르세요.
+            1. 기존 카테고리들의 스타일과 형식을 반드시 따르세요. (예: '구매완료', '배송상태' 처럼 '명사' 또는 '명사+동사' 형태)
             2. 간결하고 명확해야 합니다. (2~5자 내외)
             3. 생성된 카테고리명만 JSON 형식으로 응답하세요.
             
             기존 카테고리 스타일 참고:
-            {', '.join(self.existing_categories[:10])}
+            {', '.join(self.existing_categories[:10])} # 일부만 보여줘도 스타일 파악 가능
             
             JSON 응답 형식:
             {{
@@ -124,8 +189,7 @@ class NewCategoryPromptBuilder(BasePromptBuilder):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"다음 메시지에 대한 새로운 카테고리명을 생성해주세요:\n{self.userMessage}"}
         ]
-        return message
-
+        return messages
 
 class TypePromptBuilder(BasePromptBuilder):
     def __init__(self, userMessage: str):
@@ -259,215 +323,200 @@ class TypePromptBuilder(BasePromptBuilder):
             }
         ]
         return prompt
+# @TODO: TypePromptBuilder langGraph 동작 확인 시, 주석 버전 삭제하기
+# class TypePromptBuilder(BasePromptBuilder):
+#     """메시지 유형 분류 프롬프트 빌더"""
+#     def build(self) -> List[Dict]:
+#         system_prompt = """
+# 당신은 카카오 알림톡 메시지 유형 분류 전문가입니다.
+# 메시지를 다음 4가지 유형으로 분류해주세요:
+#
+# 1. BASIC: 기본 정보만 포함 (이름, 일시, 금액 등)
+# 2. EXTRA_INFO: 기본 정보 + 부가 설명이나 안내사항
+# 3. CHANNEL_ADD: 기본 정보 + 채널 추가/링크 유도
+# 4. HYBRID: 기본 정보 + 부가 설명 + 채널 링크
+#
+# 분석 요소:
+# - has_channel_link: 채널톡, 카카오톡 채널, 웹사이트 링크 포함 여부
+# - has_extra_info: 추가 안내사항, 주의사항, 부가 설명 포함 여부
+#
+# JSON 형식으로 응답하세요:
+# {
+#     "type": "분류 결과",
+#     "has_channel_link": true/false,
+#     "has_extra_info": true/false,
+#     "explain_type": "분류 이유 설명"
+# }
+# """
+#
+#         messages = [
+#             {"role": "system", "content": system_prompt},
+#             *self._build_hint_messages(),
+#             {"role": "user", "content": f"분석할 메시지:\n{self.user_text}"}
+#         ]
+#
+#         return messages
 
 class TemplateTitlePromptBuilder:
+    """템플릿 제목 생성 프롬프트 빌더"""
     def __init__(self, userMessage: str):
         self.userMessage = userMessage
 
     def build(self) -> List[Dict]:
         system_prompt = """
-카카오 알림톡 템플릿의 간결한 제목을 생성하는 전문가입니다.
+카카오 알림톡 템플릿의 제목을 생성하는 전문가입니다.
+다음 규칙을 따라 제목을 생성하세요:
 
-생성 규칙:
-1. 8자 이내로 간결하게
-2. 메시지의 핵심 목적을 명확히 표현
-3. 고객이 한눈에 이해할 수 있는 표현
-4. 제목만 출력 (따옴표, 추가 설명 불필요)
+1. 10자 이내로 간결하게
+2. 메시지의 핵심 내용을 포함
+3. 사용자가 쉽게 이해할 수 있는 명확한 표현
+4. 제목만 출력 (추가 설명 불필요)
 
 예시:
-- "점검안내"
-- "서비스안내" 
-- "예약확인"
-- "결제완료"
+- "주문완료 안내"
+- "배송출발 알림"
+- "예약확정 통보"
 """
+
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"다음 메시지의 제목을 생성해주세요:\n{self.userMessage}"}
         ]
+
         return messages
 
 class ReferenceBasedTemplatePromptBuilder:
-    """참고 템플릿 기반 - 실제 내용으로 완성된 템플릿 생성"""
-    def __init__(self, userMessage: str, reference_templates: List[Dict], extracted_fields: Dict[str, str]):
+    """참고 템플릿 기반 생성 프롬프트 빌더"""
+    def __init__(self, userMessage: str, reference_templates: List[Dict], extracted_fields: Dict):
         self.userMessage = userMessage
         self.reference_templates = reference_templates
         self.extracted_fields = extracted_fields
 
     def build(self) -> List[Dict]:
+        """
+        - 참고 템플릿들을 문자열로 구성
+        - LLM에게 제목,목적 등 추가적인 맥락을 제공하여, 생성될 템플릿의 목적성을 더 명확하게 만듦.
+        """
         reference_context = ""
         for i, template in enumerate(self.reference_templates, 1):
             similarity = template.get('similarity', 0)
-            reference_context += f"\n=== 참고 템플릿 {i} (유사도: {similarity:.3f}) ===\n{template.get('text', '')}\n"
+            metadata = template.get('metadata', {})
+            # 👇 메타데이터에서 '자동 생성 제목'이나 '목적 분류' 같은 유용한 정보를 추가
+            title_hint = metadata.get('자동 생성 제목', '제목 정보 없음')
 
-        variables_info = self._format_variables()
+            reference_context += f"\n=== 참고 템플릿 {i} (유사도: {similarity:.3f}, 제목: '{title_hint}') ===\n{template.get('text', '')}\n"
 
-        system_prompt = f"""당신은 '완성도 있는 알림톡 템플릿 작성자'입니다.
+        # 👇 변수 처리 규칙을 명시적으로 추가
+        variable_rules = ""
+        if self.extracted_fields:
+            variable_rules = "\n\n**중요 변수 처리 규칙:**\n"
+            variable_rules += "다음 텍스트는 반드시 지정된 변수명으로 대체하여 `#{변수명}` 형태로 표현해야 합니다.\n"
+            for value, var_name in self.extracted_fields.items():
+                variable_rules += f"- '{value}'는 -> `#{{{var_name}}}'\n`으로 변경하세요.\n"
 
-**[미션]**
-추출된 변수들과 원본 메시지를 활용하여 **실제 내용으로 완성된** 알림톡 템플릿을 생성하세요.
-
-**[원본 메시지]**
-{self.userMessage}
-
-**[추출된 변수들]**
-{variables_info}
-
-**[참고 템플릿]**
-{reference_context}
-
-**[생성 규칙]**
-1. **완성된 내용**: 변수명이나 따옴표 없이 실제 내용으로만 구성
-2. **풍부한 구성**: 원본 메시지의 상세한 내용을 최대한 활용
-3. **자연스러운 흐름**: 고객이 읽기 편하고 이해하기 쉬운 완성된 문장
-4. **실제 값 사용**: 추출된 변수의 value 값들을 자연스럽게 배치
-
-**[완성된 템플릿 예시]**
-```
-안녕하세요 고객님,
-
-장수돌침대에서 겨울철 서비스 개편을 안내드립니다.
-
-겨울철 대비 장수돌침대 사전 점검 및 A/S 서비스를 안내드립니다.
-
-보다 따뜻하고 안전한 사용을 위해 미리 점검과 유지보수를 권장드립니다. 
-정기적인 점검으로 제품의 수명을 연장하고 최상의 성능을 유지하실 수 있습니다.
-장수돌침대 서비스만의 전문적인 기술력으로 제품 효율을 극대화해드립니다.
-
-사전점검 및 A/S 문의: 1599-9988
-고장이나 이상 증상 시 신속한 상담: 1588-9988
-
-불편함 예방을 위해 사용 전 이상 여부를 미리 확인하시기 바랍니다.
-
-고객님의 겨울을 책임지는 장수돌침대가 되겠습니다.
-
-*본 알림은 정보통신망법에 따라 발송되었습니다.
-```
-
-**중요**: 
-- 변수명(#{{}}, '', 등) 절대 사용 금지
-- 실제 내용으로만 구성된 완성된 템플릿 생성
-- 원본의 풍부한 내용을 살려서 구성
-"""
-
+        system_prompt = f"""
+            당신은 최고의 템플릿 구조를 분석하고 모방하는 '템플릿 아키텍트'입니다.
+            
+            **[미션]**
+            1.  아래에 제공된 '참고 템플릿'들의 **구조적 장점(줄 바꿈, 항목 구분, 강조 표시 등)을 분석**하세요.
+            2.  분석한 구조를 바탕으로, '사용자 요청'과 '변수 처리 규칙'에 맞춰 가장 이상적인 새 템플릿을 **재창조**하세요.
+            
+            {variable_rules}
+            다음 승인된 템플릿들을 참고하여 새로운 템플릿을 생성하세요:
+            
+            **[참고 템플릿 분석]**
+            {reference_context}
+            
+            **[학습 포인트]**
+            - 위 참고 템플릿들에서 `#{{변수명}}`이 어떤 위치에, 어떤 이름으로 사용되었는지 학습하세요.
+            - 예를 들어, 참고 템플릿에 `#{{order_no}}`가 있다면, 새로운 템플릿에서도 주문번호는 비슷한 위치에 `#{{order_id}}`와 같이 배치하는 것이 좋습니다.
+            
+            생성 규칙:
+            1. 변수는 #{{변수명}} 형태로 표현, 변수 처리 규칙을 100% 준수해야 합니다.
+            2. 참고 템플릿의 구조 모방 : 참고 템플릿의 인사말, 본문, 항목 구분(예: '■'), 마무리, 발송 근거 등의 구조를 적극적으로 따라야 합니다.
+            3. 톤앤매너 유지
+            3. 광고성 내용 금지, 정보성/안내성 내용만
+            4. 발송 근거를 하단에 명시 (*로 시작)
+            5. 카카오톡 알림톡 규정 준수
+            6. **내용 창작:** 구조는 모방하되, 내용은 '사용자 요청'에 맞게 새롭게 작성해야 합니다.
+            
+            템플릿 본문만 출력하세요 (변수 설명이나 추가 안내 불포함):
+            """
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": "위 규칙에 따라 완성된 템플릿을 생성해주세요."}
+            {"role": "user", "content": f"사용자 요청:\n{self.userMessage}"}
         ]
+
         return messages
 
-    def _format_variables(self) -> str:
-        if not self.extracted_fields:
-            return "추출된 변수가 없습니다."
-
-        formatted = []
-        for key, value in self.extracted_fields.items():
-            formatted.append(f"- {key}: '{value}'")
-        return "\n".join(formatted)
-
-    def _format_variables(self) -> str:
-        if not self.extracted_fields:
-            return "추출된 변수가 없습니다."
-
-        formatted = []
-        for key, value in self.extracted_fields.items():
-            formatted.append(f"- {key}: '{value}'")
-        return "\n".join(formatted)
-
-
 class NewTemplatePromptBuilder:
-    """신규 템플릿 생성 - 실제 내용으로 완성된 템플릿 생성"""
-    def __init__(self, userMessage: str, extracted_fields: Dict[str, str], public_templates: Optional[List[Dict]] = None):
+    """신규 템플릿 생성 프롬프트 빌더 - 카카오 공용 템플릿 기반"""
+    def __init__(self, userMessage: str,  extracted_fields: Dict, public_templates: Optional[List[Dict]] = None):
         self.userMessage = userMessage
-        self.extracted_fields = extracted_fields
+        self.extracted_fields = extracted_fields  # 👈 전달받은 인자를 self.extracted_fields에 저장
         self.public_templates = public_templates or []
 
     def build(self) -> List[Dict]:
-        variables_info = self._format_variables()
-
         public_context = ""
         if self.public_templates:
-            public_context = "\n\n**[공용 템플릿 참고]**\n"
-            for i, template in enumerate(self.public_templates[:2], 1):
+            public_context = "\n\n=== 카카오 공용 템플릿 참고 ===\n"
+            for i, template in enumerate(self.public_templates[:3], 1):  # 최대 3개만
                 public_context += f"{i}. {template.get('text', '')}\n\n"
+        # 👇 변수 처리 규칙을 명시적으로 추가
+        variable_rules = ""
+        if self.extracted_fields:
+            variable_rules = "\n\n**중요 변수 처리 규칙:**\n"
+            variable_rules += "아래 규칙에 따라, 원본 메시지의 특정 단어를 `#{변수명}` 형태로 반드시 교체해야 합니다.\n"
+            # extracted_fields가 { "변수값": "변수명" } 형태라고 가정
+            for value, var_name in self.extracted_fields.items():
+                variable_rules += f"- '{value}'는 `#{{{var_name}}}`으로 변경하세요.\n"
 
-        system_prompt = f"""당신은 '완성도 있는 알림톡 템플릿 작성자'입니다.
+        system_prompt = f"""
+            **[당신의 역할]**
+            당신은 15년차 카피라이터이자 카카오 알림톡 템플릿 검수 전문가입니다.
+            고객에게 전달되는 메시지인 만큼, 명확하고 친절하며 프로페셔널한 톤앤매너를 유지해야 합니다.
+            아래 제공된 모든 규칙을 완벽하게 준수하여, 단 하나의 템플릿만 생성해야 합니다.
+            사용자가 제공한 '변수 처리 규칙'을 완벽하게 준수해야 합니다.
+            
+            {variable_rules}
+            **[필수 규칙 2: 템플릿 구조]**
+            1.  **인사:** "안녕하세요, 고객님." 과 같이 부드러운 문장으로 시작합니다.
+            2.  **핵심 내용:** 전달하려는 가장 중요한 내용을 먼저 제시합니다.
+            3.  **상세 정보 (선택 사항):** 필요시, '■' 또는 '-' 기호를 사용하여 정보를 항목별로 명확하게 구분합니다.
+            4.  **마무리:** "감사합니다." 또는 "많은 이용 부탁드립니다." 와 같은 긍정적인 문장으로 끝맺습니다.
+            5.  **발송 근거:** 템플릿 가장 마지막 줄에는 `*`로 시작하는 발송 근거를 반드시 포함해야 합니다. (예: `*본 알림은 정보통신망법에 따라 발송되었습니다.`)
 
-**[미션]**
-추출된 변수들과 원본 메시지를 활용하여 **실제 내용으로 완성된** 알림톡 템플릿을 생성하세요.
-
-**[원본 메시지]**
-{self.userMessage}
-
-**[추출된 변수들]**
-{variables_info}
-
-{public_context}
-
-**[생성 원칙]**
-1. **완성된 내용**: 변수명이나 따옴표 없이 실제 내용으로만 구성
-2. **풍부한 구성**: 원본 메시지의 상세한 내용을 최대한 활용하여 완성도 있게 구성
-3. **자연스러운 문체**: 고객이 이해하기 쉽고 친근하며 전문적인 완성된 문장
-4. **실제 값 활용**: 추출된 변수의 실제 값들을 자연스럽게 배치
-
-**[완성된 템플릿 예시 - 장수돌침대 케이스]**
-```
-안녕하세요 고객님,
-
-장수돌침대에서 겨울철 서비스 개편을 안내드립니다. 내용은 다음과 같습니다.
-
-겨울철 대비 장수돌침대 사전 점검 및 A/S 서비스를 안내드립니다. 보다 따뜻하고 안전한 사용을 위해 미리 점검과 유지보수를 권장드립니다.
-
-정기적인 점검으로 제품의 수명을 연장하고 최상의 성능을 유지하실 수 있습니다.
-장수돌침대 서비스만의 전문적인 기술력으로 제품 효율을 극대화해드립니다.
-
-사전점검 및 A/S 문의: 1599-9988
-고장이나 이상 증상 시 신속한 상담: 1588-9988
-
-불편함 예방을 위해 사용 전 이상 여부를 미리 확인하시기 바랍니다.
-
-감사합니다.
-
-*본 알림은 정보통신망법에 따라 발송되었습니다.
-```
-
-**중요**: 
-- 실제 발송 가능한 완성된 템플릿으로 생성
-- 원본의 풍부한 내용을 살려서 구성하되 너무 간략하게 하지 말 것
-"""
+            **[좋은 템플릿의 조건]**
+            1.  **친절함:** 딱딱하지 않고 부드러운 문장으로 시작하고 끝냅니다.
+            2.  **명확성:** 핵심 정보를 쉽게 파악할 수 있도록 줄 바꿈과 구성을 활용합니다.
+            3.  **정확성:** 변수 규칙을 포함한 모든 규칙을 100% 준수합니다.
+            
+            **[생성 예시]**
+            - 사용자 요청: "김철수님, 주문하신 상품(스마트폰)이 정상적으로 접수되었습니다. 주문번호는 ORD-2024-001이며, 결제금액은 850,000원입니다."
+            - 변수 규칙: '김철수' -> `customer_name`, 'ORD-2024-001' -> `order_id`, '850,000' -> `amount`
+            - 좋은 템플릿 결과:
+            안녕하세요, #{{customer_name}}님.
+            주문하신 상품이 정상적으로 접수되었습니다.
+            
+            ■ 주문번호: #{{order_id}}
+            ■ 결제금액: #{{amount}}원
+            
+            상품 준비 후 배송이 시작되면 다시 한번 안내해 드리겠습니다.
+            저희 서비스를 이용해 주셔서 감사합니다.
+            
+            *본 알림은 정보통신망법에 따라 발송되었습니다.
+            
+            ---
+            위 예시와 모든 규칙을 참고하여, 주어진 요청에 맞는 최고의 템플릿을 생성해주세요.
+            
+            {public_context}
+            
+            템플릿 본문만 출력하세요:
+            """
 
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": "위 원칙에 따라 완성된 템플릿을 생성해주세요."}
+            {"role": "user", "content": f"다음 요청에 맞는 알림톡 템플릿을 생성해주세요:\n{self.userMessage}"}
         ]
         return messages
-
-    def _format_variables(self) -> str:
-        if not self.extracted_fields:
-            return "추출된 변수가 없습니다."
-
-        formatted = []
-        for key, value in self.extracted_fields.items():
-            formatted.append(f"- {key}: '{value}'")
-        return "\n".join(formatted)
-
-# 백엔드에서 변수 위치를 찾기 위한 매핑 함수
-
-def create_variable_mapping_from_template(template_content: str, extracted_fields: Dict[str, str]) -> Dict[str, str]:
-    """완성된 템플릿에서 변수에 해당하는 부분을 찾아 매핑 생성"""
-    variable_mapping = {}
-
-    # 추출된 필드의 값들이 템플릿에서 어디에 위치하는지 찾기
-    for var_name, original_value in extracted_fields.items():
-        if original_value in template_content:
-            variable_mapping[var_name] = original_value
-        else:
-            # 부분 매칭도 시도 (값이 템플릿에 일부만 포함된 경우)
-            for line in template_content.split('\n'):
-                if any(word in line for word in original_value.split() if len(word) > 2):
-                    # 해당 라인에서 변수 값과 가장 유사한 부분 추출
-                    variable_mapping[var_name] = line.strip()
-                    break
-
-    return variable_mapping
-
 
