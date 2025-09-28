@@ -10,6 +10,9 @@ class BasePromptBuilder(ABC):
         self.hints: List[Dict] = []
 
     def add_hint(self, description: str, content: str):
+        """
+        @deprecated: 이 메서드는 더 이상 사용하지 않으며, 향후 제거될 예정입니다.
+        """
         self.hints.append({"description": description, "content": content})
         return self
 

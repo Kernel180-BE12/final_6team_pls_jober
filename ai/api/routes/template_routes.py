@@ -39,16 +39,18 @@ async def generate_template_endpoint(
     """
     LangGraph 기반의 지능형 템플릿 생성 파이프라인을 실행합니다.
     """
-    category_service = CategoryService(db_session)
-    category_sub_list= await category_service.get_all_categories()
+    # [삭제] CategoryService를 여기서 직접 호출할 필요가 없습니다.
+    # category_service = CategoryService(db_session)
+    # category_sub_list= await category_service.get_all_categories()
     try:
+        # [수정] run_template_generation_pipeline 호출 시 인자 목록을 함수의 정의와 일치시킵니다.
         result = await run_template_generation_pipeline(
             userMessage=request.userMessage,
-            category_sub_list= category_sub_list,
             openai_service=openai_service,
-            chromadb_service=chromadb_service
+            chromadb_service=chromadb_service,
+            db_session=db_session  # <--- db_session을 전달합니다.
         )
-        
+
         # 프론트엔드 형식에 맞게 변환
         response_data = {
             "template_content": result.get("template_text", ""),
@@ -62,12 +64,11 @@ async def generate_template_endpoint(
             "generation_method": result.get("generation_method", ""),
             "similarity_score": result.get("similarity_score", 0.0)
         }
-        
+
         return GenerationResponse(**response_data)
     except Exception as e:
         import traceback
-        traceback.print_exc()  # ← 콘솔에 자세한 에러 출력
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"API 엔드포인트 오류: {str(e)}")
-
 
 

@@ -21,7 +21,118 @@ from templateEngine.prompts.builders import (
 logger = logging.getLogger(__name__)
 
 # --- 노드 함수들 ---
+# --- [수정] 새로운 통합 병렬 처리 노드 ---
 
+async def parallel_tasks_node(state: TemplateGenerationState) -> Dict[str, Any]:
+    """
+    [신규 통합 노드] 메시지 타입 분류, 제목 생성, 카테고리 분류, 필드 추출을 병렬로 처리합니다.
+    """
+    logger.info("=" * 60)
+    logger.info("1단계: 타입, 제목, 카테고리, 필드 추출 병렬 처리 시작")
+
+    # --- 1. 병렬로 실행할 개별 작업(Task) 정의 ---
+
+    async def classify_type_task():
+        """(Task 1) 메시지 유형 분류"""
+        try:
+            prompt_builder = TypePromptBuilder(state["userMessage"])
+            messages = prompt_builder.build()
+            response = await state["openai_service"].chat_completion(messages)
+            return json.loads(response)
+        except Exception as e:
+            logger.error(f"❌ (병렬) 메시지 유형 분류 실패: {e}")
+            return {"type": "BASIC", "explain_type": "분류 실패로 기본값 적용"}
+
+    async def generate_title_task():
+        """(Task 2) 템플릿 제목 생성"""
+        try:
+            prompt_builder = TemplateTitlePromptBuilder(state["userMessage"])
+            messages = prompt_builder.build()
+            return await state["openai_service"].chat_completion(messages)
+        except Exception as e:
+            logger.error(f"❌ (병렬) 제목 생성 실패: {e}")
+            return "제목 생성 실패"
+
+    async def classify_category_task():
+        """(Task 3) DB 연동 카테고리 분류/생성"""
+        try:
+            # CategoryService는 state에 db_session이 주입되어야 함
+            category_service = CategoryService(state["db_session"])
+            current_categories = await category_service.get_all_categories()
+
+            # 1차 분류 시도
+            category_builder = CategoryPromptBuilder(state["userMessage"], current_categories)
+            messages = category_builder.build()
+            response = await state["openai_service"].chat_completion(messages)
+            result = json.loads(response)
+
+            CONFIDENCE_THRESHOLD = 70
+            if result.get("is_appropriate") and result.get("confidence", 0) >= CONFIDENCE_THRESHOLD:
+                # 기존 카테고리 사용
+                return {**result, "generation_source": "classified_existing"}
+            else:
+                # 신규 카테고리 생성
+                new_category_builder = NewCategoryPromptBuilder(state["userMessage"], current_categories)
+                messages = new_category_builder.build()
+                response = await state["openai_service"].chat_completion(messages)
+                new_category_result = json.loads(response)
+                new_category_name = new_category_result.get("new_category")
+
+                # DB에 신규 카테고리 저장
+                await category_service.create_category_if_not_exists(new_category_name)
+
+                return {
+                    "category_sub": new_category_name,
+                    "confidence": 95,
+                    "selection_reason": f"신규 카테고리 '{new_category_name}' 생성",
+                    "generation_source": "created_new"
+                }
+        except Exception as e:
+            logger.error(f"❌ (병렬) 카테고리 분류 실패: {e}")
+            return {"category_sub": "기타", "selection_reason": "분류 실패"}
+
+    async def extract_fields_task():
+        """(Task 4) 변수 필드 추출"""
+        try:
+            prompt_builder = FieldsPromptBuilder(state["userMessage"])
+            messages = prompt_builder.build()
+            response = await state["openai_service"].chat_completion(messages)
+            # JSON 블록 또는 일반 JSON 문자열 처리
+            match = re.search(r'```json\s*({.*?})\s*```', response, re.DOTALL)
+            if match:
+                clean_response = match.group(1)
+            else:
+                clean_response = response.strip()
+            return json.loads(clean_response)
+        except Exception as e:
+            logger.error(f"❌ (병렬) 필드 추출 실패: {e}")
+            return {}
+
+    # --- 2. 정의된 작업들을 asyncio.gather로 동시에 실행 ---
+    results = await asyncio.gather(
+        classify_type_task(),
+        generate_title_task(),
+        classify_category_task(),
+        extract_fields_task()
+    )
+
+    # --- 3. 결과 정리 및 상태 업데이트 ---
+    message_type_result, title_result, category_result, extracted_fields = results
+
+    logger.info("✅ 병렬 처리 완료")
+    logger.info(f"  - 유형: {message_type_result.get('type')}")
+    logger.info(f"  - 제목: {title_result.strip()}")
+    logger.info(f"  - 카테고리: {category_result.get('category_sub')}")
+    logger.info(f"  - 추출된 필드 수: {len(extracted_fields)}")
+
+    return {
+        "message_type_result": message_type_result,
+        "generated_title": title_result.strip(),
+        "category_result": category_result,
+        "extracted_fields": extracted_fields,
+    }
+
+# 통합된 함수들 ==========================================================================
 async def classify_message_type_node(state: TemplateGenerationState) -> Dict[str, Any]:
     logger.info("=" * 60)
     logger.info("1단계: 메시지 유형 분류 시작")
