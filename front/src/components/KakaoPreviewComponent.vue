@@ -10,17 +10,8 @@
           <div class="bubble-body">
             <div
               class="message-text"
-              :class="{ 'expanded': isExpanded }"
               v-html="formattedTemplateContent"
             ></div>
-          </div>
-          <div
-            v-if="shouldShowToggle"
-            class="toggle-button"
-            @click="toggleExpansion"
-          >
-            <span class="toggle-icon" :class="{ expanded: isExpanded }">▶</span>
-            <span class="toggle-text">{{ isExpanded ? '접기' : '자세히 보기' }}</span>
           </div>
         </div>
       </div>
@@ -63,8 +54,6 @@ const emit = defineEmits<{
 }>()
 
 const editedVariables = ref({ ...props.variables })
-const isExpanded = ref(false)
-const shouldShowToggle = ref(false)
 
 // 템플릿 내용을 포맷팅하여 변수를 적절한 스타일로 렌더링
 const formattedTemplateContent = computed(() => {
@@ -83,10 +72,6 @@ const formattedTemplateContent = computed(() => {
 
 감사합니다.
 `
-
-    // 내용 길이 체크 및 토글 설정 (줄 수 기준)
-    const lines = defaultContent.split('\n').filter(line => line.trim())
-    shouldShowToggle.value = lines.length > 6
 
     return formatTemplateContent(defaultContent.trim())
   }
@@ -108,9 +93,6 @@ const formattedTemplateContent = computed(() => {
   console.log('정리된 content 길이:', content.length)
   
 
-  // 내용 길이 체크 (줄 수 기준)
-  const lines = content.split('\n').filter(line => line.trim())
-  shouldShowToggle.value = lines.length > 6
 
   // 3) 변수 하이라이팅 처리 (showVariables prop에 따라)
   if (props.showVariables) {
@@ -124,7 +106,7 @@ const formattedTemplateContent = computed(() => {
     varPatterns.forEach(pattern => {
       content = content.replace(pattern, (match, varName) => {
         const variableName = varName.trim()
-        return `<span class="variable-gray" data-variable="${variableName}">#{${variableName}}</span>`
+        return `<span class="variable-highlight" data-variable="${variableName}">#{${variableName}}</span>`
       })
     })
   }
@@ -242,10 +224,6 @@ const formatTemplateContent = (content: string): string => {
   return result
 }
 
-// 토글 기능
-const toggleExpansion = () => {
-  isExpanded.value = !isExpanded.value
-}
 
 // props.variables가 변경될 때마다 editedVariables 업데이트
 watch(() => props.variables, (newVariables) => {
@@ -267,7 +245,7 @@ watch(() => props.variables, (newVariables) => {
   border-radius: 0.8rem;
   overflow: hidden;
   box-shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.15);
-  width: 400px;
+  width: 320px; /* 16글자 너비 (한글 1글자 = 20px, 공백 반칸 고려) */
   flex-shrink: 0;
   align-self: center;
   max-height: none;
@@ -317,51 +295,6 @@ watch(() => props.variables, (newVariables) => {
   font-size: 0.9rem;
   line-height: 1.6;
   color: #333;
-  transition: max-height 0.3s ease;
-}
-
-.message-text:not(.expanded) {
-  max-height: 8rem;
-  overflow: hidden;
-  position: relative;
-}
-
-.message-text.expanded {
-  max-height: none;
-  overflow: visible;
-}
-
-.toggle-button {
-  background-color: #f7f7f7;
-  padding: 0.7rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  border-top: 1px solid #e0e0e0;
-  transition: background-color 0.2s ease;
-}
-
-.toggle-button:hover {
-  background-color: #eeeeee;
-}
-
-.toggle-icon {
-  color: #888;
-  font-size: 0.7rem;
-  transition: transform 0.2s ease;
-  transform: rotate(0deg);
-}
-
-.toggle-icon.expanded {
-  transform: rotate(90deg);
-}
-
-.toggle-text {
-  color: #666;
-  font-size: 0.85rem;
-  font-weight: 500;
 }
 
 /* 메시지 라인 스타일 */
@@ -388,6 +321,18 @@ watch(() => props.variables, (newVariables) => {
   background-color: transparent;
   font-weight: normal;
   display: inline;
+}
+
+/* 노란색 변수 하이라이트 스타일 */
+:deep(.variable-highlight) {
+  background-color: #FFE066;
+  color: #333333;
+  border: 1px solid #FFD700;
+  border-radius: 3px;
+  padding: 1px 3px;
+  font-weight: 500;
+  display: inline;
+  transition: all 0.2s ease;
 }
 
 :deep(.disclaimer) {
@@ -423,6 +368,12 @@ watch(() => props.variables, (newVariables) => {
 :deep(.variable-gray:hover) {
   background-color: #e5e7eb;
   border-color: #9ca3af;
+}
+
+:deep(.variable-highlight:hover) {
+  background-color: #FFD700;
+  border-color: #FFA500;
+  transform: scale(1.02);
 }
 
 
