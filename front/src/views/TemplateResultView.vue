@@ -2280,7 +2280,7 @@ watch([templateContent, templateTitle, editedVariables, showVariables], () => {
   color: white;
   border: none;
   padding: 0.4rem 0.8rem;
-  border-radius: 0.2rem;
+  border-radius: 1rem;
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.2s ease;
