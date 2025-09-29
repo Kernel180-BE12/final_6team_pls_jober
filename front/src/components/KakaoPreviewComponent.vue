@@ -8,6 +8,10 @@
             <span class="kakao-header-text">알림톡 도착</span>
           </div>
           <div class="bubble-body">
+            <!-- 생성된 제목 표시 -->
+            <div v-if="props.templateTitle" class="message-title">
+              {{ props.templateTitle }}
+            </div>
             <div
               class="message-text"
               v-html="formattedTemplateContent"
@@ -37,6 +41,7 @@ interface ProblemArea {
 
 interface KakaoPreviewProps {
   templateContent?: string
+  templateTitle?: string
   showVariables: boolean
   variables: string[]
   isRejected: boolean
@@ -289,6 +294,15 @@ watch(() => props.variables, (newVariables) => {
 .bubble-body {
   padding: 0.8rem 1rem;
   background-color: white;
+}
+
+.message-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .message-text {

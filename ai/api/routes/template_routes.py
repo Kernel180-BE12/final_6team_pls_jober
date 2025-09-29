@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from core.database import get_db
+import logging
 
 from services.dependencies import get_openai_service, get_chromadb_service
 from services.openai_service import OpenAIService
@@ -12,8 +13,10 @@ from services.category_service import CategoryService
 from services.chromadb_service import ChromaDBService
 from templateEngine.pipeline import run_template_generation_pipeline
 from templateEngine.prompts.message_analyzer_prompts import PromptDefense, UnsuitableMessageError
+from templateEngine.prompts.builders import SuitabilityCheckPromptBuilder
 
 router = APIRouter(prefix="/template", tags=["Template Generation"])
+logger = logging.getLogger(__name__)
 
 # --- Pydantic 모델 ---
 class GenerationRequest(BaseModel):
@@ -39,11 +42,25 @@ async def generate_template_endpoint(
     """
     LangGraph 기반의 지능형 템플릿 생성 파이프라인을 실행합니다.
     """
-    # [삭제] CategoryService를 여기서 직접 호출할 필요가 없습니다.
-    # category_service = CategoryService(db_session)
-    # category_sub_list= await category_service.get_all_categories()
     try:
         sanitize_userMessage = PromptDefense.sanitize_user_input(request.userMessage)
+
+        # 적합성 검사 수행
+        suitability_builder = SuitabilityCheckPromptBuilder(sanitize_userMessage)
+        suitability_messages = suitability_builder.build()
+        suitability_result = await openai_service.chat_completion(suitability_messages)
+        
+        # JSON 파싱하여 적합성 확인
+        import json
+        try:
+            suitability_data = json.loads(suitability_result)
+            if not suitability_data.get("is_suitable", True):
+                # 부적합한 메시지인 경우 에러 반환
+                reason = suitability_data.get("reason", "메시지가 알림톡 템플릿 생성에 적합하지 않습니다.")
+                raise HTTPException(status_code=400, detail=f"부적합한 메시지: {reason}")
+        except json.JSONDecodeError:
+            # JSON 파싱 실패 시 로그만 남기고 계속 진행
+            logger.warning(f"적합성 검사 응답 파싱 실패: {suitability_result}")
 
         result = await run_template_generation_pipeline(
             userMessage=sanitize_userMessage,

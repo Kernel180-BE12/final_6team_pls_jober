@@ -44,7 +44,11 @@ async def initial_analysis_node(state: TemplateGenerationState) -> Dict[str, Any
         try:
             prompt_builder = TemplateTitlePromptBuilder(state["userMessage"])
             messages = prompt_builder.build()
-            return await state["openai_service"].chat_completion(messages)
+            title_result = await state["openai_service"].chat_completion(messages)
+            # 따옴표 제거
+            cleaned_title = title_result.strip().strip('"').strip("'")
+            logger.info(f"✅ 제목 생성 성공: {cleaned_title}")
+            return cleaned_title
         except Exception as e:
             logger.error(f"❌ (병렬) 제목 생성 실패: {e}")
             return "제목 생성 실패"
@@ -90,23 +94,49 @@ async def initial_analysis_node(state: TemplateGenerationState) -> Dict[str, Any
 
 async def generate_template_node(state: TemplateGenerationState) -> Dict[str, Any]:
     """
-    [2단계] '변수 없는' 간결한 템플릿 텍스트를 생성하는 노드
+    [2단계] 참고 템플릿 기반으로 템플릿을 생성하는 노드
     """
     logger.info("=" * 60)
-    logger.info("2단계: 간결한 템플릿 생성 시작")
+    logger.info("2단계: 참고 템플릿 기반 템플릿 생성 시작")
     try:
-        # RAG 검색을 먼저 수행하여 참고 템플릿을 가져올 수 있습니다 (선택적)
-        # 여기서는 단순화된 '신규 생성' 로직만 구현합니다.
-
-        # TemplateWriterBuilder를 사용하여 간결한 텍스트 생성
-        prompt_builder = TemplateWriterBuilder(state["userMessage"])
+        # 1. RAG 검색을 통해 참고 템플릿 가져오기
+        user_message = state["userMessage"]
+        category_result = state.get("category_result", {})
+        category_sub = category_result.get("category_sub", "기타")
+        
+        logger.info(f"참고 템플릿 검색 시작 - 카테고리: {category_sub}")
+        reference_templates = state["chromadb_service"].search_templates(
+            collection_name="approved_templates",
+            query_text=user_message,
+            top_k=3,
+            category_sub=category_sub
+        )
+        
+        logger.info(f"참고 템플릿 {len(reference_templates)}개 발견")
+        
+        # 2. 추출된 필드 정보 가져오기 (초기 분석에서 추출된 정보)
+        extracted_fields = state.get("extracted_fields", {})
+        
+        # 3. ReferenceBasedTemplatePromptBuilder 사용
+        if reference_templates and len(reference_templates) > 0:
+            logger.info("참고 템플릿 기반 생성 사용")
+            prompt_builder = ReferenceBasedTemplatePromptBuilder(
+                userMessage=user_message,
+                reference_templates=reference_templates,
+                extracted_fields=extracted_fields
+            )
+        else:
+            logger.info("참고 템플릿이 없어 신규 생성 사용")
+            # 참고 템플릿이 없는 경우 기존 방식 사용
+            prompt_builder = TemplateWriterBuilder(user_message)
+        
         messages = prompt_builder.build()
         generated_text = await state["openai_service"].chat_completion(messages)
 
-        logger.info("✅ 간결한 템플릿 생성 성공")
+        logger.info("✅ 템플릿 생성 성공")
         return {"generated_template": generated_text}
     except Exception as e:
-        logger.error(f"❌ 간결한 템플릿 생성 실패: {e}")
+        logger.error(f"❌ 템플릿 생성 실패: {e}")
         return {"generated_template": "템플릿 생성에 실패했습니다."}
 
 
@@ -237,12 +267,15 @@ def finalize_node(state: TemplateGenerationState) -> Dict[str, Any]:
 
     # ----------------------------------------------------------------
 
+    generated_title = state.get("generated_title", "제목 없음")
+    logger.info(f"📝 최종 제목 설정: {generated_title}")
+    
     final_result = {
         "pipeline_success": True,
         "template_text": final_template_with_vars,
         "variable_mapping": extracted_fields,
         "variables": list(extracted_fields.keys()),
-        "template_title": state.get("generated_title", "제목 없음"),
+        "template_title": generated_title,
         "message_type": state.get("message_type_result", {}).get("type"),
         "category_sub": state.get("category_result", {}).get("category_sub"),
     }

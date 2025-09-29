@@ -21,6 +21,7 @@ class SemanticValidator:
         ChromaDBService를 외부에서 주입받아 초기화합니다.
         """
         self.chromadb_service = chromadb_service
+        self.DENIED_REASONS_SEARCH_K = 5  # denied_reasons 검색 시 상위 k개 결과
 
     def validate(self, template: Dict[str, Any]) -> ValidationResult:
         """
@@ -33,28 +34,28 @@ class SemanticValidator:
         print(f"검증 대상 텍스트: {text[:TEXT_PREVIEW_LENGTH]}...")
         print(f"카테고리: {category}")
 
-        # 1) 두 컬렉션 RAG (병렬 개념, 구현은 순차 호출)
+        # 1) 두 컬렉션 RAG (rejection_reasons + denied_reasons)
         print("🔍 rejection_reasons 컬렉션 검색 시작...")
         s_rr = self._rag_stage("rejection_reasons", text, k=REJECTION_REASONS_SEARCH_K, category_sub=category)
         # evidence 중복 제거
         s_rr["evidence"] = self._deduplicate_violations(s_rr.get("evidence", []))
         print(f"rejection_reasons 결과: {s_rr}")
 
-        print("🔍 public_templates 컬렉션 검색 시작...")
-        s_dn = self._rag_stage("public_templates", text, k=self.PUBLIC_SEARCH_K)
-        print(f"public_templates 결과: {s_dn}")
+        print("🔍 denied_reasons 컬렉션 검색 시작...")
+        s_dn = self._rag_stage("denied_reasons", text, k=self.DENIED_REASONS_SEARCH_K)
+        print(f"denied_reasons 결과: {s_dn}")
 
         # 만약 결과가 없다면 카테고리 필터 때문일 수 있으니 로그 출력
         if s_dn.get('score', 0) == 0:
-            print(f"⚠️ public_templates에서 결과 없음. 카테고리: {category}")
+            print(f"⚠️ denied_reasons에서 결과 없음. 카테고리: {category}")
 
         # 2) 최종 취합 - 실제 RAG 결과를 기반으로 계산
         # 두 단계 결과를 종합하여 최종 판정
         rejection_reasons_score = s_rr.get('score', 0.0)
-        blacklist_score = s_dn.get('score', 0.0)
+        denied_reasons_score = s_dn.get('score', 0.0)
         
         # 더 높은 위험도를 최종 위험도로 사용
-        final_risk = max(rejection_reasons_score, blacklist_score)
+        final_risk = max(rejection_reasons_score, denied_reasons_score)
         
         # 위험도 기반 최종 라벨 결정
         if final_risk >= REJECT_THRESHOLD:
