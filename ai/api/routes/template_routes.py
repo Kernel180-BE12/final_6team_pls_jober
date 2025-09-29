@@ -63,7 +63,7 @@ async def generate_template_endpoint(
                 {"name": var, "type": "string", "description": f"변수: {var}"}
                 for var in result.get("variables", [])
             ],
-            "category": result.get("category_sub", "기타"),
+            "category": result.get("category_sub") or "기타",
             "model": "gpt-4o-mini",
             "template_title": result.get("template_title", ""),
             "generation_method": result.get("generation_method", ""),

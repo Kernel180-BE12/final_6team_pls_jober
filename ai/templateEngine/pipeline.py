@@ -18,6 +18,7 @@ from langgraph.graph import StateGraph, END
 from .prompts.message_analyzer_prompts import UnsuitableMessageError
 import logging
 from core.database import SessionLocal
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

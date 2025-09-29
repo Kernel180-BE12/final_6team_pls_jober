@@ -294,7 +294,6 @@ class SemanticValidator:
 
     # ----------------------------- RAG 단계 -----------------------------------
     def _rag_stage(self, collection: str, text: str, k: int = 5, category_sub: str = None) -> Dict[str, Any]:
-<<<<<<< HEAD
         # rejection_reasons 컬렉션 RAG 검색 (반려 사유 DB 기반)
         if collection == "rejection_reasons":
             # 템플릿 전처리 및 임베딩
