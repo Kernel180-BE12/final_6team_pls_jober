@@ -45,13 +45,13 @@ class SemanticValidator:
         s_bl = self._rag_stage("approved_templates", text, k=self.APPROVED_SEARCH_K, category_sub=category)
         print(f"approved_templates 결과: {s_bl}")
 
-        print("🔍 pulblic_templates 컬렉션 검색 시작...")
-        s_dn = self._rag_stage("pulblic_templates", text, k=self.PUBLIC_SEARCH_K)
-        print(f"pulblic_templates 결과: {s_dn}")
+        print("🔍 public_templates 컬렉션 검색 시작...")
+        s_dn = self._rag_stage("public_templates", text, k=self.PUBLIC_SEARCH_K)
+        print(f"public_templates 결과: {s_dn}")
 
         # 만약 결과가 없다면 카테고리 필터 때문일 수 있으니 로그 출력
         if s_dn.get('score', 0) == 0:
-            print(f"⚠️ pulblic_templates에서 결과 없음. 카테고리: {category}")
+            print(f"⚠️ public_templates에서 결과 없음. 카테고리: {category}")
 
         # 2) 최종 취합 - 실제 RAG 결과를 기반으로 계산
         # 두 단계 결과를 종합하여 최종 판정
@@ -145,7 +145,7 @@ class SemanticValidator:
                 hits = []
             else:
                 hits, _ = self.chromadb_service.search_approved_templates(query_text=text, category_sub=category_sub, top_k=k)
-        elif collection == "pulblic_templates":
+        elif collection == "public_templates":
             hits = self.chromadb_service.search_public_templates(query_text=text, top_k=k)
         else:
             logger.warning(f"알 수 없는 컬렉션 이름입니다: {collection}")

@@ -6,7 +6,7 @@ from templateEngine.state import TemplateGenerationState
 from templateEngine.nodes import (
     parallel_tasks_node,
     search_templates_node,
-    extract_fields_node,
+    # extract_fields_node,
     decide_generation_method,
     generate_with_reference_node,
     search_public_and_generate_node,
@@ -27,20 +27,26 @@ logger = logging.getLogger(__name__)
 
 async def create_pipeline() -> StateGraph:
     workflow = StateGraph(TemplateGenerationState)
-    workflow.add_node("parallel_tasks", parallel_tasks_node) # 새로운 통합 노드
+
+    # [수정] 노드 등록을 단순화하고 중복 노드 제거
+    workflow.add_node("parallel_tasks", parallel_tasks_node)
     workflow.add_node("search_templates", search_templates_node)
-    workflow.add_node("extract_fields", extract_fields_node)
     workflow.add_node("generate_with_reference", generate_with_reference_node)
     workflow.add_node("search_public_and_generate", search_public_and_generate_node)
     workflow.add_node("finalize_result", finalize_result_node)
 
+    # [수정] 워크플로우 흐름을 올바르게 재구성
     workflow.set_entry_point("parallel_tasks")
-    workflow.add_edge("parallel_tasks", "search_templates") # 병렬 처리 후 바로 템플릿 검색으로
-    workflow.add_edge("search_templates", "extract_fields")
+    workflow.add_edge("parallel_tasks", "search_templates") # 병렬 처리 후 바로 템플릿 검색
+
+    # [수정] 분기(conditional_edges)의 시작점을 'search_templates'로 변경
     workflow.add_conditional_edges(
-        "search_templates", # 이제 search_templates 다음에 분기합니다.
+        "search_templates",
         decide_generation_method,
-        {"with_reference": "generate_with_reference", "search_public": "search_public_and_generate"}
+        {
+            "with_reference": "generate_with_reference",
+            "search_public": "search_public_and_generate"
+        }
     )
     workflow.add_edge("generate_with_reference", "finalize_result")
     workflow.add_edge("search_public_and_generate", "finalize_result")
@@ -73,7 +79,7 @@ async def run_template_generation_pipeline(
             "generated_title": None,
             "similar_templates": [],
             "max_similarity": 0.0,
-            "pulblic_templates": [],
+            "public_templates": [],
             "generation_hint": None,
             "generated_template": "",
             "extracted_fields": {},
@@ -95,5 +101,5 @@ async def run_template_generation_pipeline(
             "template_text": "", "template_title": "생성 실패", "variables": [],
             "generation_method": "error", "message_type": None, "category_sub": None,
             "category_analysis": None, "similarity_score": 0.0,
-            "reference_templates": [], "pulblic_templates": [],
+            "reference_templates": [], "public_templates": [],
         }
