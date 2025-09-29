@@ -91,8 +91,15 @@ const handleSubmit = async () => {
       name: 'template-result',
       state: response.data
     })
-  } catch (e) {
-    alert('템플릿 생성 실패. 다시 시도해주세요.')
+  } catch (error: any) {
+    // API 에러 응답에서 상세 메시지를 추출하여 사용자에게 보여줍니다.
+    if (error.response && error.response.data && error.response.data.detail) {
+      alert(error.response.data.detail);
+    } else {
+      // 그 외의 네트워크 오류 등은 일반적인 메시지를 표시합니다.
+      console.error('Template generation failed:', error);
+      alert('템플릿 생성에 실패했습니다. 네트워크 연결을 확인하거나 다시 시도해주세요.');
+    }
   } finally {
     isGenerating.value = false
   }

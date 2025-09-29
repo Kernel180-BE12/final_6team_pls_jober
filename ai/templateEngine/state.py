@@ -12,6 +12,7 @@ class TemplateGenerationState(TypedDict):
     chromadb_service: ChromaDBService
 
     # 처리 결과
+    suitability_check_result: Optional[Dict]
     message_type_result: Optional[Dict]
     category_result: Optional[Dict]
     generated_title: Optional[str]

@@ -4,6 +4,10 @@
 from abc import ABC, abstractmethod
 import re
 
+class UnsuitableMessageError(ValueError):
+    """메시지가 템플릿 생성에 부적합할 때 발생하는 예외"""
+    pass
+
 
 class PromptDefense:
     """프롬프트 인젝션 방어 클래스"""

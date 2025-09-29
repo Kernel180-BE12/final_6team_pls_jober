@@ -1,27 +1,69 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
 from datetime import datetime
+from .message_analyzer_prompts import BasePromptBuilder, PromptDefense
 
+# class BasePromptBuilder(ABC):
+#     """기본 프롬프트 빌더"""
+#     def __init__(self, userMessage: str):
+#         self.userMessage = userMessage
+#         self.hints: List[Dict] = []
 
-class BasePromptBuilder(ABC):
-    """기본 프롬프트 빌더"""
+#     def add_hint(self, description: str, content: str):
+#         self.hints.append({"description": description, "content": content})
+#         return self
+
+#     def _build_hint_messages(self) -> List[Dict]:
+#         return [{"role": "system", "content": h["content"]} for h in self.hints]
+
+#     @abstractmethod
+#     def build(self) -> List[Dict]:
+#         pass
+
+class SuitabilityCheckPromptBuilder(BasePromptBuilder):
+    """사용자 메시지가 알림톡 템플릿 생성에 적합한지 검사하는 프롬프트 빌더"""
     def __init__(self, userMessage: str):
+        super().__init__(userMessage)
         self.userMessage = userMessage
-        self.hints: List[Dict] = []
 
-    def add_hint(self, description: str, content: str):
-        self.hints.append({"description": description, "content": content})
-        return self
-
-    def _build_hint_messages(self) -> List[Dict]:
-        return [{"role": "system", "content": h["content"]} for h in self.hints]
-
-    @abstractmethod
     def build(self) -> List[Dict]:
-        pass
+        system_prompt = """
+            당신은 사용자 요청이 '카카오톡 알림톡 템플릿'을 생성하기에 적합한지 판단하는 '게이트키퍼' AI입니다.
+            사용자의 메시지가 템플릿 생성을 위한 구체적인 내용(예: 주문 확인, 예약 안내, 배송 알림 등)을 포함하고 있는지, 아니면 단순히 일상적인 대화나 관련 없는 질문(예: '안녕?', '김치찌개 레시피 알려줘')인지 판단해야 합니다.
+
+            **판단 기준:**
+            - **적합 (suitable):** 메시지가 알림, 공지, 정보 전달 등 명확한 목적을 가진 템플릿으로 변환될 수 있는 내용을 담고 있을 때.
+              - 예: "고객님, 주문하신 상품이 배송 시작되었습니다.", "내일 3시에 예약하신 미용실 방문 잊지 마세요.", "회원가입을 축하합니다! 10% 할인 쿠폰을 드립니다."
+            - **부적합 (unsuitable):** 메시지가 일반적인 질문, 감정 표현, 템플릿과 관련 없는 명령, 또는 의미 없는 단어일 때.
+              - 예: "오늘 날씨 어때?", "슬프다", "너는 누구야?", "김치찌개 만드는 법", "asdfghjkl"
+
+            **출력 형식:**
+            - 반드시 아래 JSON 형식으로만 응답해야 합니다.
+            - 추가적인 설명이나 인사는 절대 포함하지 마세요.
+
+            {
+                "is_suitable": true/false,
+                "reason": "판단에 대한 간결한 한 줄 설명"
+            }
+            """
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": "회원가입이 완료되었습니다. 10% 할인 쿠폰을 드립니다."},
+            {"role": "assistant", "content": '{"is_suitable": true, "reason": "회원가입 완료 및 쿠폰 발급이라는 명확한 정보성 목적을 가집니다."}'},
+            {"role": "user", "content": "김치찌개 레시피 알려줘"},
+            {"role": "assistant", "content": '{"is_suitable": false, "reason": "카카오톡 알림톡 템플릿 생성과 관련 없는 일상적인 질문입니다."}'},
+            {"role": "user", "content": f"다음 메시지를 분석해주세요:\n{self.userMessage}"}
+        ]
+        
+        return self._apply_security_protection(messages)
 
 class FieldsPromptBuilder(BasePromptBuilder):
     """메시지에서 변수로 처리할 필드를 추출하는 프롬프트 빌더"""
+    def __init__(self, userMessage: str):
+        super().__init__(userMessage)
+        self.userMessage = userMessage
+        
     def build(self) -> List[Dict]:
         # 오늘 날짜를 YYYY-MM-DD 형식으로 가져옵니다.
         today_str = datetime.now().strftime('%Y-%m-%d')
@@ -121,11 +163,12 @@ class FieldsPromptBuilder(BasePromptBuilder):
             *self._build_hint_messages(), # 힌트가 있다면 여기에 추가됨
             {"role": "user", "content": f"분석할 본문:\n{self.userMessage}"}
         ]
-        return messages
+        return self._apply_security_protection(messages)
 
 class CategoryPromptBuilder(BasePromptBuilder):
     """카테고리 분류 프롬프트 빌더 - 적합성 판단 기능 추가"""
     def __init__(self, userMessage: str, category_sub_list: List[str]):
+        self.userMessage = userMessage
         super().__init__(userMessage)
         self.category_sub_list = category_sub_list
 
@@ -158,12 +201,13 @@ class CategoryPromptBuilder(BasePromptBuilder):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"분석할 메시지:\n{self.userMessage}"}
         ]
-        return messages
+        return self._apply_security_protection(messages)
 
 
 class NewCategoryPromptBuilder(BasePromptBuilder):
     """신규 카테고리 생성 프롬프트 빌더"""
     def __init__(self, userMessage: str, existing_categories: List[str]):
+        self.userMessage = userMessage
         super().__init__(userMessage)
         self.existing_categories = existing_categories
 
@@ -189,11 +233,12 @@ class NewCategoryPromptBuilder(BasePromptBuilder):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"다음 메시지에 대한 새로운 카테고리명을 생성해주세요:\n{self.userMessage}"}
         ]
-        return messages
+        return self._apply_security_protection(messages)
 
 class TypePromptBuilder(BasePromptBuilder):
     def __init__(self, userMessage: str):
         super().__init__(userMessage)
+        self.userMessage = PromptDefense.sanitize_user_input(userMessage)
 
     def build(self) -> list[dict]:
         prompt = [
@@ -357,7 +402,7 @@ class TypePromptBuilder(BasePromptBuilder):
 #
 #         return messages
 
-class TemplateTitlePromptBuilder:
+class TemplateTitlePromptBuilder(BasePromptBuilder):
     """템플릿 제목 생성 프롬프트 빌더"""
     def __init__(self, userMessage: str):
         self.userMessage = userMessage
@@ -383,9 +428,9 @@ class TemplateTitlePromptBuilder:
             {"role": "user", "content": f"다음 메시지의 제목을 생성해주세요:\n{self.userMessage}"}
         ]
 
-        return messages
+        return self._apply_security_protection(messages)
 
-class ReferenceBasedTemplatePromptBuilder:
+class ReferenceBasedTemplatePromptBuilder(BasePromptBuilder):
     """참고 템플릿 기반 생성 프롬프트 빌더"""
     def __init__(self, userMessage: str, reference_templates: List[Dict], extracted_fields: Dict):
         self.userMessage = userMessage
@@ -447,9 +492,9 @@ class ReferenceBasedTemplatePromptBuilder:
             {"role": "user", "content": f"사용자 요청:\n{self.userMessage}"}
         ]
 
-        return messages
+        return self._apply_security_protection(messages)
 
-class NewTemplatePromptBuilder:
+class NewTemplatePromptBuilder(BasePromptBuilder):
     """신규 템플릿 생성 프롬프트 빌더 - 카카오 공용 템플릿 기반"""
     def __init__(self, userMessage: str,  extracted_fields: Dict, public_templates: Optional[List[Dict]] = None):
         self.userMessage = userMessage
@@ -518,4 +563,4 @@ class NewTemplatePromptBuilder:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"다음 요청에 맞는 알림톡 템플릿을 생성해주세요:\n{self.userMessage}"}
         ]
-        return messages
+        return self._apply_security_protection(messages)
