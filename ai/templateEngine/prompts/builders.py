@@ -6,8 +6,12 @@ from datetime import datetime, timedelta
 class BasePromptBuilder(ABC):
     """기본 프롬프트 빌더"""
     def __init__(self, userMessage: str):
-        super().__init__(userMessage)
         self.userMessage = userMessage
+
+    def _apply_security_protection(self, messages: list) -> list:
+        """보안 보호 규칙 적용"""
+        from .message_analyzer_prompts import PromptDefense
+        return PromptDefense.add_system_protection(messages)
 
     def build(self) -> List[Dict]:
         system_prompt = """
@@ -611,3 +615,39 @@ JSON 형식으로만 응답:
             {"role": "user", "content": f"다음 메시지에 대한 새로운 카테고리명을 생성해주세요:\n{self.userMessage}"}
         ]
         return messages
+
+
+class SuitabilityCheckPromptBuilder(BasePromptBuilder):
+    """메시지 적합성 검사 프롬프트 빌더"""
+    
+    def build(self) -> List[Dict]:
+        system_prompt = """
+            당신은 사용자 요청이 '카카오톡 알림톡 템플릿'을 생성하기에 적합한지 판단하는 '게이트키퍼' AI입니다.
+            사용자의 메시지가 템플릿 생성을 위한 구체적인 내용(예: 주문 확인, 예약 안내, 배송 알림 등)을 포함하고 있는지, 아니면 단순히 일상적인 대화나 관련 없는 질문(예: '안녕?', '김치찌개 레시피 알려줘')인지 판단해야 합니다.
+
+            **판단 기준:**
+            - **적합 (suitable):** 메시지가 알림, 공지, 정보 전달 등 명확한 목적을 가진 템플릿으로 변환될 수 있는 내용을 담고 있을 때.
+              - 예: "고객님, 주문하신 상품이 배송 시작되었습니다.", "내일 3시에 예약하신 미용실 방문 잊지 마세요.", "회원가입을 축하합니다! 10% 할인 쿠폰을 드립니다."
+            - **부적합 (unsuitable):** 메시지가 일반적인 질문, 감정 표현, 템플릿과 관련 없는 명령, 또는 의미 없는 단어일 때.
+              - 예: "오늘 날씨 어때?", "슬프다", "너는 누구야?", "김치찌개 만드는 법", "asdfghjkl"
+
+            **출력 형식:**
+            - 반드시 아래 JSON 형식으로만 응답해야 합니다.
+            - 추가적인 설명이나 인사는 절대 포함하지 마세요.
+
+            {
+                "is_suitable": true/false,
+                "reason": "판단에 대한 간결한 한 줄 설명"
+            }
+            """
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": "회원가입이 완료되었습니다. 10% 할인 쿠폰을 드립니다."},
+            {"role": "assistant", "content": '{"is_suitable": true, "reason": "회원가입 완료 및 쿠폰 발급이라는 명확한 정보성 목적을 가집니다."}'},
+            {"role": "user", "content": "김치찌개 레시피 알려줘"},
+            {"role": "assistant", "content": '{"is_suitable": false, "reason": "카카오톡 알림톡 템플릿 생성과 관련 없는 일상적인 질문입니다."}'},
+            {"role": "user", "content": f"다음 메시지를 분석해주세요:\n{self.userMessage}"}
+        ]
+        
+        return self._apply_security_protection(messages)

@@ -6,6 +6,7 @@ Template Engine Prompts Package
 
 from .builders import (
     BasePromptBuilder,
+    SuitabilityCheckPromptBuilder,
     TypePromptBuilder,
     FieldsPromptBuilder,
     CategoryPromptBuilder,
@@ -25,6 +26,7 @@ __all__ = [
     'BasePromptBuilder',
     
     # Message analyzer prompts
+    'SuitabilityCheckPromptBuilder',
     'TypePromptBuilder',
     'FieldsPromptBuilder', 
     'CategoryPromptBuilder',
