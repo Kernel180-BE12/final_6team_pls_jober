@@ -79,7 +79,7 @@
               <!-- 카카오톡 미리보기 -->
               <div class="kakao-preview-wrapper" ref="kakaoPreviewRef">
                 <KakaoPreviewComponent
-                  :template-content="getPreviewTemplateContent()"
+                  :template-content="templateContent"
                   :template-title="templateTitle"
                   :show-variables="showVariables"
                   :variables="editedVariables"
@@ -1201,36 +1201,8 @@ const removeAllMarkers = (): string => {
   return template
 }
 
-// 미리보기용 템플릿 내용 (마커 제거, 사용자에게 보이는 깔끔한 버전)
-const getPreviewTemplateContent = (): string => {
-  let content = templateContent.value
-  
-  console.log('=== 미리보기 템플릿 내용 생성 ===')
-  console.log('원본 템플릿:', content)
-  
-  // 마커 제거 (⟦ID⟧내용⟦/ID⟧ → 내용)
-  const markerPattern = /⟦([^⟦]+)⟧([^⟦]*)⟦\/\1⟧/g
-  content = content.replace(markerPattern, '$2')
-  
-  // 고객에게 보이면 안 되는 내부 메시지 제거
-  content = removeInternalMessages(content)
-  
-  // 설명성 텍스트 제거
-  content = removeExplanatoryText(content)
-  
-  // 템플릿 구조 정리 (줄바꿈과 공백 정리)
-  content = content
-    .replace(/\n\s*\n\s*\n/g, '\n\n')  // 연속된 빈 줄을 2개로 제한
-    .replace(/[ \t]+/g, ' ')           // 연속된 공백을 하나로
-    .replace(/\n[ \t]+/g, '\n')        // 줄 시작의 공백 제거
-    .replace(/[ \t]+\n/g, '\n')        // 줄 끝의 공백 제거
-    .trim()
-  
-  console.log('정리된 미리보기 템플릿:', content)
-  console.log('================================')
-  
-  return content
-}
+// 미리보기용 템플릿 내용은 KakaoPreviewComponent에서 처리
+// 중복 로직 제거로 인해 이 함수는 더 이상 사용되지 않음
 
 
 // 문맥 기반 위치 찾기

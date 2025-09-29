@@ -91,59 +91,21 @@ const formattedTemplateContent = computed(() => {
     return formatTemplateContent(defaultContent.trim())
   }
 
-  // 2) 텍스트 정리 및 마커 제거 (미리보기에서는 마커를 보이지 않음)
+  // 2) 최소한의 텍스트 정리만 수행 (원본 내용 보존)
   let content = props.templateContent ?? ''
   
+  console.log('=== KakaoPreviewComponent 디버깅 ===')
+  console.log('원본 templateContent:', content)
+  console.log('templateContent 길이:', content.length)
   
-  // 더 정확한 텍스트 정리
+  // 필수적인 정리만 수행
   content = content
-    .replace(/(변수\s*목록\s*:|변수\s*:).*$/s, '')      // 변수 목록 제거
-    .replace(/알림톡\s*템플릿은.*$/s, '')               // 설명 문구 제거
-    .replace(/\n\s*\n\s*\n/g, '\n\n')                   // 빈 줄 정리
-    // 마커 제거 (⟦ID⟧내용⟦/ID⟧ → 내용)
-    .replace(/⟦([^⟦]+)⟧([^⟦]*)⟦\/\1⟧/g, '$2')
-    // 고객에게 보이면 안 되는 내부 메시지 제거
-    .replace(/할인율[:\s]*~[^.]*\./g, '')              // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*고객이[^.]*\./g, '')         // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*고객들에게[^.]*\./g, '')     // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*보이면[^.]*\./g, '')         // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*안되는[^.]*\./g, '')         // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*메시지가[^.]*\./g, '')       // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*구체적인[^.]*\./g, '')       // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*언급하지[^.]*\./g, '')       // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*강조하되[^.]*\./g, '')       // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*참여할[^.]*\./g, '')         // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*방법이나[^.]*\./g, '')       // 할인율 관련 내부 메시지
-    .replace(/할인율[:\s]*혜택을[^.]*\./g, '')         // 할인율 관련 내부 메시지
-    .replace(/고객이[^.]*\./g, '')                     // 기타 내부 지시사항
-    .replace(/고객들에게[^.]*\./g, '')                 // 기타 내부 지시사항
-    .replace(/보이면[^.]*\./g, '')                     // 기타 내부 지시사항
-    .replace(/안되는[^.]*\./g, '')                     // 기타 내부 지시사항
-    .replace(/메시지가[^.]*\./g, '')                   // 기타 내부 지시사항
-    .replace(/구체적인[^.]*\./g, '')                   // 기타 내부 지시사항
-    .replace(/언급하지[^.]*\./g, '')                   // 기타 내부 지시사항
-    .replace(/강조하되[^.]*\./g, '')                   // 기타 내부 지시사항
-    .replace(/참여할[^.]*\./g, '')                     // 기타 내부 지시사항
-    .replace(/방법이나[^.]*\./g, '')                   // 기타 내부 지시사항
-    .replace(/혜택을[^.]*\./g, '')                     // 기타 내부 지시사항
-    .replace(/이\s*내용이[^.]*\./g, '')                // 기술적 설명
-    .replace(/이\s*부분이[^.]*\./g, '')                // 기술적 설명
-    .replace(/이\s*텍스트가[^.]*\./g, '')              // 기술적 설명
-    .replace(/이\s*문장이[^.]*\./g, '')                // 기술적 설명
-    .replace(/미리보기에[^.]*\./g, '')                 // 기술적 설명
-    .replace(/사용자가\s*보는건[^.]*\./g, '')          // 기술적 설명
-    .replace(/사용자에게\s*보이는[^.]*\./g, '')        // 기술적 설명
-    .replace(/화면에\s*표시되는[^.]*\./g, '')          // 기술적 설명
-    .replace(/잘하자\s*/g, '')                         // 작업 지시사항
-    .replace(/주의하자\s*/g, '')                       // 작업 지시사항
-    .replace(/기억하자\s*/g, '')                       // 작업 지시사항
-    .replace(/명심하자\s*/g, '')                       // 작업 지시사항
-    .replace(/주의\s*/g, '')                           // 작업 지시사항
-    .replace(/기억\s*/g, '')                           // 작업 지시사항
-    .replace(/명심\s*/g, '')                           // 작업 지시사항
-    .replace(/\s+/g, ' ')                              // 연속된 공백 정리
-    .replace(/\n\s*\n/g, '\n')                         // 연속된 줄바꿈 정리
+    .replace(/\n\s*\n\s*\n/g, '\n\n')                   // 연속된 빈 줄을 2개로 제한
+    .replace(/⟦([^⟦]+)⟧([^⟦]*)⟦\/\1⟧/g, '$2')         // 마커 제거만 (⟦ID⟧내용⟦/ID⟧ → 내용)
     .trim()
+  
+  console.log('정리된 content:', content)
+  console.log('정리된 content 길이:', content.length)
   
 
   // 내용 길이 체크 (줄 수 기준)
@@ -166,7 +128,9 @@ const formattedTemplateContent = computed(() => {
   })
 
   // 4) 스마트 포맷팅 - 의미 있는 구조로 변환
+  console.log('포맷팅 전 content:', content)
   content = formatTemplateContent(content)
+  console.log('포맷팅 후 content:', content)
 
 
   // 특정 문제 영역 하이라이트
@@ -239,6 +203,8 @@ const highlightModifiedAreas = (content: string, modifiedAreaIds: string[]): str
 
 // 템플릿 내용 포맷팅 함수
 const formatTemplateContent = (content: string): string => {
+  console.log('formatTemplateContent 입력:', content)
+  
   // 화살표를 제대로된 포인트로 변환
   content = content.replace(/▶\s*/g, '▶ ')
   content = content.replace(/→\s*/g, '▶ ')
@@ -269,7 +235,9 @@ const formatTemplateContent = (content: string): string => {
     }
   }
 
-  return formattedLines.join('')
+  const result = formattedLines.join('')
+  console.log('formatTemplateContent 출력:', result)
+  return result
 }
 
 // 토글 기능
