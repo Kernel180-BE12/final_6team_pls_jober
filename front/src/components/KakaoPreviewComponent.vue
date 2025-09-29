@@ -112,20 +112,22 @@ const formattedTemplateContent = computed(() => {
   const lines = content.split('\n').filter(line => line.trim())
   shouldShowToggle.value = lines.length > 6
 
-  // 3) 변수를 항상 회색으로 처리
-  const varPatterns = [
-    /\{\{([^}]+)\}\}/g,  // {{변수}}
-    /#\{([^}]+)\}/g,      // #{변수}
-    /\{([^}]+)\}/g,       // {변수}
-    /\[([^\]]+)\]/g       // [변수] - 대괄호 형태도 변수로 처리
-  ]
+  // 3) 변수 하이라이팅 처리 (showVariables prop에 따라)
+  if (props.showVariables) {
+    const varPatterns = [
+      /\{\{([^}]+)\}\}/g,  // {{변수}}
+      /#\{([^}]+)\}/g,      // #{변수}
+      /\{([^}]+)\}/g,       // {변수}
+      /\[([^\]]+)\]/g       // [변수] - 대괄호 형태도 변수로 처리
+    ]
 
-  varPatterns.forEach(pattern => {
-    content = content.replace(pattern, (match, varName) => {
-      const variableName = varName.trim()
-      return `<span class="variable-gray" data-variable="${variableName}">#{${variableName}}</span>`
+    varPatterns.forEach(pattern => {
+      content = content.replace(pattern, (match, varName) => {
+        const variableName = varName.trim()
+        return `<span class="variable-gray" data-variable="${variableName}">#{${variableName}}</span>`
+      })
     })
-  })
+  }
 
   // 4) 스마트 포맷팅 - 의미 있는 구조로 변환
   console.log('포맷팅 전 content:', content)
