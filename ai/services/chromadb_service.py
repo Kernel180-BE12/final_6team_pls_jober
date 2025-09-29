@@ -51,6 +51,7 @@ class ChromaDBService:
             for col in required_collections:
                 self.collections[col] = self.client.get_or_create_collection(col)
                 logger.info(f"✅ 컬렉션 준비 완료: {col}")
+            self.is_mock = False
         except Exception as e:
             logger.error(f"❌ ChromaDB 연결 또는 컬렉션 로드 실패: {e}", exc_info=True)
             self.client = None

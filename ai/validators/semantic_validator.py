@@ -40,11 +40,13 @@ class SemanticValidator:
         s_rr["evidence"] = self._deduplicate_violations(s_rr.get("evidence", []))
         print(f"rejection_reasons 결과: {s_rr}")
 
-        print("🔍 blacklist 룰 기반 검증 시작...")
-        s_dn = self._rule_based_blacklist_stage(text)
-        print(f"blacklist 결과: {s_dn}")
+        print("🔍 public_templates 컬렉션 검색 시작...")
+        s_dn = self._rag_stage("public_templates", text, k=self.PUBLIC_SEARCH_K)
+        print(f"public_templates 결과: {s_dn}")
 
-        # 룰 기반 검증에서는 카테고리 필터가 없으므로 로그 제거
+        # 만약 결과가 없다면 카테고리 필터 때문일 수 있으니 로그 출력
+        if s_dn.get('score', 0) == 0:
+            print(f"⚠️ public_templates에서 결과 없음. 카테고리: {category}")
 
         # 2) 최종 취합 - 실제 RAG 결과를 기반으로 계산
         # 두 단계 결과를 종합하여 최종 판정
@@ -292,6 +294,7 @@ class SemanticValidator:
 
     # ----------------------------- RAG 단계 -----------------------------------
     def _rag_stage(self, collection: str, text: str, k: int = 5, category_sub: str = None) -> Dict[str, Any]:
+<<<<<<< HEAD
         # rejection_reasons 컬렉션 RAG 검색 (반려 사유 DB 기반)
         if collection == "rejection_reasons":
             # 템플릿 전처리 및 임베딩
@@ -303,6 +306,24 @@ class SemanticValidator:
                 query_text=processed_text,
                 category_sub=category_sub,
                 top_k=k
+            )
+        elif collection == "approved_templates":
+            if not category_sub:
+                logger.warning("approved_templates 검색 시 category_sub가 필요합니다.")
+                hits = []
+            else:
+                hits = self.chromadb_service.search_templates(
+                    collection_name="approved_templates",
+                    query_text=text,
+                    category_sub=category_sub,
+                    top_k=k
+                )
+        elif collection == "public_templates":
+            hits = self.chromadb_service.search_templates(
+                collection_name="public_templates",
+                query_text=text,
+                top_k=k,
+                result_format="legacy"
             )
         else:
             logger.warning(f"알 수 없는 컬렉션 이름입니다: {collection}")

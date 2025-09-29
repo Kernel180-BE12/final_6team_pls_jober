@@ -3,10 +3,12 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+from sqlalchemy.orm import Session
+from core.database import get_db
 
-from core.constants import APPROVED_SUB_CATEGORIES
 from services.dependencies import get_openai_service, get_chromadb_service
 from services.openai_service import OpenAIService
+from services.category_service import CategoryService
 from services.chromadb_service import ChromaDBService
 from templateEngine.pipeline import run_template_generation_pipeline
 from templateEngine.prompts.message_analyzer_prompts import PromptDefense, UnsuitableMessageError
@@ -30,20 +32,24 @@ class GenerationResponse(BaseModel):
 @router.post("/generate", response_model=GenerationResponse)
 async def generate_template_endpoint(
         request: GenerationRequest,
+        db_session: Session = Depends(get_db), # db 세션 Depends로 주입
         openai_service: OpenAIService = Depends(get_openai_service),
         chromadb_service: ChromaDBService = Depends(get_chromadb_service)
 ):
     """
     LangGraph 기반의 지능형 템플릿 생성 파이프라인을 실행합니다.
     """
+    # [삭제] CategoryService를 여기서 직접 호출할 필요가 없습니다.
+    # category_service = CategoryService(db_session)
+    # category_sub_list= await category_service.get_all_categories()
     try:
         sanitize_userMessage = PromptDefense.sanitize_user_input(request.userMessage)
 
         result = await run_template_generation_pipeline(
             userMessage=sanitize_userMessage,
-            category_sub_list=APPROVED_SUB_CATEGORIES,
             openai_service=openai_service,
-            chromadb_service=chromadb_service
+            chromadb_service=chromadb_service,
+            db_session=db_session  # <--- db_session을 전달합니다.
         )
 
         if not result.get("pipeline_success", False):
@@ -63,7 +69,7 @@ async def generate_template_endpoint(
             "generation_method": result.get("generation_method", ""),
             "similarity_score": result.get("similarity_score", 0.0)
         }
-        
+
         return GenerationResponse(**response_data)
     
     except UnsuitableMessageError as e:
@@ -71,6 +77,8 @@ async def generate_template_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
  
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"API 엔드포인트 오류: {str(e)}")
 
 

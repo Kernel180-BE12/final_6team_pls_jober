@@ -6,6 +6,7 @@ import logging
 import re
 from typing import Dict, Any, Literal, List
 import asyncio
+from services.category_service import CategoryService
 
 from templateEngine.state import TemplateGenerationState
 from templateEngine.prompts.builders import (
@@ -47,6 +48,116 @@ async def check_message_suitability_node(state: TemplateGenerationState) -> Dict
         logger.error(f"❌ 적합성 검사 실패: {e}", exc_info=True)
         raise Exception(f"메시지 적합성 검사 중 오류 발생: {str(e)}")
 
+async def parallel_tasks_node(state: TemplateGenerationState) -> Dict[str, Any]:
+    """
+    [신규 통합 노드] 메시지 타입 분류, 제목 생성, 카테고리 분류, 필드 추출을 병렬로 처리합니다.
+    """
+    logger.info("=" * 60)
+    logger.info("1단계: 타입, 제목, 카테고리, 필드 추출 병렬 처리 시작")
+
+    # --- 1. 병렬로 실행할 개별 작업(Task) 정의 ---
+
+    async def classify_type_task():
+        """(Task 1) 메시지 유형 분류"""
+        try:
+            prompt_builder = TypePromptBuilder(state["userMessage"])
+            messages = prompt_builder.build()
+            response = await state["openai_service"].chat_completion(messages)
+            return json.loads(response)
+        except Exception as e:
+            logger.error(f"❌ (병렬) 메시지 유형 분류 실패: {e}")
+            return {"type": "BASIC", "explain_type": "분류 실패로 기본값 적용"}
+
+    async def generate_title_task():
+        """(Task 2) 템플릿 제목 생성"""
+        try:
+            prompt_builder = TemplateTitlePromptBuilder(state["userMessage"])
+            messages = prompt_builder.build()
+            return await state["openai_service"].chat_completion(messages)
+        except Exception as e:
+            logger.error(f"❌ (병렬) 제목 생성 실패: {e}")
+            return "제목 생성 실패"
+
+    async def classify_category_task():
+        """(Task 3) DB 연동 카테고리 분류/생성"""
+        try:
+            # CategoryService는 state에 db_session이 주입되어야 함
+            category_service = CategoryService(state["db_session"])
+            current_categories = await category_service.get_all_categories()
+
+            # 1차 분류 시도
+            category_builder = CategoryPromptBuilder(state["userMessage"], current_categories)
+            messages = category_builder.build()
+            response = await state["openai_service"].chat_completion(messages)
+            result = json.loads(response)
+
+            CONFIDENCE_THRESHOLD = 70
+            if result.get("is_appropriate") and result.get("confidence", 0) >= CONFIDENCE_THRESHOLD:
+                # 기존 카테고리 사용
+                return {**result, "generation_source": "classified_existing"}
+            else:
+                # 신규 카테고리 생성
+                new_category_builder = NewCategoryPromptBuilder(state["userMessage"], current_categories)
+                messages = new_category_builder.build()
+                response = await state["openai_service"].chat_completion(messages)
+                new_category_result = json.loads(response)
+                new_category_name = new_category_result.get("new_category")
+
+                # DB에 신규 카테고리 저장
+                await category_service.create_category_if_not_exists(new_category_name)
+
+                return {
+                    "category_sub": new_category_name,
+                    "confidence": 95,
+                    "selection_reason": f"신규 카테고리 '{new_category_name}' 생성",
+                    "generation_source": "created_new"
+                }
+        except Exception as e:
+            logger.error(f"❌ (병렬) 카테고리 분류 실패: {e}")
+            return {"category_sub": "기타", "selection_reason": "분류 실패"}
+
+    async def extract_fields_task():
+        """(Task 4) 변수 필드 추출"""
+        try:
+            prompt_builder = FieldsPromptBuilder(state["userMessage"])
+            messages = prompt_builder.build()
+            response = await state["openai_service"].chat_completion(messages)
+            # JSON 블록 또는 일반 JSON 문자열 처리
+            match = re.search(r'```json\s*({.*?})\s*```', response, re.DOTALL)
+            if match:
+                clean_response = match.group(1)
+            else:
+                clean_response = response.strip()
+            return json.loads(clean_response)
+        except Exception as e:
+            logger.error(f"❌ (병렬) 필드 추출 실패: {e}")
+            return {}
+
+    # --- 2. 정의된 작업들을 asyncio.gather로 동시에 실행 ---
+    results = await asyncio.gather(
+        classify_type_task(),
+        generate_title_task(),
+        classify_category_task(),
+        extract_fields_task()
+    )
+
+    # --- 3. 결과 정리 및 상태 업데이트 ---
+    message_type_result, title_result, category_result, extracted_fields = results
+
+    logger.info("✅ 병렬 처리 완료")
+    logger.info(f"  - 유형: {message_type_result.get('type')}")
+    logger.info(f"  - 제목: {title_result.strip()}")
+    logger.info(f"  - 카테고리: {category_result.get('category_sub')}")
+    logger.info(f"  - 추출된 필드 수: {len(extracted_fields)}")
+
+    return {
+        "message_type_result": message_type_result,
+        "generated_title": title_result.strip(),
+        "category_result": category_result,
+        "extracted_fields": extracted_fields,
+    }
+
+# 통합된 함수들 ==========================================================================
 async def classify_message_type_node(state: TemplateGenerationState) -> Dict[str, Any]:
     logger.info("=" * 60)
     logger.info("1단계: 메시지 유형 분류 시작")
@@ -61,50 +172,139 @@ async def classify_message_type_node(state: TemplateGenerationState) -> Dict[str
     except Exception as e:
         logger.error(f"❌ 메시지 유형 분류 실패: {e}", exc_info=True)
         return {"message_type_result": {"type": "BASIC", "explain_type": "분류 실패로 기본값 적용"}}
- 
-async def parallel_title_category_node(state: TemplateGenerationState) -> Dict[str, Any]:
+
+async def parallel_title_category_node_with_db(state: TemplateGenerationState) -> Dict[str, Any]:
+    """DB 연동된 제목 생성 및 카테고리 분류 (병렬)"""
+    logger.info("=" * 60)
+    logger.info("2단계: DB 연동 제목 생성 및 카테고리 분류 (병렬) 시작")
     try:
+        # CategoryService 초기화
+        category_service = CategoryService(state["db_session"])
+
         async def generate_title_task():
+            """제목 생성 작업"""
+            from templateEngine.prompts.builders import TemplateTitlePromptBuilder
             title_builder = TemplateTitlePromptBuilder(state["userMessage"])
             messages = title_builder.build()
             return await state["openai_service"].chat_completion(messages)
 
         async def classify_or_create_category_task():
-            category_builder = CategoryPromptBuilder(state["userMessage"], state["category_sub_list"])
+            """DB 기반 카테고리 분류/생성 작업 (기존 로직 유지)"""
+            logger.info("DB 기반 카테고리 분류/생성 작업 시작")
+
+            # 1. DB에서 최신 카테고리 목록 조회
+            current_categories = await category_service.get_all_categories()
+            logger.info(f"현재 DB 카테고리 수: {len(current_categories)}개")
+            logger.info(f"카테고리 목록: {', '.join(current_categories[:10])}...")
+
+            # 2. 1차: 기존 카테고리 내에서 분류 시도
+            logger.info("1차: 기존 카테고리 내에서 분류 시도...")
+            category_builder = CategoryPromptBuilder(state["userMessage"], current_categories)
             messages = category_builder.build()
             response = await state["openai_service"].chat_completion(messages)
             first_attempt_result = json.loads(response)
 
+            logger.info(f"기존 카테고리 사용 1차 시도 결과: 적합성={first_attempt_result.get('is_appropriate')}, 신뢰도={first_attempt_result.get('confidence')}%")
+
             CONFIDENCE_THRESHOLD = 70
             if first_attempt_result.get("is_appropriate") and first_attempt_result.get("confidence", 0) >= CONFIDENCE_THRESHOLD:
+                # 기존 카테고리 사용 (성공)
+                selected_category = first_attempt_result.get("category_sub")
+                logger.info("✅ 1차 분류 성공. 기존 카테고리를 사용합니다.")
+
+                # DB에서 카테고리 조회 (ID 필요)
+                category_obj = await category_service.get_category_by_name(selected_category)
+                if not category_obj:
+                    # 혹시라도 DB에 없는 경우 생성 (안전장치)
+                    logger.warning(f"⚠️ DB에 카테고리 '{selected_category}'가 없어서 생성합니다.")
+                    category_obj = await category_service.create_category_if_not_exists(
+                        selected_category,
+                        description="기존 분류에서 선택되었으나 DB에 없어서 생성됨"
+                    )
                 return {
-                    "category_sub": first_attempt_result.get("category_sub"), "confidence": first_attempt_result.get("confidence"),
-                    "selection_reason": first_attempt_result.get("selection_reason"), "generation_source": "classified_existing"
+                    "category_sub": selected_category,
+                    "category_id": category_obj.id if category_obj else None,
+                    "confidence": first_attempt_result.get("confidence"),
+                    "selection_reason": first_attempt_result.get("selection_reason"),
+                    "generation_source": "classified_existing"
                 }
             else:
-                new_category_builder = NewCategoryPromptBuilder(state["userMessage"], state["category_sub_list"])
+                # 기존 카테고리로는 부적합 → 신규 카테고리 생성
+                logger.warning("⚠️ 1차 분류 실패 또는 신뢰도 낮음. 신규 카테고리 생성을 시도합니다.")
+                logger.info(f"사유: {first_attempt_result.get('selection_reason')}")
+
+                # 2차: 신규 카테고리 생성
+                new_category_builder = NewCategoryPromptBuilder(state["userMessage"], current_categories)
                 messages = new_category_builder.build()
                 response = await state["openai_service"].chat_completion(messages)
                 new_category_result = json.loads(response)
-                new_category = new_category_result.get("new_category")
+                new_category_name = new_category_result.get("new_category")
+
+                logger.info(f"✨ LLM이 생성한 신규 카테고리: '{new_category_name}'")
+
+                # 3. 생성된 카테고리를 DB에 저장
+                category_obj = await category_service.create_category_if_not_exists(
+                    new_category_name,
+                    description=f"AI가 메시지 분석 후 자동 생성한 카테고리 (신뢰도: {first_attempt_result.get('confidence', 0)}%)"
+                )
+
+                logger.info(f"✅ 신규 카테고리 DB 저장 완료: '{new_category_name}' (ID: {category_obj.id})")
                 return {
-                    "category_sub": new_category, "confidence": 95,
-                    "selection_reason": f"기존 리스트에 적합한 카테고리가 없어 '{new_category}'를 새로 생성함.", "generation_source": "created_new"
+                    "category_sub": new_category_name,
+                    "category_id": category_obj.id if category_obj else None,
+                    "confidence": 95,  # 신규 생성은 높은 신뢰도
+                    "selection_reason": f"기존 리스트에 적합한 카테고리가 없어 '{new_category_name}'를 새로 생성하고 DB에 저장함.",
+                    "generation_source": "created_new"
                 }
 
-        title_result, category_result = await asyncio.gather(generate_title_task(), classify_or_create_category_task())
+        # 제목 생성과 카테고리 분류를 병렬로 실행
+        title_result, category_result = await asyncio.gather(
+            generate_title_task(),
+            classify_or_create_category_task()
+        )
 
-        # 제목에서 따옴표 제거 및 정리
-        clean_title = title_result.strip()
-        clean_title = clean_title.strip('"\'')  # 앞뒤 따옴표 제거
-        clean_title = clean_title.replace('"', '').replace("'", '')  # 중간 따옴표도 제거
+        # 카테고리 사용 횟수 업데이트 (통계용)
+        if category_result.get("category_id"):
+            await category_service.update_category_usage_count(category_result["category_id"])
 
+        logger.info("병렬 작업 완료")
+        logger.info(f"✅ 제목 생성 성공: '{title_result.strip()}'")
+        logger.info(f"✅ 카테고리 분류 성공: {category_result.get('category_sub')} (ID: {category_result.get('category_id')})")
 
-        return {"generated_title": clean_title, "category_result": category_result}
+        return {
+            "generated_title": title_result.strip(),
+            "category_result": category_result
+        }
     except Exception as e:
-        logger.error(f"❌ 병렬 처리 실패: {e}", exc_info=True)
-        return {"generated_title": "제목 생성 실패", "category_result": {"category_sub": "기타", "selection_reason": "분류 실패"}}
+        logger.error(f"❌ DB 연동 병렬 처리 실패: {e}", exc_info=True)
 
+        # 실패 시 fallback 처리
+        try:
+            category_service = CategoryService(state["db_session"])
+            fallback_category = await category_service.get_category_by_name("기타")
+            if not fallback_category:
+                fallback_category = await category_service.create_category_if_not_exists("기타", "기본 fallback 카테고리")
+
+            return {
+                "generated_title": "제목 생성 실패",
+                "category_result": {
+                    "category_sub": "기타",
+                    "category_id": fallback_category.id if fallback_category else None,
+                    "selection_reason": "처리 실패로 기본 카테고리 사용",
+                    "generation_source": "error_fallback"
+                }
+            }
+        except Exception as fallback_error:
+            logger.error(f"❌ fallback 처리도 실패: {fallback_error}")
+            return {
+                "generated_title": "제목 생성 실패",
+                "category_result": {
+                    "category_sub": "기타",
+                    "category_id": None,
+                    "selection_reason": "완전 실패",
+                    "generation_source": "complete_failure"
+                }
+            }
 
 async def search_templates_node(state: TemplateGenerationState) -> Dict[str, Any]:
 
@@ -457,3 +657,6 @@ def extract_variables_from_template(template_text: str) -> list[str]:
     variables = re.findall(r'#\{([^}]+)\}', template_text)
     return sorted(list(set(variables)))
 
+
+def parallel_message_type_title_category_fieid_node_tracing():
+    return None
