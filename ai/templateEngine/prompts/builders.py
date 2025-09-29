@@ -508,10 +508,10 @@ class FieldsPromptBuilder(BasePromptBuilder):
     """
     def build(self) -> List[Dict]:
         system_prompt = f"""**[당신의 역할]**
-당신은 이미 완성된 카카오 알림톡 템플릿의 **구조를 분석**하여, 각 문단이 어떤 의미를 갖는지 식별하고 **Key-Value로 매핑**하는 '템플릿 구조 분석가'입니다.
+당신은 완성된 템플릿의 구조를 분석하여, 각 문단을 **의미가 큰 덩어리(Block)**로 묶어내는 '콘텐츠 구조 분석가'입니다.
 
 **[핵심 임무]**
-주어진 **완성된 템플릿 본문**을 보고, 각 문단 또는 구문이 아래에 정의된 **[의미 블록 Key]** 중 어디에 해당하는지 분석하여 JSON으로 반환하세요.
+주어진 템플릿 본문을 보고, 각 문단이 아래 [의미 블록 Key] 중 어디에 해당하는지 분석하여 JSON으로 반환하세요. **개별 단어(브랜드명, 전화번호 등)는 신경쓰지 말고, 오직 문단 전체의 의미에만 집중하세요.**
 
 **[알림톡 표준 구조 및 Key 매핑 규칙]**
 1.  **인사말 (`greeting_message` / `customer_title`)**:
@@ -544,7 +544,7 @@ class FieldsPromptBuilder(BasePromptBuilder):
 - `brand_name`: '장수돌침대', '올워크' 등 회사/브랜드 이름.
 - `phone_number_1`, `phone_number_2`: 본문에 나타나는 전화번호들.
 
-**[완벽한 추출 예시]**
+**[완벽한 추출 예시 1]**
 
 - **입력 템플릿 본문**:
     안녕하세요, 고객님.
@@ -566,6 +566,23 @@ class FieldsPromptBuilder(BasePromptBuilder):
     "phone_number_1": "1599-9988",
     "phone_number_2": "1588-9988"
 }}
+
+**[완벽한 추출 예시 2]**
+- 입력:
+    안녕하세요, 고객님.
+    롯데광주에서 오일릴리 이월행사를 안내드립니다.
+    ▶ 기간: 10월 6일(수) ~ 10월 10일(일)
+    ▶ 문의: 062-221-1440
+    감사합니다.
+- 추출 결과 (JSON):
+{{
+    "greeting_message": "안녕하세요, 고객님.",
+    "main_content": "롯데광주에서 오일릴리 이월행사를 안내드립니다.",
+    "sub_content": "▶ 기간: 10월 6일(수) ~ 10월 10일(일)",
+    "contact_info": "▶ 문의: 062-221-1440",
+    "closing_word": "감사합니다."
+}}
+
 
 **[출력 형식]**
 - 추출된 Key-Value 쌍을 JSON 형식으로만 반환합니다.
@@ -1025,5 +1042,52 @@ class TemplateWriterBuilder(BasePromptBuilder):
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"다음 요청을 간결한 알림톡 텍스트로 만들어주세요:\n{self.userMessage}"}
+        ]
+        return messages
+
+
+class IndividualVariableExtractor(BasePromptBuilder):
+    """
+    [신규] 텍스트에서 '개별 변수'만 찾아내는 데 특화된 프롬프트 빌더
+    """
+    def build(self) -> List[Dict]:
+        system_prompt = f"""**[당신의 역할]**
+    당신은 텍스트에서 **개인화되거나 변경될 수 있는 모든 '개별 정보'**를 찾아내는 '데이터 스캐너'입니다.
+    
+    **[핵심 임무]**
+    주어진 텍스트 전체를 스캔하여, 아래 [추출 대상 변수]에 해당하는 모든 정보를 찾아 Key-Value 형태의 JSON으로 반환하세요.
+    
+    **[추출 대상 변수 및 Key]**
+    - `customer_title`: '고객', '회원' 등 (조사 '님' 제외)
+    - `brand_name`: '오일릴리', '장수돌침대' 등 브랜드명
+    - `location`: '롯데백화점 광주점', '강남점' 등 장소
+    - `event_period`: '10월 6일(수) ~ 10월 10일(일)' 등 기간
+    - `discount_rate`: '40%~60% + 추가 10%' 등 할인율
+    - `phone_number_1`, `phone_number_2`: '062-221-1440' 등 전화번호
+    
+    **[추출 예시]**
+    - 입력:
+    안녕하세요, 고객님.
+    롯데광주에서 오일릴리 이월행사를 안내드립니다.
+    ▶ 기간: 10월 6일(수) ~ 10월 10일(일)
+    ▶ 할인율: 40%~60% + 추가 10%
+    ▶ 장소: 롯데백화점 광주점 9층 행사장
+    ▶ 문의: 062-221-1440
+    - 추출 결과 (JSON):
+    {{
+    "customer_title": "고객",
+    "brand_name": "오일릴리",
+    "event_period": "10월 6일(수) ~ 10월 10일(일)",
+    "discount_rate": "40%~60% + 추가 10%",
+    "location": "롯데백화점 광주점",
+    "phone_number_1": "062-221-1440"
+    }}
+    
+    **[출력 형식]**
+    - 추출된 Key-Value 쌍을 JSON 형식으로만 반환합니다.
+    """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"다음 텍스트에서 개별 변수들을 JSON으로 추출하세요:\n{self.userMessage}"}
         ]
         return messages
