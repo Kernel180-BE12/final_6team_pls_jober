@@ -7,13 +7,21 @@
     
     <div class="form-content">
       <div class="input-section">
-        <textarea
-          v-model="templateStore.userMessage"
-          placeholder="예시: 회원가입 완료 알림, 주문 배송 안내, 이벤트 참여 안내 등&#10;&#10;구체적으로 작성할수록 더 정확한 템플릿이 생성됩니다."
-          class="template-textarea"
-          :disabled="isGenerating"
-          rows="6"
-        ></textarea>
+        <!-- 에러 발생 시 보여줄 화면 -->
+        <div v-if="errorMessage" class="error-display">
+          <i class="mdi mdi-alert-circle-outline error-icon"></i>
+          <p class="error-text">{{ errorMessage }}</p>
+          <button @click="clearError" class="retry-btn">다시 작성하기</button>
+        </div>
+        <!-- 정상 상태에서 보여줄 텍스트 입력창 -->
+        <textarea v-else
+            v-model="templateStore.userMessage"
+            placeholder="예시: 회원가입 완료 알림, 주문 배송 안내, 이벤트 참여 안내 등&#10;&#10;구체적으로 작성할수록 더 정확한 템플릿이 생성됩니다."
+            class="template-textarea"
+            :disabled="isGenerating"
+            rows="6"
+            @input="clearError"
+          ></textarea>
         
         <div class="input-footer">
           <span class="char-count">{{ templateStore.userMessage.length }}/500</span>
@@ -46,6 +54,7 @@ const userStore = useUserStore()
 const templateStore = useTemplateStore()
 
 const isGenerating = ref(false)
+const errorMessage = ref('')
 
 const canSubmit = computed(() =>
   templateStore.userMessage.trim().length > 0 && !isGenerating.value
@@ -55,8 +64,12 @@ const emit = defineEmits<{
   (e: 'requireLogin'): void
 }>()
 
+const clearError = () => {
+  errorMessage.value = ''
+}
 const handleSubmit = async () => {
   if (!canSubmit.value) return
+  clearError() // 요청 시작 시 이전 에러 메시지 초기화
 
   // 로그인 여부 확인
   if (!userStore.isLoggedIn) {
@@ -91,8 +104,15 @@ const handleSubmit = async () => {
       name: 'template-result',
       state: response.data
     })
-  } catch (e) {
-    alert('템플릿 생성 실패. 다시 시도해주세요.')
+  } catch (error: any) {
+    // API 에러 응답에서 상세 메시지를 추출하여 사용자에게 보여줍니다.
+    if (error.response && error.response.data && error.response.data.detail) {
+      errorMessage.value = error.response.data.detail;
+    } else {
+      // 그 외의 네트워크 오류 등은 일반적인 메시지를 표시합니다.
+      console.error('Template generation failed:', error);
+      errorMessage.value = '템플릿 생성에 실패했습니다. 네트워크 연결을 확인하거나 다시 시도해주세요.';
+    }
   } finally {
     isGenerating.value = false
   }
@@ -100,6 +120,51 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
+/* 에러 메시지 표시 스타일 */
+.error-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 8rem;
+  padding: 1rem;
+  border: 2px dashed #ff5252;
+  border-radius: 0.8rem;
+  background-color: #fff5f5;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.error-icon {
+  font-size: 2.5rem;
+  color: #ff5252;
+  margin-bottom: 0.75rem;
+}
+
+.error-text {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #d32f2f;
+  margin: 0 0 1.25rem 0;
+  line-height: 1.5;
+}
+
+.retry-btn {
+  padding: 0.6rem 1.2rem;
+  border: 1px solid #ffcdd2;
+  background-color: white;
+  color: #d32f2f;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.retry-btn:hover {
+  background-color: #ffcdd2;
+  color: #b71c1c;
+}
+
 /* 템플릿 폼 컨테이너 */
 .template-form {
   background: white;

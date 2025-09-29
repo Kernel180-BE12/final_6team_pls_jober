@@ -4,6 +4,7 @@ import asyncio
 from typing import Dict, List
 from .state import TemplateGenerationState
 from .nodes import (
+    check_message_suitability_node,
     classify_message_type_node,
     parallel_title_category_node,
     search_templates_node,
@@ -16,12 +17,14 @@ from .nodes import (
 from services.openai_service import OpenAIService
 from services.chromadb_service import ChromaDBService
 from langgraph.graph import StateGraph, END
+from .prompts.message_analyzer_prompts import UnsuitableMessageError
 import logging
 
 logger = logging.getLogger(__name__)
 
 async def create_pipeline() -> StateGraph:
     workflow = StateGraph(TemplateGenerationState)
+    workflow.add_node("check_suitability", check_message_suitability_node)
     workflow.add_node("classify_type", classify_message_type_node)
     workflow.add_node("title_category_parallel", parallel_title_category_node)
     workflow.add_node("search_templates", search_templates_node)
@@ -30,7 +33,9 @@ async def create_pipeline() -> StateGraph:
     workflow.add_node("search_public_and_generate", search_public_and_generate_node)
     workflow.add_node("finalize_result", finalize_result_node)
 
-    workflow.set_entry_point("classify_type")
+    # workflow.set_entry_point("classify_type")
+    workflow.set_entry_point("check_suitability")
+    workflow.add_edge("check_suitability", "classify_type")
     workflow.add_edge("classify_type", "title_category_parallel")
     workflow.add_edge("title_category_parallel", "search_templates")
     workflow.add_edge("search_templates", "extract_fields")
@@ -67,6 +72,7 @@ async def run_template_generation_pipeline(
             "category_sub_list": category_sub_list,
             "openai_service": openai_service,
             "chromadb_service": chromadb_service,
+            "suitability_check_result": None,
             "message_type_result": None,
             "category_result": None,
             "generated_title": None,
@@ -83,6 +89,10 @@ async def run_template_generation_pipeline(
         logger.info("=" * 80)
         logger.info("파이프라인 실행 완료!")
         return final_state.get("final_result", {})
+    except UnsuitableMessageError as e:
+        # API 레벨에서 직접 처리해야 할 특정 예외는 그대로 다시 발생시킵니다.
+        logger.warning(f"파이프라인 실행 중 제어된 예외 발생(부적합 메시지): {e}")
+        raise e
     except Exception as e:
         logger.error(f"❌ 파이프라인 전체 실행 실패: {e}", exc_info=True)
         return {

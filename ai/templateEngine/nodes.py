@@ -1,6 +1,7 @@
 # templateEngine/nodes.py
 
 import json
+from templateEngine.prompts.message_analyzer_prompts import UnsuitableMessageError
 import logging
 import re
 from typing import Dict, Any, Literal, List
@@ -8,6 +9,7 @@ import asyncio
 
 from templateEngine.state import TemplateGenerationState
 from templateEngine.prompts.builders import (
+    SuitabilityCheckPromptBuilder,
     TypePromptBuilder,
     TemplateTitlePromptBuilder,
     CategoryPromptBuilder,
@@ -20,6 +22,30 @@ from templateEngine.prompts.builders import (
 logger = logging.getLogger(__name__)
 
 # --- 노드 함수들 ---
+async def check_message_suitability_node(state: TemplateGenerationState) -> Dict[str, Any]:
+    logger.info("=" * 60)
+    logger.info("0단계: 메시지 적합성 검사")
+    try:
+        prompt_builder = SuitabilityCheckPromptBuilder(state["userMessage"])
+        messages = prompt_builder.build()
+        openai_service = state["openai_service"]
+        response = await openai_service.chat_completion(messages)
+        result = json.loads(response)
+        
+        if not result.get("is_suitable"):
+            logger.warning(f"❌ 부적합한 메시지 감지: {result.get('reason')}")
+            # 부적합할 경우, 에러 메시지와 함께 예외를 발생시켜 파이프라인을 즉시 중단합니다.
+            reason = result.get('reason', '알 수 없는 이유')
+            raise UnsuitableMessageError(f"카카오톡 알림톡 템플릿 생성과 관련 없는 요청입니다. (사유: {reason})")    
+
+        logger.info(f"✅ 적합성 검사 통과: {result.get('reason')}")
+        return {"suitability_check_result": result}
+    except UnsuitableMessageError as e:
+        raise e
+
+    except Exception as e:
+        logger.error(f"❌ 적합성 검사 실패: {e}", exc_info=True)
+        raise Exception(f"메시지 적합성 검사 중 오류 발생: {str(e)}")
 
 async def classify_message_type_node(state: TemplateGenerationState) -> Dict[str, Any]:
     logger.info("=" * 60)

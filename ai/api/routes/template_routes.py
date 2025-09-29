@@ -9,6 +9,7 @@ from services.dependencies import get_openai_service, get_chromadb_service
 from services.openai_service import OpenAIService
 from services.chromadb_service import ChromaDBService
 from templateEngine.pipeline import run_template_generation_pipeline
+from templateEngine.prompts.message_analyzer_prompts import PromptDefense, UnsuitableMessageError
 
 router = APIRouter(prefix="/template", tags=["Template Generation"])
 
@@ -36,13 +37,19 @@ async def generate_template_endpoint(
     LangGraph 기반의 지능형 템플릿 생성 파이프라인을 실행합니다.
     """
     try:
+        sanitize_userMessage = PromptDefense.sanitize_user_input(request.userMessage)
+
         result = await run_template_generation_pipeline(
-            userMessage=request.userMessage,
+            userMessage=sanitize_userMessage,
             category_sub_list=APPROVED_SUB_CATEGORIES,
             openai_service=openai_service,
             chromadb_service=chromadb_service
         )
-        
+
+        if not result.get("pipeline_success", False):
+            # 파이프라인 내부에서 정상적으로 종료되었지만 실패한 경우
+            raise HTTPException(status_code=400, detail=result.get("error_message", "템플릿 생성에 실패했습니다."))
+
         # 프론트엔드 형식에 맞게 변환
         response_data = {
             "template_content": result.get("template_text", ""),
@@ -58,6 +65,11 @@ async def generate_template_endpoint(
         }
         
         return GenerationResponse(**response_data)
+    
+    except UnsuitableMessageError as e:
+        # 적합성 검사 실패 시, 400 에러와 함께 명확한 메시지 반환
+        raise HTTPException(status_code=400, detail=str(e))
+ 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"API 엔드포인트 오류: {str(e)}")
 
