@@ -7,7 +7,6 @@ from templateEngine.nodes import (
     check_message_suitability_node,
     parallel_tasks_node,
     search_templates_node,
-    # extract_fields_node,
     decide_generation_method,
     generate_with_reference_node,
     search_public_and_generate_node,
@@ -15,15 +14,10 @@ from templateEngine.nodes import (
 )
 from services.openai_service import OpenAIService
 from services.chromadb_service import ChromaDBService
-from services.category_service import CategoryService
-from core.database import get_db
 from langgraph.graph import StateGraph, END
 from .prompts.message_analyzer_prompts import UnsuitableMessageError
 import logging
-from langchain.prompts.prompt import PromptTemplate
 from core.database import SessionLocal
-from fastapi import Depends
-Session = SessionLocal()
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +66,7 @@ async def run_template_generation_pipeline(
 
         initial_state = {
             "userMessage": userMessage,
-            "db_session": db_session, # [추가] 노드에서 DB 세션을 사용할 수 있도록 전달
-            # "category_sub_list": current_categories, # 노드 내부에서 조회하므로 삭제
+            "db_session": db_session,
             "openai_service": openai_service,
             "chromadb_service": chromadb_service,
             "suitability_check_result": None,

@@ -1784,7 +1784,7 @@ watch([templateContent, templateTitle, editedVariables, showVariables], () => {
   width:80vw;
   height:80vh;
   margin: 0 auto;
-  //background-color: lime;
+  /* background-color: lime; */
 }
 
 /* 좌우 분할 레이아웃 */
@@ -1793,7 +1793,7 @@ watch([templateContent, templateTitle, editedVariables, showVariables], () => {
   height: 100%;
   display: flex;
   justify-content: space-between;
-  //background-color: green;
+  /* background-color: green; */
 }
 
 /* 분할선 스타일 */
@@ -1823,7 +1823,7 @@ watch([templateContent, templateTitle, editedVariables, showVariables], () => {
   flex-direction: column;
   gap: 1.2rem;
   overflow: visible;
-  //background-color: blue;
+  /* background-color: blue; */
 }
 
 /* 미리보기와 사이드바 컨테이너 */
@@ -1836,7 +1836,7 @@ watch([templateContent, templateTitle, editedVariables, showVariables], () => {
   height:70vh;
   justify-content: center;
   align-items: flex-start; /* 자식 요소들을 상단 정렬 */
-  //background-color: yellow;
+  /* background-color: yellow; */
 }
 
 /* 반려 사이드바가 열렸을 때의 상태 */
@@ -2217,7 +2217,7 @@ watch([templateContent, templateTitle, editedVariables, showVariables], () => {
   height:5vw;
   padding:0 1vw;
   border-top: 0.05rem solid #e0e0e0;
-  //background-color:red;
+  /* background-color:red; */
 }
 
 /* 정정 횟수 표시 */
