@@ -1,481 +1,1029 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 class BasePromptBuilder(ABC):
     """기본 프롬프트 빌더"""
     def __init__(self, userMessage: str):
         self.userMessage = userMessage
-        self.hints: list[dict] = []
-
-    def _apply_security_protection(self, messages: list) -> list:
-        """보안 보호 규칙 적용"""
-        from .message_analyzer_prompts import PromptDefense
-        return PromptDefense.add_system_protection(messages)
+        self.hints: List[Dict] = []
 
     def add_hint(self, description: str, content: str):
-        """힌트 추가"""
+        """
+        @deprecated: 이 메서드는 더 이상 사용하지 않으며, 향후 제거될 예정입니다.
+        """
         self.hints.append({"description": description, "content": content})
         return self
 
+    def _build_hint_messages(self) -> List[Dict]:
+        return [{"role": "system", "content": h["content"]} for h in self.hints]
+
     @abstractmethod
     def build(self) -> List[Dict]:
-        """프롬프트 빌드 로직은 구체 빌더가 구현"""
         pass
 
+# prompts/builders.py
 
-class AdvancedFieldsPromptBuilder(BasePromptBuilder):
-    """고도화된 변수 추출 프롬프트 빌더 - 카카오 가이드라인 완벽 준수"""
-
+class FieldsPromptBuilder(BasePromptBuilder):
+    """
+    [최종 수정] '생성된 템플릿'을 분석하고, 호칭에서 '핵심 명사'와 '조사'를 분리하여 추출하는 '구조 분석가'
+    """
     def build(self) -> List[Dict]:
-        today_str = datetime.now().strftime('%Y-%m-%d')
+        system_prompt = f"""**[당신의 역할]**
+당신은 완성된 템플릿의 구조를 분석하여, 각 부분을 의미에 맞게 Key-Value로 매핑하는 '템플릿 구조 분석가'입니다.
 
-        system_prompt = f"""당신은 카카오 알림톡 변수 추출 전문가입니다.
+**[핵심 임무]**
+주어진 템플릿 본문을 보고, 각 문단/구문이 아래 [의미 블록 Key]에 해당하는지 분석하여 JSON으로 반환하세요.
 
-## 핵심 미션
-주어진 텍스트에서 템플릿화 가능한 모든 정보를 식별하고, 카카오 가이드라인에 맞는 변수로 매핑하세요.
+**[의미 블록 Key 정의 및 추출 규칙]**
+- `main_content`, `sub_content`, `contact_info`, `closing_word`: 각 의미에 해당하는 문장 또는 문단 **전체**를 추출합니다.
+- `brand_name`: '장수돌침대' 등 회사/브랜드 이름 **전체**를 추출합니다.
+- `phone_number_1`, `phone_number_2`: '1599-9988' 등 전화번호 **전체**를 추출합니다.
 
-## 카카오 알림톡 변수 규칙
-1. **형식**: #{{변수명}} (중괄호 2개)
-2. **명명**: 한글로 명명 (예: 고객명, 주문번호, 금액)
-3. **1,300자 제한**: 템플릿 전체 길이 고려
-4. **개인정보 보호**: 모든 개인식별정보는 필수 변수화
+- **[가장 중요] 호칭 분리 추출 (`customer_title`)**:
+  - '고객님', '회원님', '김철수님'과 같은 호칭을 찾으세요.
+  - 여기서 **조사('님')를 제외한 핵심 명사('고객', '회원', '김철수')만** `customer_title` Key의 값으로 추출해야 합니다.
 
-## 변수 추출 우선순위
-### HIGH (필수 변수화)
-- 개인정보: 이름, 전화번호, 주소, 이메일
-- 식별번호: 주문번호, 예약번호, 회원번호
-- 금융정보: 금액, 할인율, 포인트
-- 시간정보: 날짜, 시간, 기간
+**[완벽한 추출 예시]**
 
-### MEDIUM (권장 변수화)
-- 장소정보: 매장명, 지역, 주소
-- 상품정보: 상품명, 브랜드명, 모델명
-- 호칭: "고객님", "회원님" 등
+- **입력 템플릿 본문**:
+    안녕하세요, 고객님.
+    장수돌침대에서 겨울맞이 사전점검을 안내드립니다.
+    겨울철 안전하고 편안한 사용을 위해 미리 A/S 및 점검을 받아보시는 것을 권장합니다.
+    ▶ 점검/A/S 예약: 1599-9988
 
-### LOW (선택적 변수화)
-- 일반적인 안내 문구나 고정 텍스트
-
-## 날짜 처리 규칙
-- 기준일: {today_str}
-- "오늘" → {today_str}
-- "내일" → 다음날 계산
-- "모레" → 2일 후 계산
-- 상대적 표현을 절대 날짜로 변환
-
-## 표준 변수명 매핑 (한글 변수명 사용)
-```
-개인정보:
-- 고객명 (이름)
-- 호칭 (고객님, 회원님 등)
-- 전화번호
-- 이메일
-- 주소
-
-식별번호:
-- 주문번호
-- 예약번호
-- 회원번호
-- 상품번호
-
-금융정보:
-- 금액
-- 할인금액
-- 포인트
-- 적립금
-
-시간정보:
-- 주문일시
-- 배송일시
-- 예약일시
-- 처리일시
-
-장소정보:
-- 매장명
-- 지역명
-- 주소
-
-상품정보:
-- 상품명
-- 브랜드명
-- 모델명
-```
-
-## 출력 형식
-반드시 JSON 형식으로만 응답:
+- **추출 결과 (JSON)**:
 {{
-    "extracted_fields": {{
-        "원본텍스트": "변수명",
-        "홍길동": "고객명",
-        "2024-01-15": "주문일시"
-    }},
-    "confidence": 0.95,
-    "reasoning": "추출 근거 설명"
+    "customer_title": "고객",
+    "brand_name": "장수돌침대",
+    "main_content": "장수돌침대에서 겨울맞이 사전점검을 안내드립니다.",
+    "sub_content": "겨울철 안전하고 편안한 사용을 위해 미리 A/S 및 점검을 받아보시는 것을 권장합니다.",
+    "phone_number_1": "1599-9988"
 }}
-"""
 
+**[출력 형식]**
+- 추출된 Key-Value 쌍을 JSON 형식으로만 반환합니다.
+"""
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"다음 텍스트에서 변수를 추출해주세요:\n\n{self.userMessage}"}
-        ]
-        
-        return self._apply_security_protection(messages)
-
-
-class FieldsPromptBuilder(AdvancedFieldsPromptBuilder):
-    """기존 FieldsPromptBuilder와 호환성 유지"""
-    pass
-
-
-class ExpertTemplateBuilder(BasePromptBuilder):
-    """전문가급 템플릿 생성 빌더 - 구체적이고 실용적인 템플릿 생성"""
-
-    def __init__(self, userMessage: str, extracted_fields: Dict, message_type: str = None, reference_templates: List[Dict] = None):
-        super().__init__(userMessage)
-        self.extracted_fields = extracted_fields
-        self.message_type = message_type
-        self.reference_templates = reference_templates or []
-
-    def build(self) -> List[Dict]:
-        # 변수 매핑 규칙 생성
-        variable_mapping = self._generate_variable_mapping()
-        
-        # 메시지 타입별 규칙
-        type_rules = self._get_message_type_rules()
-        
-        # 참고 템플릿 컨텍스트
-        reference_context = self._build_reference_context()
-
-        system_prompt = f"""
-당신은 15년차 카피라이터이자 카카오 알림톡 템플릿 검수 전문가입니다.
-고객에게 전달되는 메시지인 만큼, 친절하며 프로페셔널한 톤앤매너를 유지하되, 알림톡 의도에 벗어나는 내용은 제거하고 간략하고 명확하게 전달되어야 합니다.
-
-{variable_mapping}
-
-{type_rules}
-
-{reference_context}
-
-## 필수 규칙: 템플릿 구조
-1. **인사:** "안녕하세요, 고객님." 과 같이 부드러운 문장으로 시작합니다.
-2. **핵심 내용:** 전달하려는 가장 중요한 내용을 먼저 제시합니다.
-3. **상세 정보 (선택 사항):** 필요시, '▶' 기호를 사용하여 정보를 항목별로 명확하게 구분합니다.
-4. **마무리:** "감사합니다." 또는 "많은 이용 부탁드립니다." 와 같은 긍정적인 문장으로 끝맺습니다.
-5. **발송 근거:** 템플릿 가장 마지막 줄에는 `*`로 시작하는 발송 근거를 반드시 포함해야 합니다.
-
-## 좋은 템플릿의 조건
-1. **친절함:** 딱딱하지 않고 부드러운 문장으로 시작하고 끝냅니다.
-2. **명확성:** 핵심 정보를 쉽게 파악할 수 있도록 줄 바꿈과 구성을 활용합니다.
-3. **정확성:** 변수 규칙을 포함한 모든 규칙을 100% 준수합니다.
-
-## 생성 예시
-- 사용자 요청: "회원가입이 완료되었습니다. 10% 할인 쿠폰을 드립니다."
-- **바람직한 생성 결과:**
-    안녕하세요, #{{고객명}}님.
-    회원가입이 완료되었습니다.
-    감사합니다.
-    *본 알림은 정보통신망법에 따라 발송되었습니다.
-
-**중요**: 위 예시처럼 간결하고 명확하게 생성하세요.
-"""
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"다음 내용으로 템플릿을 생성해주세요:\n\n{self.userMessage}"}
+            {"role": "user", "content": f"다음 템플릿 본문을 분석하여 의미 블록과 변수를 JSON으로 추출하세요:\n{self.userMessage}"}
         ]
         return messages
 
-    def _generate_variable_mapping(self) -> str:
-        """변수 매핑 규칙 생성"""
-        if not self.extracted_fields:
-            return ""
-        
-        mapping_rules = "\n## 변수 처리 규칙\n"
-        mapping_rules += "아래 규칙에 따라, 원본 메시지의 특정 단어를 `#{변수명}` 형태로 반드시 교체해야 합니다.\n"
-        
-        for value, var_name in self.extracted_fields.items():
-            mapping_rules += f"- '{value}'는 `#{{{var_name}}}`으로 변경하세요.\n"
-        
-        return mapping_rules
-
-    def _get_message_type_rules(self) -> str:
-        """메시지 타입별 규칙"""
-        if not self.message_type:
-            return ""
-        
-        type_rules = {
-            "notification": "알림형: 중요한 정보나 상태 변화를 명확하게 전달하세요.",
-            "guidance": "안내형: 사용자에게 필요한 행동이나 정보를 친절하게 안내하세요.",
-            "marketing": "마케팅형: 상품이나 서비스를 매력적으로 홍보하되 과도하지 않게 하세요.",
-            "verification": "인증형: 보안 관련 정보를 신뢰할 수 있게 전달하세요."
-        }
-        
-        return f"\n## 메시지 타입 규칙\n{type_rules.get(self.message_type, '')}"
-
-    def _build_reference_context(self) -> str:
-        """참고 템플릿 컨텍스트 생성"""
-        if not self.reference_templates:
-            return ""
-        
-        context = "\n## 참고 템플릿\n"
-        for i, template in enumerate(self.reference_templates[:3], 1):
-            context += f"### 참고 템플릿 {i}\n{template.get('text', '')}\n\n"
-        
-        return context
 
 
 class CategoryPromptBuilder(BasePromptBuilder):
-    """정교한 카테고리 분류 프롬프트 빌더"""
-
+    """카테고리 분류 프롬프트 빌더 - 적합성 판단 기능 추가"""
     def __init__(self, userMessage: str, category_sub_list: List[str]):
         super().__init__(userMessage)
         self.category_sub_list = category_sub_list
 
     def build(self) -> List[Dict]:
         system_prompt = f"""
-당신은 카카오 알림톡 템플릿 카테고리 분류 전문가입니다.
-
-## 분류 대상 카테고리
-{', '.join(self.category_sub_list)}
-
-## 분류 기준
-1. **메시지의 주요 목적** 파악
-2. **사용자에게 전달되는 정보의 성격** 분석
-3. **기존 카테고리와의 유사성** 고려
-
-## 출력 형식
-반드시 JSON 형식으로만 응답:
-{{
-    "category": "선택된_카테고리명",
-    "confidence": 0.0-1.0,
-    "reason": "분류 이유를 간단히 설명"
-}}
-"""
-
+            당신은 카카오 알림톡 카테고리 분류 전문가입니다.
+            주어진 메시지를 분석하여, 아래 '서브 카테고리 후보' 중 가장 적합한 것을 선택하세요.
+            
+            서브 카테고리 후보:
+            {', '.join(self.category_sub_list)}
+            
+            중요: 만약 후보 중에 적합한 카테고리가 **없다고 판단되면**, "is_appropriate" 값을 false로 설정하고 그 이유를 명확히 설명해주세요.
+            
+            JSON 형식으로 응답하세요:
+            {{
+                "is_appropriate": true,
+                "category_sub": "선택된 서브 카테고리",
+                "confidence": 85,
+                "selection_reason": "최종 선택 근거 상세 설명"
+            }}
+            // 또는, 적합한 것이 없을 경우:
+            {{
+                "is_appropriate": false,
+                "category_sub": null,
+                "confidence": 30,
+                "selection_reason": "예: '사전 점검 및 AS 안내'는 단순 '방문서비스'나 '이용안내'와는 성격이 달라 적합한 후보가 없습니다."
+            }}
+            """
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"다음 메시지를 분석하여 적절한 카테고리로 분류해주세요:\n\n{self.userMessage}"}
-        ]
-        
-        return self._apply_security_protection(messages)
-
-
-class TypePromptBuilder(BasePromptBuilder):
-    """고도화된 메시지 타입 분류 빌더"""
-
-    def build(self) -> List[Dict]:
-        system_prompt = """
-당신은 카카오톡 알림톡 템플릿의 메시지 타입을 분류하는 전문가입니다.
-사용자의 요청을 분석하여 다음 중 하나의 타입으로 분류해주세요:
-
-1. **알림형 (notification)**: 중요한 정보나 상태 변화를 알리는 메시지
-   - 예: 주문 완료, 배송 시작, 결제 완료, 예약 확인 등
-
-2. **안내형 (guidance)**: 사용자에게 특정 행동이나 정보를 안내하는 메시지
-   - 예: 이벤트 참여 방법, 서비스 이용 안내, 정책 변경 안내 등
-
-3. **마케팅형 (marketing)**: 상품이나 서비스를 홍보하는 메시지
-   - 예: 할인 쿠폰 발급, 신상품 출시, 이벤트 홍보 등
-
-4. **인증형 (verification)**: 본인 확인이나 보안 관련 메시지
-   - 예: 로그인 알림, 비밀번호 변경, 보안 인증 등
-
-5. **기타 (other)**: 위 분류에 속하지 않는 기타 메시지
-
-## 분류 기준
-- 메시지의 주요 목적과 의도를 파악
-- 사용자가 받을 때 느낄 감정이나 반응 고려
-- 카카오톡 알림톡의 일반적인 사용 패턴 참고
-
-## 출력 형식
-반드시 JSON 형식으로만 응답:
-{
-    "message_type": "분류된_타입",
-    "confidence": 0.0-1.0,
-    "reason": "분류 이유를 간단히 설명"
-}
-"""
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"다음 메시지의 타입을 분류해주세요:\n\n{self.userMessage}"}
-        ]
-        
-        return self._apply_security_protection(messages)
-
-
-class TemplateTitlePromptBuilder:
-    """간결하고 명확한 제목 생성기"""
-
-    def __init__(self, userMessage: str):
-        self.userMessage = userMessage
-
-    def build(self) -> List[Dict]:
-        system_prompt = """
-당신은 카카오 알림톡 템플릿 제목 생성 전문가입니다.
-
-## 제목 생성 규칙
-1. **간결성**: 10-20자 내외로 간결하게
-2. **명확성**: 메시지의 핵심 내용을 명확하게 표현
-3. **직관성**: 사용자가 한눈에 이해할 수 있도록
-4. **일관성**: 비슷한 유형의 메시지는 비슷한 패턴 사용
-
-## 제목 예시
-- "주문 완료 알림"
-- "배송 시작 안내"
-- "회원가입 완료"
-- "결제 확인 알림"
-- "예약 확정 안내"
-
-## 출력 형식
-반드시 JSON 형식으로만 응답:
-{
-    "title": "생성된_제목",
-    "confidence": 0.0-1.0,
-    "reason": "제목 선택 이유"
-}
-"""
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"다음 메시지에 적합한 제목을 생성해주세요:\n\n{self.userMessage}"}
-        ]
-        
-        return messages
-
-
-class ComplianceTemplateBuilder:
-    """100% 컴플라이언스 보장 템플릿 빌더"""
-
-    def __init__(self, userMessage: str, extracted_fields: Dict, strict_mode: bool = True):
-        self.userMessage = userMessage
-        self.extracted_fields = extracted_fields
-        self.strict_mode = strict_mode
-
-    def build(self) -> List[Dict]:
-        system_prompt = """
-당신은 카카오 알림톡 컴플라이언스 전문가입니다.
-모든 법적 규정과 카카오 가이드라인을 100% 준수하는 템플릿을 생성해야 합니다.
-
-## 컴플라이언스 규칙
-1. **정보통신망법 준수**: 발송 근거 명시 필수
-2. **개인정보보호법 준수**: 개인정보 변수화 필수
-3. **광고성 정보 표시**: 마케팅 메시지 구분
-4. **스팸 방지**: 과도한 홍보 금지
-5. **명확한 발신자**: 발신자 정보 명시
-
-## 필수 요소
-- 발송 근거 문구 (예: *본 알림은 정보통신망법에 따라 발송되었습니다.)
-- 개인정보 변수화 (#{고객명}, #{전화번호} 등)
-- 명확한 발신자 정보
-- 적절한 문구 길이 (1,300자 이내)
-
-## 출력 형식
-반드시 JSON 형식으로만 응답:
-{
-    "template": "생성된_템플릿_내용",
-    "compliance_check": {
-        "info_act": true/false,
-        "privacy_protection": true/false,
-        "spam_prevention": true/false,
-        "sender_info": true/false
-    },
-    "reason": "컴플라이언스 준수 사항 설명"
-}
-"""
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"다음 내용으로 컴플라이언스를 100% 준수하는 템플릿을 생성해주세요:\n\n{self.userMessage}"}
+            {"role": "user", "content": f"분석할 메시지:\n{self.userMessage}"}
         ]
         return messages
-
-
-class SuitabilityCheckPromptBuilder(BasePromptBuilder):
-    """메시지 적합성 검사 프롬프트 빌더"""
-    
-    def build(self) -> List[Dict]:
-        system_prompt = """
-당신은 사용자 요청이 '카카오톡 알림톡 템플릿'을 생성하기에 적합한지 판단하는 '게이트키퍼' AI입니다.
-사용자의 메시지가 템플릿 생성을 위한 구체적인 내용(예: 주문 확인, 예약 안내, 배송 알림 등)을 포함하고 있는지, 아니면 단순히 일상적인 대화나 관련 없는 질문(예: '안녕?', '김치찌개 레시피 알려줘')인지 판단해야 합니다.
-
-**판단 기준:**
-- **적합 (suitable):** 메시지가 알림, 공지, 정보 전달 등 명확한 목적을 가진 템플릿으로 변환될 수 있는 내용을 담고 있을 때.
-  - 예: "고객님, 주문하신 상품이 배송 시작되었습니다.", "내일 3시에 예약하신 미용실 방문 잊지 마세요.", "회원가입을 축하합니다! 10% 할인 쿠폰을 드립니다."
-- **부적합 (unsuitable):** 메시지가 일반적인 질문, 감정 표현, 템플릿과 관련 없는 명령, 또는 의미 없는 단어일 때.
-  - 예: "오늘 날씨 어때?", "슬프다", "너는 누구야?", "김치찌개 만드는 법", "asdfghjkl"
-
-**출력 형식:**
-- 반드시 아래 JSON 형식으로만 응답해야 합니다.
-- 추가적인 설명이나 인사는 절대 포함하지 마세요.
-
-{
-    "is_suitable": true/false,
-    "reason": "판단에 대한 간결한 한 줄 설명"
-}
-"""
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": "회원가입이 완료되었습니다. 10% 할인 쿠폰을 드립니다."},
-            {"role": "assistant", "content": '{"is_suitable": true, "reason": "회원가입 완료 및 쿠폰 발급이라는 명확한 정보성 목적을 가집니다."}'},
-            {"role": "user", "content": "김치찌개 레시피 알려줘"},
-            {"role": "assistant", "content": '{"is_suitable": false, "reason": "카카오톡 알림톡 템플릿 생성과 관련 없는 일상적인 질문입니다."}'},
-            {"role": "user", "content": f"다음 메시지를 분석해주세요:\n{self.userMessage}"}
-        ]
-        
-        return self._apply_security_protection(messages)
-
-
-# 기존 코드와의 호환성을 위한 클래스들
-class ReferenceBasedTemplatePromptBuilder(ExpertTemplateBuilder):
-    """참고 템플릿 기반 생성 빌더 (호환성 유지)"""
-
-    def __init__(self, userMessage: str, reference_templates: List[Dict], extracted_fields: Dict):
-        super().__init__(userMessage, extracted_fields, reference_templates=reference_templates)
-
-
-class NewTemplatePromptBuilder(ExpertTemplateBuilder):
-    """신규 템플릿 생성 빌더 (호환성 유지)"""
-
-    def __init__(self, userMessage: str, extracted_fields: Dict, public_templates: Optional[List[Dict]] = None):
-        super().__init__(userMessage, extracted_fields, reference_templates=public_templates)
 
 
 class NewCategoryPromptBuilder(BasePromptBuilder):
     """신규 카테고리 생성 프롬프트 빌더"""
-
     def __init__(self, userMessage: str, existing_categories: List[str]):
         super().__init__(userMessage)
         self.existing_categories = existing_categories
 
     def build(self) -> List[Dict]:
-        system_prompt = f"""# 카테고리 네이밍 전문가
+        system_prompt = f"""
+            당신은 카테고리 네이밍 전문가입니다.
+            다음 메시지 내용의 핵심을 가장 잘 나타내는 새로운 카테고리명을 1개 생성해주세요.
+            
+            생성 규칙:
+            1. 기존 카테고리들의 스타일과 형식을 반드시 따르세요. (예: '구매완료', '배송상태' 처럼 '명사' 또는 '명사+동사' 형태)
+            2. 간결하고 명확해야 합니다. (2~5자 내외)
+            3. 생성된 카테고리명만 JSON 형식으로 응답하세요.
+            
+            기존 카테고리 스타일 참고:
+            {', '.join(self.existing_categories[:10])} # 일부만 보여줘도 스타일 파악 가능
+            
+            JSON 응답 형식:
+            {{
+                "new_category": "생성된 카테고리명"
+            }}
+            """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"다음 메시지에 대한 새로운 카테고리명을 생성해주세요:\n{self.userMessage}"}
+        ]
+        return messages
 
-당신의 임무는 메시지 내용에 가장 적합한 새로운 카테고리명을 생성하는 것입니다.
+class TypePromptBuilder(BasePromptBuilder):
+    def __init__(self, userMessage: str):
+        super().__init__(userMessage)
 
-## 생성 규칙
-1. **형식 일치**: 기존 카테고리들의 스타일과 형식을 반드시 따르세요
-2. **간결성**: 2~5자 내외로 간결하게
-3. **명확성**: 의미가 명확하고 직관적이어야 함
-4. **일관성**: 기존 패턴과 일관성 있는 명명
+    def build(self) -> list[dict]:
+        prompt = [
+            {
+                "role": "system",
+                "content": """
+        너는 카카오 알림 메세지의 유형을 판정하는 분류기다.
+        [메세지 유형 정의]
+        - BASIC: 핵심 목적(알림/안내/확인 등)만 전달. 링크가 있을 수 있으나, "채널 추가/채널 방문" 목적이 아니면 기본형으로 본다. 
+        - 고객에게 반드시 전달되어야 하는 정보
+        - EXTRA_INFO:핵심 목적 외에 주의사항·정책·문의·절차·상세 가이드 등 실질적인 추가 설명이 붙음.
+        - 이용안내 등 보조적인 정보메시지
+        - CHANNEL_ADD: 카카오 채널/브랜드 채널/오픈채팅 등을 추가·구독·방문하도록 유도하는 맥락이 존재. 
+        - HYBRID: 채널 추가형 조건 + 부가 정보형 조건을 동시에 충족.  
+        [메세지 유형 판정 원칙] 
+        1) 먼저 채널 추가 유도 여부를 본다. 단순 웹사이트/배송조회/결제 안내는 채널 추가형이 아니다. 
+        2) 다음으로 핵심 목적 외에 실질적인 부가 설명이 있는지 본다. 
+        3) 최종 결정: 
+        - 둘 다 있으면 HYBRID 
+        - 채널 추가만 있으면 CHANNEL_ADD 
+        - 부가 설명만 있으면 EXTRA_INFO 
+        - 둘 다 없으면 BASIC 
+        4) 애매하면 가장 합리적인 단일 유형을 고르고 이유를 간단히 남긴다.  
+        [출력 형식(JSON만 출력)] 
+        {
+        "has_channel_link": true/false,
+        "has_extra_info": true/false,
+        "type": "BASIC | EXTRA_INFO | CHANNEL_ADD | HYBRID",
+        "explain_type": "한 줄 이유"
+        }
+                """
+            },
+            *self._build_hint_messages(),
+            {
+                "role": "user",
+                "content": """
+        에이프릴키친 입니다.
+        라이언님, 안녕하세요.
+        소중한 주문이 접수완료 되었습니다.
+        - 주문일자: 2024.05.01(토)
+        - 금액: 12,0000원
+        - 주문번호
+        """
+            },
+            {
+                "role": "assistant",
+                "content": """
+        {
+        "has_channel_link": false,
+        "has_extra_info": false,
+        "type": "BASIC",
+        "explain_type": "기본 정보만 포함"
+        }
+        """
+            },
+            {
+                "role": "user",
+                "content": """
+        라이언님 안녕하세요.
+        객실 정보 안내드립니다.
+        - 예약번호: 1234
+        - 객실명: 420호
+        차량 이용시, 주차가능 여부를 반드시 문의하시기 바랍니다.
+        * 예약 취소 시 최소규정에 따라 수수료가 부과될 수 있습니다.
+        """
+            },
+            {
+                "role": "assistant",
+                "content": """
+        {
+        "has_channel_link": false,
+        "has_extra_info": true,
+        "type": "EXTRA_INFO",
+        "explain_type": "부가 정보 포함"
+        }
+        """
+            },
+            {
+                "role": "user",
+                "content": """
+        [국민카드] 홍길동 1234승인
+        50,000원
+        3개월
+        2025-09-08
+        14:35
+        ABC 전자상가
 
-## 기존 카테고리 스타일 참고
-{', '.join(self.existing_categories[:10])}
+        채널 추가하고 이 채널의 마케팅 메시지 등을 카카오톡으로 받기
 
-## 출력 형식
-JSON 형식으로만 응답:
-{{
-    "category": "새로운_카테고리명",
-    "confidence": 0.0-1.0,
-    "reason": "카테고리 선택 이유"
-}}
+        [카카오톡 채널 추가 버튼]
+        """
+            },
+            {
+                "role": "assistant",
+                "content": """
+        {
+        "has_channel_link": true,
+        "has_extra_info": false,
+        "type": "CHANNEL_ADD",
+        "explain_type": "채널 추가 정보 포함"
+        }
+        """
+            },
+            {
+                "role": "user",
+                "content": """
+        카카오톡 명세서 라이언 회원님 결제 명세서 입니다.
+        - 당일 결제 금액: 100원
+        * 개인정보 보호를 위해 메세지 발송완료 부터 100일까지만, 위의 링크를 통한 상세내용 확인이 가능합니다.
+        채널 추가하고 이 채널의 마케팅메세지 등을 카카오톡으로 받기
+        """
+            },
+            {
+                "role": "assistant",
+                "content": """
+        {
+        "has_channel_link": true,
+        "has_extra_info": true,
+        "type": "HYBRID",
+        "explain_type": "채널 추가 정보, 부가 정보 포함"
+        }
+        """
+            },
+            {
+                "role": "user",
+                "content": f"본문: {self.userMessage}"
+            }
+        ]
+        return prompt
+# @TODO: TypePromptBuilder langGraph 동작 확인 시, 주석 버전 삭제하기
+# class TypePromptBuilder(BasePromptBuilder):
+#     """메시지 유형 분류 프롬프트 빌더"""
+#     def build(self) -> List[Dict]:
+#         system_prompt = """
+# 당신은 카카오 알림톡 메시지 유형 분류 전문가입니다.
+# 메시지를 다음 4가지 유형으로 분류해주세요:
+#
+# 1. BASIC: 기본 정보만 포함 (이름, 일시, 금액 등)
+# 2. EXTRA_INFO: 기본 정보 + 부가 설명이나 안내사항
+# 3. CHANNEL_ADD: 기본 정보 + 채널 추가/링크 유도
+# 4. HYBRID: 기본 정보 + 부가 설명 + 채널 링크
+#
+# 분석 요소:
+# - has_channel_link: 채널톡, 카카오톡 채널, 웹사이트 링크 포함 여부
+# - has_extra_info: 추가 안내사항, 주의사항, 부가 설명 포함 여부
+#
+# JSON 형식으로 응답하세요:
+# {
+#     "type": "분류 결과",
+#     "has_channel_link": true/false,
+#     "has_extra_info": true/false,
+#     "explain_type": "분류 이유 설명"
+# }
+# """
+#
+#         messages = [
+#             {"role": "system", "content": system_prompt},
+#             *self._build_hint_messages(),
+#             {"role": "user", "content": f"분석할 메시지:\n{self.user_text}"}
+#         ]
+#
+#         return messages
+
+class TemplateTitlePromptBuilder:
+    """템플릿 제목 생성 프롬프트 빌더"""
+    def __init__(self, userMessage: str):
+        self.userMessage = userMessage
+
+    def build(self) -> List[Dict]:
+        system_prompt = """
+카카오 알림톡 템플릿의 제목을 생성하는 전문가입니다.
+다음 규칙을 따라 제목을 생성하세요:
+
+1. 10자 이내로 간결하게
+2. 메시지의 핵심 내용을 포함
+3. 사용자가 쉽게 이해할 수 있는 명확한 표현
+4. 제목만 출력 (추가 설명 불필요)
+
+예시:
+- "주문완료 안내"
+- "배송출발 알림"
+- "예약확정 통보"
 """
 
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"다음 메시지에 적합한 새로운 카테고리를 생성해주세요:\n\n{self.userMessage}"}
+            {"role": "user", "content": f"다음 메시지의 제목을 생성해주세요:\n{self.userMessage}"}
+        ]
+
+        return messages
+
+class ReferenceBasedTemplatePromptBuilder:
+    """참고 템플릿 기반 생성 프롬프트 빌더"""
+    def __init__(self, userMessage: str, reference_templates: List[Dict], extracted_fields: Dict):
+        self.userMessage = userMessage
+        self.reference_templates = reference_templates
+        self.extracted_fields = extracted_fields
+
+    def build(self) -> List[Dict]:
+        """
+        - 참고 템플릿들을 문자열로 구성
+        - LLM에게 제목,목적 등 추가적인 맥락을 제공하여, 생성될 템플릿의 목적성을 더 명확하게 만듦.
+        """
+        reference_context = ""
+        for i, template in enumerate(self.reference_templates, 1):
+            similarity = template.get('similarity', 0)
+            metadata = template.get('metadata', {})
+            # 👇 메타데이터에서 '자동 생성 제목'이나 '목적 분류' 같은 유용한 정보를 추가
+            title_hint = metadata.get('자동 생성 제목', '제목 정보 없음')
+
+            reference_context += f"\n=== 참고 템플릿 {i} (유사도: {similarity:.3f}, 제목: '{title_hint}') ===\n{template.get('text', '')}\n"
+
+        # 👇 변수 처리 규칙을 명시적으로 추가
+        variable_rules = ""
+        if self.extracted_fields:
+            variable_rules = "\n\n**중요 변수 처리 규칙:**\n"
+            variable_rules += "다음 텍스트는 반드시 지정된 변수명으로 대체하여 `#{변수명}` 형태로 표현해야 합니다.\n"
+            for value, var_name in self.extracted_fields.items():
+                variable_rules += f"- '{value}'는 -> `#{{{var_name}}}'\n`으로 변경하세요.\n"
+
+        system_prompt = f"""
+            당신은 최고의 템플릿 구조를 분석하고 모방하는 사용자의 장황한 요청을 **간결하고 명확하게 재구성**하는 '템플릿 아키텍트'입니다.
+            고객에게 전달되는 메시지인 만큼, 친절하며 프로페셔널한 톤앤매너를 유지하되, 알림톡 의도에 벗어나는 내용은 제거하고 간략하고 명확하게 전달되어야 합니다.
+            
+            **[핵심 미션]**
+            1. 사용자 요청의 핵심 의도(예: 'A/S 사전 점검 안내')를 파악하고, 그 외 **불필요한 수식어나 감성적인 문구(예: '유난히 더웠던 여름...')는 과감히 제거**하세요.
+            2. '참고 템플릿'의 구조적 장점(줄 바꿈, 항목 구분, 강조 표시 등)을 활용하여, 가장 효과적인 정보 전달 구조로 템플릿을 재창조해야 합니다.
+            
+            {variable_rules}
+            다음 승인된 템플릿들을 참고하여 새로운 템플릿을 생성하세요:
+            
+            **[참고 템플릿 분석]**
+            {reference_context}
+            
+            **[학습 포인트]**
+            - 위 참고 템플릿들에서 `#{{변수명}}`이 어떤 위치에, 어떤 이름으로 사용되었는지 학습하세요.
+            - 예를 들어, 참고 템플릿에 `#{{order_no}}`가 있다면, 새로운 템플릿에서도 주문번호는 비슷한 위치에 `#{{order_id}}`와 같이 배치하는 것이 좋습니다.
+            
+            **[템플릿 재구성 원칙]**
+            1.  **핵심 의도 중심**: 사용자의 진짜 목적과 관련 없는 내용은 모두 제거합니다.
+            2.  **간결성**: 모든 문장은 짧고 명확해야 합니다. 중복되는 내용은 하나로 통합합니다.
+            3.  **구조화**: '▶' 기호를 사용하여 상세 정보를 명확하게 구분합니다.
+            4.  **표준 형식 준수**: 인사말로 시작하고, 발송 근거 문구로 끝나야 합니다.
+            
+            생성 규칙:
+            1.  **인사:** "안녕하세요, 고객님." 과 같이 부드러운 문장으로 시작합니다.
+            2.  **핵심 내용:** 전달하려는 의도를 파악하고 의도 외의 불필요한 메시지나 같은 내용이 있는 경우 처리하거나 삭제한다. 
+            3.  **상세 정보 (선택 사항):** 필요시, '▶' 기호를 사용하여 정보를 항목별로 명확하게 구분합니다.
+            4.  **마무리:** "감사합니다." 또는 "많은 이용 부탁드립니다." 와 같은 긍정적인 문장으로 끝맺습니다.
+            5.  **발송 근거:** 템플릿 가장 마지막 줄에는 `*`로 시작하는 발송 근거를 반드시 포함해야 합니다. (예: `*본 알림은 정보통신망법에 따라 발송되었습니다.`)
+            
+            **[생성 예시]**
+            - 사용자 요청: (장황한 원본 메시지)
+            - **바람직한 생성 결과:**
+                안녕하세요, #{{고객}}님.
+                #{{장수돌침대}}에서 겨울맞이 사전점검을 안내드립니다.
+
+                #{{겨울철 안전하고 편안한 사용을 위해 미리 A/S 및 점검을 받아보시는 것을 권장합니다.}}
+
+                ▶ 점검/A/S 예약: #{{1599-9988}}
+                ▶ 고장/문의 상담: #{{1599-9988}}
+
+                #{{정기적인 관리로 제품의 수명과 효율을 높여보세요.}}
+                감사합니다.
+
+                *본 알림은 정보통신망법에 따라 발송되었습니다.
+
+            ---
+            위 원칙과 예시에 따라, 사용자 요청을 간결하고 명확한 템플릿으로 재창조하세요.
+            템플릿 본문만 출력합니다(변수 설명이나 추가 안내 불포함):
+            """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"사용자 요청:\n{self.userMessage}"}
+        ]
+
+        return messages
+
+
+class NewTemplatePromptBuilder:
+    """
+    [최종 수정] 사용자의 장황한 요청을 '변수 없는' 간결한 텍스트로 요약/재구성하는 '카피라이터'
+    """
+    def __init__(self, userMessage: str, public_templates: Optional[List[Dict]] = None):
+        # 이제 extracted_fields를 받지 않습니다.
+        self.userMessage = userMessage
+        self.public_templates = public_templates or []
+
+    def build(self) -> List[Dict]:
+        public_context = ""
+        if self.public_templates:
+            public_context = "\n\n=== 카카오 공용 템플릿 참고 ===\n"
+            for i, template in enumerate(self.public_templates[:3], 1):
+                public_context += f"{i}. {template.get('text', '')}\n\n"
+
+        system_prompt = f"""
+            **[당신의 역할]**
+            당신은 15년차 카피라이터입니다. 사용자의 장황하고 정제되지 않은 요청을, 카카오 알림톡에 적합한 **간결하고 명확한 '완성형 텍스트'**로 재탄생시키는 임무를 맡았습니다.
+            **절대 변수(예: #{{...}})를 만들지 마세요. 최종 텍스트만 생성합니다.**
+
+            **[작업 원칙]**
+            1.  **핵심 의도 파악**: 사용자가 진짜 전달하고 싶은 정보가 무엇인지 파악합니다. (예: 'A/S 사전 점검 권장')
+            2.  **과감한 요약 및 재구성**: 의도와 관련 없는 미사여구, 감성적 표현, 중복 설명은 **모두 삭제**하고, 긴 문장은 핵심만 남겨 짧게 요약합니다.
+            3.  **구조화**: 핵심 내용을 먼저 제시하고, 상세 정보는 '▶' 기호를 사용해 명확히 구분합니다.
+            4.  **표준 형식**: '인사말 - 핵심 내용 - 상세 정보 - 마무리 - 발송 근거' 구조를 따릅니다.
+
+            **[생성 예시]**
+            - 사용자 요청: (장황한 장수돌침대 원본 메시지)
+            - **바람직한 생성 결과 (텍스트만):**
+                안녕하세요, 고객님.
+                장수돌침대에서 겨울맞이 사전점검을 안내드립니다.
+
+                겨울철 안전하고 편안한 사용을 위해 미리 A/S 및 점검을 받아보시는 것을 권장합니다.
+
+                ▶ 점검/A/S 예약: 1599-9988
+                ▶ 고장/문의 상담: 1588-9988
+
+                정기적인 관리로 제품의 수명과 효율을 높여보세요.
+                감사합니다.
+
+                *본 알림은 정보통신망법에 따라 발송되었습니다.
+            
+            ---
+            위 원칙에 따라, 사용자 요청을 간결한 알림톡 텍스트로 만들어주세요.
+            {public_context}
+            템플릿 본문 텍스트만 출력합니다.
+            """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"다음 요청을 간결한 알림톡 텍스트로 만들어주세요:\n{self.userMessage}"}
+        ]
+        return messages
+
+from abc import ABC, abstractmethod
+from typing import List, Dict, Optional
+from datetime import datetime
+
+
+class BasePromptBuilder(ABC):
+    """기본 프롬프트 빌더"""
+    def __init__(self, userMessage: str):
+        self.userMessage = userMessage
+        self.hints: List[Dict] = []
+
+    def add_hint(self, description: str, content: str):
+        """
+        @deprecated: 이 메서드는 더 이상 사용하지 않으며, 향후 제거될 예정입니다.
+        """
+        self.hints.append({"description": description, "content": content})
+        return self
+
+    def _build_hint_messages(self) -> List[Dict]:
+        return [{"role": "system", "content": h["content"]} for h in self.hints]
+
+    @abstractmethod
+    def build(self) -> List[Dict]:
+        pass
+
+class FieldsPromptBuilder(BasePromptBuilder):
+    """
+    [수정됨] 메시지를 '의미 블록' 단위로 분석하고, 모든 변수를 일관되게 추출하는 프롬프트 빌더
+    """
+    def build(self) -> List[Dict]:
+        system_prompt = f"""**[당신의 역할]**
+당신은 이미 완성된 카카오 알림톡 템플릿의 **구조를 분석**하여, 각 문단이 어떤 의미를 갖는지 식별하고 **Key-Value로 매핑**하는 '템플릿 구조 분석가'입니다.
+
+**[핵심 임무]**
+주어진 **완성된 템플릿 본문**을 보고, 각 문단 또는 구문이 아래에 정의된 **[의미 블록 Key]** 중 어디에 해당하는지 분석하여 JSON으로 반환하세요.
+
+**[알림톡 표준 구조 및 Key 매핑 규칙]**
+1.  **인사말 (`greeting_message` / `customer_title`)**:
+    - "안녕하세요, 고객님"과 같은 인사말 전체는 `greeting_message` Key로 추출합니다.
+    - 이 때, '고객님', '회원님' 등 **개인화 가능한 호칭 단어**는 `customer_title` Key로 **반드시 별도 추출**해야 합니다. 본문에 여러 번 나와도 빠짐없이 식별 후 대표값 하나만 추출합니다.
+
+2.  **주요 내용 (`main_message`)**:
+    - 알림톡의 **가장 핵심적인 목적**을 담고 있는 문장 또는 문단 전체를 추출합니다.
+    - 키워드가 아닌, **의미가 완결되는 내용 전체**를 Value로 잡아야 합니다.
+
+3.  **상세 내용 (`sub_message`)**:
+    - 주요 내용을 보충하는 상세 설명, 부가 정보, 유의사항 등의 문단 전체를 추출합니다.
+
+4.  **연락처 정보 (`contact_info`)**:
+    - 문의, 예약, 상담 등을 위한 전화번호, 이메일, 웹사이트 주소 등이 포함된 문구 전체를 추출합니다.
+
+5.  **마무리 인사 (`closing_message`)**:
+    - "감사합니다", "좋은 하루 보내세요" 등 끝맺음 인사 문구 전체를 추출합니다.
+
+**[추가 변수 추출 규칙]**
+- 위의 구조적 블록 외에, 문맥상 변수로 대체될 수 있는 모든 **개별 단어/구문(브랜드명, 날짜, 장소 등)**도 빠짐없이 추출해야 합니다.
+- **일관성**: 본문 전체에서 '롯데백화점'이 여러 번 언급되면, `location` Key 하나로 일관되게 추출합니다.
+
+**[의미 블록 Key 정의]**
+- `main_content`: 템플릿의 가장 핵심적인 목적을 담고 있는 문장.
+- `sub_content`: `main_content`를 보충하는 상세 설명 또는 부가 정보.
+- `contact_info`: 문의, 예약 등을 위한 연락처 정보.
+- `closing_word`: "감사합니다" 등 마무리 인사.
+- `customer_title`: '고객님', '회원님' 등 개인화 가능한 호칭 단어.
+- `brand_name`: '장수돌침대', '올워크' 등 회사/브랜드 이름.
+- `phone_number_1`, `phone_number_2`: 본문에 나타나는 전화번호들.
+
+**[완벽한 추출 예시]**
+
+- **입력 템플릿 본문**:
+    안녕하세요, 고객님.
+    장수돌침대에서 겨울맞이 사전점검을 안내드립니다.
+    겨울철 안전하고 편안한 사용을 위해 미리 A/S 및 점검을 받아보시는 것을 권장합니다.
+    ▶ 점검/A/S 예약: 1599-9988
+    ▶ 고장/문의 상담: 1588-9988
+    정기적인 관리로 제품의 수명과 효율을 높여보세요.
+    감사합니다.
+
+- **추출 결과 (JSON)**:
+{{
+    "customer_title": "고객님",
+    "brand_name": "장수돌침대",
+    "main_content": "장수돌침대에서 겨울맞이 사전점검을 안내드립니다.",
+    "sub_content": "겨울철 안전하고 편안한 사용을 위해 미리 A/S 및 점검을 받아보시는 것을 권장합니다.",
+    "contact_info": "▶ 점검/A/S 예약: 1599-9988\\n▶ 고장/문의 상담: 1588-9988",
+    "closing_word": "정기적인 관리로 제품의 수명과 효율을 높여보세요.",
+    "phone_number_1": "1599-9988",
+    "phone_number_2": "1588-9988"
+}}
+
+**[출력 형식]**
+- 추출된 Key-Value 쌍을 JSON 형식으로만 반환합니다.
+- 추출할 내용이 없으면 빈 JSON 객체 `{{}}`를 반환합니다.
+"""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"다음 템플릿 본문을 분석하여 의미 블록과 변수를 JSON으로 추출하세요:\n{self.userMessage}"}
+        ]
+        return messages
+
+
+class CategoryPromptBuilder(BasePromptBuilder):
+    """카테고리 분류 프롬프트 빌더 - 적합성 판단 기능 추가"""
+    def __init__(self, userMessage: str, category_sub_list: List[str]):
+        super().__init__(userMessage)
+        self.category_sub_list = category_sub_list
+
+    def build(self) -> List[Dict]:
+        system_prompt = f"""
+            당신은 카카오 알림톡 카테고리 분류 전문가입니다.
+            주어진 메시지를 분석하여, 아래 '서브 카테고리 후보' 중 가장 적합한 것을 선택하세요.
+            
+            서브 카테고리 후보:
+            {', '.join(self.category_sub_list)}
+            
+            중요: 만약 후보 중에 적합한 카테고리가 **없다고 판단되면**, "is_appropriate" 값을 false로 설정하고 그 이유를 명확히 설명해주세요.
+            
+            JSON 형식으로 응답하세요:
+            {{
+                "is_appropriate": true,
+                "category_sub": "선택된 서브 카테고리",
+                "confidence": 85,
+                "selection_reason": "최종 선택 근거 상세 설명"
+            }}
+            // 또는, 적합한 것이 없을 경우:
+            {{
+                "is_appropriate": false,
+                "category_sub": null,
+                "confidence": 30,
+                "selection_reason": "예: '사전 점검 및 AS 안내'는 단순 '방문서비스'나 '이용안내'와는 성격이 달라 적합한 후보가 없습니다."
+            }}
+            """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"분석할 메시지:\n{self.userMessage}"}
+        ]
+        return messages
+
+
+class NewCategoryPromptBuilder(BasePromptBuilder):
+    """신규 카테고리 생성 프롬프트 빌더"""
+    def __init__(self, userMessage: str, existing_categories: List[str]):
+        super().__init__(userMessage)
+        self.existing_categories = existing_categories
+
+    def build(self) -> List[Dict]:
+        system_prompt = f"""
+            당신은 카테고리 네이밍 전문가입니다.
+            다음 메시지 내용의 핵심을 가장 잘 나타내는 새로운 카테고리명을 1개 생성해주세요.
+            
+            생성 규칙:
+            1. 기존 카테고리들의 스타일과 형식을 반드시 따르세요. (예: '구매완료', '배송상태' 처럼 '명사' 또는 '명사+동사' 형태)
+            2. 간결하고 명확해야 합니다. (2~5자 내외)
+            3. 생성된 카테고리명만 JSON 형식으로 응답하세요.
+            
+            기존 카테고리 스타일 참고:
+            {', '.join(self.existing_categories[:10])} # 일부만 보여줘도 스타일 파악 가능
+            
+            JSON 응답 형식:
+            {{
+                "new_category": "생성된 카테고리명"
+            }}
+            """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"다음 메시지에 대한 새로운 카테고리명을 생성해주세요:\n{self.userMessage}"}
+        ]
+        return messages
+
+class TypePromptBuilder(BasePromptBuilder):
+    def __init__(self, userMessage: str):
+        super().__init__(userMessage)
+
+    def build(self) -> list[dict]:
+        prompt = [
+            {
+                "role": "system",
+                "content": """
+        너는 카카오 알림 메세지의 유형을 판정하는 분류기다.
+        [메세지 유형 정의]
+        - BASIC: 핵심 목적(알림/안내/확인 등)만 전달. 링크가 있을 수 있으나, "채널 추가/채널 방문" 목적이 아니면 기본형으로 본다. 
+        - 고객에게 반드시 전달되어야 하는 정보
+        - EXTRA_INFO:핵심 목적 외에 주의사항·정책·문의·절차·상세 가이드 등 실질적인 추가 설명이 붙음.
+        - 이용안내 등 보조적인 정보메시지
+        - CHANNEL_ADD: 카카오 채널/브랜드 채널/오픈채팅 등을 추가·구독·방문하도록 유도하는 맥락이 존재. 
+        - HYBRID: 채널 추가형 조건 + 부가 정보형 조건을 동시에 충족.  
+        [메세지 유형 판정 원칙] 
+        1) 먼저 채널 추가 유도 여부를 본다. 단순 웹사이트/배송조회/결제 안내는 채널 추가형이 아니다. 
+        2) 다음으로 핵심 목적 외에 실질적인 부가 설명이 있는지 본다. 
+        3) 최종 결정: 
+        - 둘 다 있으면 HYBRID 
+        - 채널 추가만 있으면 CHANNEL_ADD 
+        - 부가 설명만 있으면 EXTRA_INFO 
+        - 둘 다 없으면 BASIC 
+        4) 애매하면 가장 합리적인 단일 유형을 고르고 이유를 간단히 남긴다.  
+        [출력 형식(JSON만 출력)] 
+        {
+        "has_channel_link": true/false,
+        "has_extra_info": true/false,
+        "type": "BASIC | EXTRA_INFO | CHANNEL_ADD | HYBRID",
+        "explain_type": "한 줄 이유"
+        }
+                """
+            },
+            *self._build_hint_messages(),
+            {
+                "role": "user",
+                "content": """
+        에이프릴키친 입니다.
+        라이언님, 안녕하세요.
+        소중한 주문이 접수완료 되었습니다.
+        - 주문일자: 2024.05.01(토)
+        - 금액: 12,0000원
+        - 주문번호
+        """
+            },
+            {
+                "role": "assistant",
+                "content": """
+        {
+        "has_channel_link": false,
+        "has_extra_info": false,
+        "type": "BASIC",
+        "explain_type": "기본 정보만 포함"
+        }
+        """
+            },
+            {
+                "role": "user",
+                "content": """
+        라이언님 안녕하세요.
+        객실 정보 안내드립니다.
+        - 예약번호: 1234
+        - 객실명: 420호
+        차량 이용시, 주차가능 여부를 반드시 문의하시기 바랍니다.
+        * 예약 취소 시 최소규정에 따라 수수료가 부과될 수 있습니다.
+        """
+            },
+            {
+                "role": "assistant",
+                "content": """
+        {
+        "has_channel_link": false,
+        "has_extra_info": true,
+        "type": "EXTRA_INFO",
+        "explain_type": "부가 정보 포함"
+        }
+        """
+            },
+            {
+                "role": "user",
+                "content": """
+        [국민카드] 홍길동 1234승인
+        50,000원
+        3개월
+        2025-09-08
+        14:35
+        ABC 전자상가
+
+        채널 추가하고 이 채널의 마케팅 메시지 등을 카카오톡으로 받기
+
+        [카카오톡 채널 추가 버튼]
+        """
+            },
+            {
+                "role": "assistant",
+                "content": """
+        {
+        "has_channel_link": true,
+        "has_extra_info": false,
+        "type": "CHANNEL_ADD",
+        "explain_type": "채널 추가 정보 포함"
+        }
+        """
+            },
+            {
+                "role": "user",
+                "content": """
+        카카오톡 명세서 라이언 회원님 결제 명세서 입니다.
+        - 당일 결제 금액: 100원
+        * 개인정보 보호를 위해 메세지 발송완료 부터 100일까지만, 위의 링크를 통한 상세내용 확인이 가능합니다.
+        채널 추가하고 이 채널의 마케팅메세지 등을 카카오톡으로 받기
+        """
+            },
+            {
+                "role": "assistant",
+                "content": """
+        {
+        "has_channel_link": true,
+        "has_extra_info": true,
+        "type": "HYBRID",
+        "explain_type": "채널 추가 정보, 부가 정보 포함"
+        }
+        """
+            },
+            {
+                "role": "user",
+                "content": f"본문: {self.userMessage}"
+            }
+        ]
+        return prompt
+# @TODO: TypePromptBuilder langGraph 동작 확인 시, 주석 버전 삭제하기
+# class TypePromptBuilder(BasePromptBuilder):
+#     """메시지 유형 분류 프롬프트 빌더"""
+#     def build(self) -> List[Dict]:
+#         system_prompt = """
+# 당신은 카카오 알림톡 메시지 유형 분류 전문가입니다.
+# 메시지를 다음 4가지 유형으로 분류해주세요:
+#
+# 1. BASIC: 기본 정보만 포함 (이름, 일시, 금액 등)
+# 2. EXTRA_INFO: 기본 정보 + 부가 설명이나 안내사항
+# 3. CHANNEL_ADD: 기본 정보 + 채널 추가/링크 유도
+# 4. HYBRID: 기본 정보 + 부가 설명 + 채널 링크
+#
+# 분석 요소:
+# - has_channel_link: 채널톡, 카카오톡 채널, 웹사이트 링크 포함 여부
+# - has_extra_info: 추가 안내사항, 주의사항, 부가 설명 포함 여부
+#
+# JSON 형식으로 응답하세요:
+# {
+#     "type": "분류 결과",
+#     "has_channel_link": true/false,
+#     "has_extra_info": true/false,
+#     "explain_type": "분류 이유 설명"
+# }
+# """
+#
+#         messages = [
+#             {"role": "system", "content": system_prompt},
+#             *self._build_hint_messages(),
+#             {"role": "user", "content": f"분석할 메시지:\n{self.user_text}"}
+#         ]
+#
+#         return messages
+
+class TemplateTitlePromptBuilder:
+    """템플릿 제목 생성 프롬프트 빌더"""
+    def __init__(self, userMessage: str):
+        self.userMessage = userMessage
+
+    def build(self) -> List[Dict]:
+        system_prompt = """
+카카오 알림톡 템플릿의 제목을 생성하는 전문가입니다.
+다음 규칙을 따라 제목을 생성하세요:
+
+1. 10자 이내로 간결하게
+2. 메시지의 핵심 내용을 포함
+3. 사용자가 쉽게 이해할 수 있는 명확한 표현
+4. 제목만 출력 (추가 설명 불필요)
+
+예시:
+- "주문완료 안내"
+- "배송출발 알림"
+- "예약확정 통보"
+"""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"다음 메시지의 제목을 생성해주세요:\n{self.userMessage}"}
+        ]
+
+        return messages
+
+class ReferenceBasedTemplatePromptBuilder:
+    """참고 템플릿 기반 생성 프롬프트 빌더"""
+    def __init__(self, userMessage: str, reference_templates: List[Dict], extracted_fields: Dict):
+        self.userMessage = userMessage
+        self.reference_templates = reference_templates
+        self.extracted_fields = extracted_fields
+
+    def build(self) -> List[Dict]:
+        """
+        - 참고 템플릿들을 문자열로 구성
+        - LLM에게 제목,목적 등 추가적인 맥락을 제공하여, 생성될 템플릿의 목적성을 더 명확하게 만듦.
+        """
+        reference_context = ""
+        for i, template in enumerate(self.reference_templates, 1):
+            similarity = template.get('similarity', 0)
+            metadata = template.get('metadata', {})
+            # 👇 메타데이터에서 '자동 생성 제목'이나 '목적 분류' 같은 유용한 정보를 추가
+            title_hint = metadata.get('자동 생성 제목', '제목 정보 없음')
+
+            reference_context += f"\n=== 참고 템플릿 {i} (유사도: {similarity:.3f}, 제목: '{title_hint}') ===\n{template.get('text', '')}\n"
+
+        # 👇 변수 처리 규칙을 명시적으로 추가
+        variable_rules = ""
+        if self.extracted_fields:
+            variable_rules = "\n\n**중요 변수 처리 규칙:**\n"
+            variable_rules += "다음 텍스트는 반드시 지정된 변수명으로 대체하여 `#{변수명}` 형태로 표현해야 합니다.\n"
+            for value, var_name in self.extracted_fields.items():
+                variable_rules += f"- '{value}'는 -> `#{{{var_name}}}'\n`으로 변경하세요.\n"
+
+        system_prompt = f"""
+            당신은 최고의 템플릿 구조를 분석하고 모방하는 사용자의 장황한 요청을 **간결하고 명확하게 재구성**하는 '템플릿 아키텍트'입니다.
+            고객에게 전달되는 메시지인 만큼, 친절하며 프로페셔널한 톤앤매너를 유지하되, 알림톡 의도에 벗어나는 내용은 제거하고 간략하고 명확하게 전달되어야 합니다.
+            
+            **[핵심 미션]**
+            1. 사용자 요청의 핵심 의도(예: 'A/S 사전 점검 안내')를 파악하고, 그 외 **불필요한 수식어나 감성적인 문구(예: '유난히 더웠던 여름...')는 과감히 제거**하세요.
+            2. '참고 템플릿'의 구조적 장점(줄 바꿈, 항목 구분, 강조 표시 등)을 활용하여, 가장 효과적인 정보 전달 구조로 템플릿을 재창조해야 합니다.
+            
+            {variable_rules}
+            다음 승인된 템플릿들을 참고하여 새로운 템플릿을 생성하세요:
+            
+            **[참고 템플릿 분석]**
+            {reference_context}
+            
+            **[학습 포인트]**
+            - 위 참고 템플릿들에서 `#{{변수명}}`이 어떤 위치에, 어떤 이름으로 사용되었는지 학습하세요.
+            - 예를 들어, 참고 템플릿에 `#{{order_no}}`가 있다면, 새로운 템플릿에서도 주문번호는 비슷한 위치에 `#{{order_id}}`와 같이 배치하는 것이 좋습니다.
+            
+            **[템플릿 재구성 원칙]**
+            1.  **핵심 의도 중심**: 사용자의 진짜 목적과 관련 없는 내용은 모두 제거합니다.
+            2.  **간결성**: 모든 문장은 짧고 명확해야 합니다. 중복되는 내용은 하나로 통합합니다.
+            3.  **구조화**: '▶' 기호를 사용하여 상세 정보를 명확하게 구분합니다.
+            4.  **표준 형식 준수**: 인사말로 시작하고, 발송 근거 문구로 끝나야 합니다.
+            
+            생성 규칙:
+            1.  **인사:** "안녕하세요, 고객님." 과 같이 부드러운 문장으로 시작합니다.
+            2.  **핵심 내용:** 전달하려는 의도를 파악하고 의도 외의 불필요한 메시지나 같은 내용이 있는 경우 처리하거나 삭제한다. 
+            3.  **상세 정보 (선택 사항):** 필요시, '▶' 기호를 사용하여 정보를 항목별로 명확하게 구분합니다.
+            4.  **마무리:** "감사합니다." 또는 "많은 이용 부탁드립니다." 와 같은 긍정적인 문장으로 끝맺습니다.
+            5.  **발송 근거:** 템플릿 가장 마지막 줄에는 `*`로 시작하는 발송 근거를 반드시 포함해야 합니다. (예: `*본 알림은 정보통신망법에 따라 발송되었습니다.`)
+            
+            **[생성 예시]**
+            - 사용자 요청: (장황한 원본 메시지)
+            - **바람직한 생성 결과:**
+                안녕하세요, #{{고객}}님.
+                #{{장수돌침대}}에서 겨울맞이 사전점검을 안내드립니다.
+
+                #{{겨울철 안전하고 편안한 사용을 위해 미리 A/S 및 점검을 받아보시는 것을 권장합니다.}}
+
+                ▶ 점검/A/S 예약: #{{1599-9988}}
+                ▶ 고장/문의 상담: #{{1599-9988}}
+
+                #{{정기적인 관리로 제품의 수명과 효율을 높여보세요.}}
+                감사합니다.
+
+                *본 알림은 정보통신망법에 따라 발송되었습니다.
+
+            ---
+            위 원칙과 예시에 따라, 사용자 요청을 간결하고 명확한 템플릿으로 재창조하세요.
+            템플릿 본문만 출력합니다(변수 설명이나 추가 안내 불포함):
+            """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"사용자 요청:\n{self.userMessage}"}
+        ]
+
+        return messages
+
+
+class NewTemplatePromptBuilder:
+    """
+    [최종 수정] 사용자의 장황한 요청을 '변수 없는' 간결한 텍스트로 요약/재구성하는 '카피라이터'
+    """
+    def __init__(self, userMessage: str, public_templates: Optional[List[Dict]] = None):
+        # 이제 extracted_fields를 받지 않습니다.
+        self.userMessage = userMessage
+        self.public_templates = public_templates or []
+
+    def build(self) -> List[Dict]:
+        public_context = ""
+        if self.public_templates:
+            public_context = "\n\n=== 카카오 공용 템플릿 참고 ===\n"
+            for i, template in enumerate(self.public_templates[:3], 1):
+                public_context += f"{i}. {template.get('text', '')}\n\n"
+
+        system_prompt = f"""
+            **[당신의 역할]**
+            당신은 15년차 카피라이터입니다. 사용자의 장황하고 정제되지 않은 요청을, 카카오 알림톡에 적합한 **간결하고 명확한 '완성형 텍스트'**로 재탄생시키는 임무를 맡았습니다.
+            **절대 변수(예: #{{...}})를 만들지 마세요. 최종 텍스트만 생성합니다.**
+
+            **[작업 원칙]**
+            1.  **핵심 의도 파악**: 사용자가 진짜 전달하고 싶은 정보가 무엇인지 파악합니다. (예: 'A/S 사전 점검 권장')
+            2.  **과감한 요약 및 재구성**: 의도와 관련 없는 미사여구, 감성적 표현, 중복 설명은 **모두 삭제**하고, 긴 문장은 핵심만 남겨 짧게 요약합니다.
+            3.  **구조화**: 핵심 내용을 먼저 제시하고, 상세 정보는 '▶' 기호를 사용해 명확히 구분합니다.
+            4.  **표준 형식**: '인사말 - 핵심 내용 - 상세 정보 - 마무리 - 발송 근거' 구조를 따릅니다.
+
+            **[생성 예시]**
+            - 사용자 요청: (장황한 장수돌침대 원본 메시지)
+            - **바람직한 생성 결과 (텍스트만):**
+                안녕하세요, 고객님.
+                장수돌침대에서 겨울맞이 사전점검을 안내드립니다.
+
+                겨울철 안전하고 편안한 사용을 위해 미리 A/S 및 점검을 받아보시는 것을 권장합니다.
+
+                ▶ 점검/A/S 예약: 1599-9988
+                ▶ 고장/문의 상담: 1588-9988
+
+                정기적인 관리로 제품의 수명과 효율을 높여보세요.
+                감사합니다.
+
+                *본 알림은 정보통신망법에 따라 발송되었습니다.
+            
+            ---
+            위 원칙에 따라, 사용자 요청을 간결한 알림톡 텍스트로 만들어주세요.
+            {public_context}
+            템플릿 본문 텍스트만 출력합니다.
+            """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"다음 요청을 간결한 알림톡 텍스트로 만들어주세요:\n{self.userMessage}"}
+        ]
+        return messages
+
+class TemplateWriterBuilder(BasePromptBuilder):
+    """
+    [역할 명확화] 사용자의 장황한 요청을 '변수 없는' 간결한 텍스트로 요약/재구성하는 '카피라이터'
+    """
+    def __init__(self, userMessage: str):
+        super().__init__(userMessage)
+
+    def build(self) -> List[Dict]:
+        system_prompt = f"""
+            **[당신의 역할]**
+            당신은 15년차 카피라이터입니다. 사용자의 장황하고 정제되지 않은 요청을, 카카오 알림톡에 적합한 **간결하고 명확한 '완성형 텍스트'**로 재탄생시키는 임무를 맡았습니다.
+            **절대 변수(예: #{{...}})를 만들지 마세요. 최종 텍스트만 생성합니다.**
+
+            **[작업 원칙]**
+            1.  **핵심 의도 파악**: 사용자가 진짜 전달하고 싶은 정보가 무엇인지 파악합니다. (예: 'A/S 사전 점검 권장')
+            2.  **과감한 요약 및 재구성**: 의도와 관련 없는 미사여구, 감성적 표현, 중복 설명은 **모두 삭제**하고, 긴 문장은 핵심만 남겨 짧게 요약합니다.
+            3.  **구조화**: 핵심 내용을 먼저 제시하고, 상세 정보는 '▶' 기호를 사용해 명확히 구분합니다.
+            4.  **표준 형식**: '인사말 - 핵심 내용 - 상세 정보 - 마무리 - 발송 근거' 구조를 따릅니다.
+
+            **[생성 예시]**
+            - 사용자 요청: (장황한 장수돌침대 원본 메시지)
+            - **바람직한 생성 결과 (텍스트만):**
+                안녕하세요, 고객님.
+                장수돌침대에서 겨울맞이 사전점검을 안내드립니다.
+
+                겨울철 안전하고 편안한 사용을 위해 미리 A/S 및 점검을 받아보시는 것을 권장합니다.
+
+                ▶ 점검/A/S 예약: 1599-9988
+                ▶ 고장/문의 상담: 1588-9988
+
+                정기적인 관리로 제품의 수명과 효율을 높여보세요.
+                감사합니다.
+
+                *본 알림은 정보통신망법에 따라 발송되었습니다.
+            
+            ---
+            위 원칙에 따라, 사용자 요청을 간결한 알림톡 텍스트로 만들어주세요.
+            템플릿 본문 텍스트만 출력합니다.
+            """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"다음 요청을 간결한 알림톡 텍스트로 만들어주세요:\n{self.userMessage}"}
         ]
         
         return self._apply_security_protection(messages)
