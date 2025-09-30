@@ -121,10 +121,22 @@ class ValidationRequest(BaseModel):
             if backend_data.get("variableList"):
                 for v in backend_data["variableList"]:
                     if v.get("variableKey"):
+                        variable_key = v.get("variableKey")
+                        # variableKey가 딕셔너리인 경우 name 필드 추출
+                        if isinstance(variable_key, dict):
+                            name = variable_key.get("name", "")
+                            var_type = variable_key.get("type", "string")
+                            description = variable_key.get("description", "")
+                        else:
+                            # 문자열인 경우
+                            name = str(variable_key)
+                            var_type = "string"
+                            description = v.get("variableValue", "")
+                        
                         variables.append({
-                            "name": v.get("variableKey"),
-                            "type": "string",
-                            "description": v.get("variableValue", "")
+                            "name": name,
+                            "type": var_type,
+                            "description": description
                         })
             
             alimtalk_template = AlimtalkTemplate(
