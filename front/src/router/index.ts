@@ -14,7 +14,7 @@ const router = createRouter({
     {
       path: '/template/result',
       name: 'template-result',
-      component: () => import('../TemplateResultView.vue'),
+      component: () => import('../views/TemplateResultView.vue'),
       meta: { requiresAuth: true }
     },
 
