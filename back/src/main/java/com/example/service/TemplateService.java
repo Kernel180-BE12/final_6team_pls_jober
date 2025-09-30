@@ -47,15 +47,18 @@ public class TemplateService {
                     .build();
 
             if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
-                // 유효한 변수만 필터링 (null이 아니고, 공백이 아닌 변수만)
-                List<String> validVariables = requestDto.getVariableList().stream()
-                        .filter(variableName -> variableName != null && !variableName.trim().isEmpty())
+                // 딕셔너리 배열에서 유효한 변수만 필터링
+                List<Map<String, String>> validVariables = requestDto.getVariableList().stream()
+                        .filter(variableMap -> variableMap != null && 
+                                variableMap.get("variableKey") != null && 
+                                !variableMap.get("variableKey").trim().isEmpty())
                         .toList();
                 
                 if (!validVariables.isEmpty()) {
-                    for (String variableName : validVariables) {
+                    for (Map<String, String> variableMap : validVariables) {
+                        String variableKey = variableMap.get("variableKey").trim(); // 앞뒤 공백 제거
                         Var variable = Var.builder()
-                            .variableKey(variableName.trim()) // 앞뒤 공백 제거
+                            .variableKey(variableKey)
                             .build();
                         template.addVariable(variable);
                     }
@@ -180,7 +183,8 @@ public class TemplateService {
     //             .build();
     //
     //     if (requestDto.getVariableList() != null && !requestDto.getVariableList().isEmpty()) {
-    //         for (String variableKey : requestDto.getVariableList()) {
+    //         for (Map<String, String> variableMap : requestDto.getVariableList()) {
+    //             String variableKey = variableMap.get("variableKey");
     //             Var variable = Var.builder()
     //                     .variableKey(variableKey)
     //                     .build();

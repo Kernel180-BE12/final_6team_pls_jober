@@ -30,7 +30,7 @@ public class TemplateRequestDto {
     private List<Map<String, Object>> chatHistory = new ArrayList<>();
     
     @JsonDeserialize(using = VariableListDeserializer.class)
-    private List<String> variableList = new ArrayList<>();
+    private List<Map<String, String>> variableList = new ArrayList<>();
     
     // ChatHistory용 커스텀 디시리얼라이저
     public static class ChatHistoryDeserializer extends JsonDeserializer<List<Map<String, Object>>> {
@@ -55,15 +55,27 @@ public class TemplateRequestDto {
     }
     
     // VariableList용 커스텀 디시리얼라이저
-    public static class VariableListDeserializer extends JsonDeserializer<List<String>> {
+    public static class VariableListDeserializer extends JsonDeserializer<List<Map<String, String>>> {
         @Override
-        public List<String> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+        public List<Map<String, String>> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
             JsonNode node = p.getCodec().readTree(p);
-            List<String> result = new ArrayList<>();
+            List<Map<String, String>> result = new ArrayList<>();
             
             if (node.isArray()) {
                 for (JsonNode item : node) {
-                    result.add(item.asText());
+                    if (item.isObject()) {
+                        Map<String, String> map = new java.util.HashMap<>();
+                        item.fields().forEachRemaining(entry -> {
+                            map.put(entry.getKey(), entry.getValue().asText());
+                        });
+                        result.add(map);
+                    } else if (item.isTextual()) {
+                        // 문자열인 경우 딕셔너리로 변환
+                        Map<String, String> map = new java.util.HashMap<>();
+                        map.put("variableKey", item.asText());
+                        map.put("variableValue", "");
+                        result.add(map);
+                    }
                 }
             }
             return result;
