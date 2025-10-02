@@ -41,6 +41,7 @@ interface ProblemArea {
 
 interface KakaoPreviewProps {
   templateContent?: string
+  templateTitle?: string
   showVariables: boolean
   variables: string[]
   isRejected: boolean
