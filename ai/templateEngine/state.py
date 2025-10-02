@@ -5,7 +5,6 @@ from services.openai_service import OpenAIService
 from services.category_service import CategoryService
 from sqlalchemy.orm import Session
 import logging
-from .pipeline import create_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +61,8 @@ async def run_template_generation_pipeline_with_db(
             # ... 기타 초기값들
         }
 
+        # 순환 import 방지를 위해 함수 내에서 동적 import
+        from .pipeline import create_pipeline
         app = await create_pipeline()  # 기존 파이프라인 또는 최적화된 파이프라인
         final_state = await app.ainvoke(initial_state)
 
