@@ -1,24 +1,19 @@
 # services/chromadb_service.py
 
-import chromadb
-from chromadb.config import Settings
 import os
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
 try:
     import chromadb
+    from chromadb.config import Settings
     HAS_CHROMADB = True
 except ImportError:
     HAS_CHROMADB = False
     logger.warning("Warning: ChromaDB 패키지가 설치되지 않았습니다. Mock 모드로 실행됩니다.")
-
-from typing import List, Dict, Any, Optional
-import os
-
-from dotenv import load_dotenv
 
 # 현재 폴더의 .env 파일 로드
 load_dotenv()
@@ -26,8 +21,7 @@ load_dotenv()
 class ChromaDBService:
     def __init__(self):
         self.client = None
-        self.approved_collection = None
-        self.public_templates = None
+        self.collections: Dict[str, Any] = {}
         self._connect()
 
     def _connect(self):
@@ -47,9 +41,16 @@ class ChromaDBService:
                 self.client = chromadb.PersistentClient(path=persist_dir)
                 logger.info(f"✅ 로컬 ChromaDB 연결 성공: {persist_dir}")
 
-            self.approved_collection = self.client.get_or_create_collection("approved_templates")
-            self.public_templates = self.client.get_or_create_collection("pulblic_templates")
-            logger.info("✅ 컬렉션('approved_templates', 'public_templates') 로드 완료")
+            required_collections = [
+                "approved_templates",
+                "public_templates",   # 오타 pulblic → public
+                "denied_templates",
+                "blacklist",
+                "rejection_reasons",  # 반려 사유 컬렉션 추가
+            ]
+            for col in required_collections:
+                self.collections[col] = self.client.get_or_create_collection(col)
+                logger.info(f"✅ 컬렉션 준비 완료: {col}")
             self.is_mock = False
         except Exception as e:
             logger.error(f"❌ ChromaDB 연결 또는 컬렉션 로드 실패: {e}", exc_info=True)
@@ -63,83 +64,107 @@ class ChromaDBService:
         """
         if getattr(self, "_initialized", False):
             return
-        # 예: 블랙리스트/화이트리스트 컬렉션 미리 로드
-        self._get_or_create_collection("blacklist")
-        self._get_or_create_collection("whitelist")
+        # 초기화 완료 표시
         self._initialized = True
 
-    def _get_or_create_collection(self, collection_name: str):
-        """
-        컬렉션 가져오기 또는 생성
-        """
-        if not HAS_CHROMADB or self.client is None:
-            return None
 
-        try:
-            return self.client.get_or_create_collection(name=collection_name)
-        except Exception:
-            return None
+    def search_templates(self, 
+                        collection_name: str, 
+                        query_text: str, 
+                        top_k: int = 3, 
+                        category_sub: str = None,
+                        result_format: str = "standard") -> List[Dict]:
+        """
+        템플릿 검색 공통 함수
+        
+        Args:
+            collection_name: 검색할 컬렉션 이름 ('approved_templates' 또는 'public_templates')
+            query_text: 검색 쿼리 텍스트
+            top_k: 반환할 결과 개수
+            category_sub: 카테고리 필터링 (approved_templates에서만 사용)
+            result_format: 결과 형식 ('standard' 또는 'legacy')
+        
+        Returns:
+            List[Dict]: 검색된 템플릿 리스트 (유사도 기준 정렬됨)
+        """
 
-    def search_public_templates(self, query_text: str, top_k: int = 3) -> List[Dict]:
-        logger.info("  - 검색 대상: 공용 템플릿")
-        if not self.public_templates:
-            logger.warning("⚠️ 'public_templates' 컬렉션이 없습니다.")
+
+        # 컬렉션 선택
+        if collection_name == "approved_templates":
+            collection = self.collections.get("approved_templates")
+            logger.info("  - 검색 대상: 승인된 템플릿")
+        elif collection_name == "public_templates":
+            collection = self.collections.get("public_templates")
+            logger.info("  - 검색 대상: 공용 템플릿")
+        elif collection_name == "denied_templates":
+            collection = self.collections.get("denied_templates")
+            logger.info("  - 검색 대상: 반려된 템플릿")
+        elif collection_name == "rejection_reasons":
+            collection = self.collections.get("rejection_reasons")
+            logger.info("  - 검색 대상: 반려 사유")
+        else:
+            logger.error(f"❌ 알 수 없는 컬렉션: {collection_name}")
             return []
-        try:
-            results = self.public_templates.query(
-                query_texts=[query_text], n_results=top_k, include=['documents', 'metadatas', 'distances']
-            )
-            templates = []
-
-            # 👇 --- 여기가 핵심 수정 사항 --- 👇
-            # ChromaDB의 query 결과는 항상 2차원 리스트이므로, 첫 번째 요소([0])에 접근해야 합니다.
-            if results and results['ids'] and results['ids'][0]:
-                ids = results['ids'][0]
-                documents = results['documents'][0]
-                metadatas = results['metadatas'][0]
-                distances = results['distances'][0]
-
-                for i, (doc, meta, dist) in enumerate(zip(documents, metadatas, distances)):
-                    templates.append({'id': ids[i], 'text': doc, 'metadata': meta, 'similarity': 1.0 - float(dist)})
-
-                templates.sort(key=lambda x: x['similarity'], reverse=True)
-            return templates
-        except Exception as e:
-            logger.error(f"❌ 공용 템플릿 검색 중 오류: {e}", exc_info=True)
+        
+        if not collection:
+            logger.warning(f"⚠️ '{collection_name}' 컬렉션이 없습니다.")
             return []
-
-    def search_approved_templates(self, query_text: str, category_sub: str = None, top_k: int = 3) -> Tuple[List[Dict], float]:
-        """
-        승인된 템플릿 검색 (카테고리 제한 옵션)
-        """
+        
         try:
-            # 카테고리 필터링 조건
-            where_condition = None if category_sub is None else {"category_sub": category_sub}
-
-            results = self.approved_collection.query(
+            # 카테고리 필터링 조건 (approved_templates에서만 사용)
+            where_condition = None
+            if collection_name == "approved_templates" and category_sub is not None:
+                where_condition = {"category_sub": category_sub}
+            
+            # 쿼리 실행
+            results = collection.query(
                 query_texts=[query_text],
                 n_results=top_k,
-                where=where_condition  # None이면 전체 검색, 값이 있으면 해당 카테고리만
+                where=where_condition,
+                include=['documents', 'metadatas', 'distances']
             )
-
+            
             templates = []
-            max_similarity = 0.0
-
-            if results['ids'] and results['ids'][0]:
-                for i, template_id in enumerate(results['ids'][0]):
-                    metadata = results['metadatas'][0][i] if results['metadatas'] else {}
-                    similarity = 1 - results['distances'][0][i]  # 거리를 유사도로 변환
-
-                    template_data = {
-                        'id': template_id,
-                        'similarity': similarity,
-                        'content': results['documents'][0][i] if results['documents'] else '',
-                        **metadata
-                    }
+            
+            # 결과 처리
+            if results and results['ids'] and results['ids'][0]:
+                ids = results['ids'][0]
+                documents = results['documents'][0] if results['documents'] else []
+                metadatas = results['metadatas'][0] if results['metadatas'] else []
+                distances = results['distances'][0] if results['distances'] else []
+                
+                for i, template_id in enumerate(ids):
+                    doc = documents[i] if i < len(documents) else ''
+                    meta = metadatas[i] if i < len(metadatas) else {}
+                    dist = distances[i] if i < len(distances) else 1.0
+                    similarity = 1.0 - float(dist)
+                    
+                    # 결과 형식에 따른 데이터 구조 결정
+                    if result_format == "legacy" and collection_name == "public_templates":
+                        # 공용 템플릿 형식 (text, metadata 필드 사용)
+                        template_data = {
+                            'id': template_id,
+                            'text': doc,
+                            'metadata': meta,
+                            'similarity': similarity
+                        }
+                    else:
+                        # 승인된 템플릿 형식 (content 필드와 메타데이터 병합)
+                        template_data = {
+                            'id': template_id,
+                            'similarity': similarity,
+                            'content': doc,
+                            **meta
+                        }
+                    
                     templates.append(template_data)
-                    max_similarity = max(max_similarity, similarity)
-            return templates, max_similarity
-
+                
+                # 유사도 기준으로 정렬
+                templates.sort(key=lambda x: x['similarity'], reverse=True)
+            
+            return templates
+                
         except Exception as e:
-            self.logger.error(f"템플릿 검색 중 오류: {e}")
-            return [], 0.0
+            logger.error(f"❌ {collection_name} 검색 중 오류: {e}", exc_info=True)
+            return []
+

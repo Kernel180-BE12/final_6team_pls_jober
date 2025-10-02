@@ -24,7 +24,13 @@ api.interceptors.request.use(
   (config) => {
     // user store에서 토큰 가져오기
     const userStore = useUserStore()
-    if (userStore.accessToken) {
+
+    // 로그인 관련 API는 토큰이 필요하지 않음
+    const isAuthAPI = config.url?.includes('/auth/')
+    
+    if (!userStore.accessToken && !isAuthAPI) {
+      console.warn('API 요청 시 토큰이 없습니다. 로그인이 필요할 수 있습니다.')
+    } else if (userStore.accessToken) {
       config.headers.Authorization = `Bearer ${userStore.accessToken}`
     }
     return config
@@ -48,15 +54,11 @@ aiApi.interceptors.request.use(
 // 백엔드 API 응답 인터셉터
 api.interceptors.response.use(
   (response) => {
-    // 카카오 로그인 응답에 대한 디버깅
-    if (response.config.url?.includes('/auth/kakao/login')) {
-      console.log('카카오 로그인 API 응답:', response.data)
-    }
     return response
   },
   async (error) => {
-    // 401 에러 시 자동 로그아웃
-    if (error.response?.status === 401) {
+    // 401, 403 에러 시 자동 로그아웃
+    if (error.response?.status === 401 ) {
       const userStore = useUserStore()
       userStore.logout()
     }
@@ -136,6 +138,14 @@ export const myPageApi = {
 
 export type VariableDto = { variableKey: string; variableValue: string };
 
+// 변수 리스트를 딕셔너리 배열로 변환하는 헬퍼 함수
+const convertToStringArray = (variableList: string[]): Array<{variableKey: string, variableValue: string}> => {
+  return variableList.map(variable => ({
+    variableKey: variable,
+    variableValue: ''
+  }))
+}
+
 // 템플릿 관련 API
 export const templateApi = {
   // AI를 통한 템플릿 생성 (AI 서버 직접 호출)
@@ -143,39 +153,56 @@ export const templateApi = {
     aiApi.post('/template/generate', { userMessage }),
   
   // 템플릿 검증 (백엔드 API를 통해)
-  validateTemplate: (templateContent: string, variableList: VariableDto[], category?: string, userMessage?: string, templateTitle?: string) => {
-    // 백엔드가 기대하는 VariableDto 배열 형식으로 변환
-    // const variableArray = Object.entries(variableList).map(([key, value]) => ({
-    //   variableKey: key,
-    //   variableValue: String(value)
-    // }))
-    //
+  validateTemplate: (templateContent: string, variableList: string[], category?: string, userMessage?: string, templateTitle?: string, templateId?: string) => {
+    // variableList를 딕셔너리 배열로 변환
+    const variableDictList = convertToStringArray(variableList)
+    
     // 백엔드 ValidationRequest 형식에 맞게 데이터 변환
     const validationRequest = {
-      templateContent,
-      variableList,
-      category,
-      userMessage,
-      templateTitle,
+      templateContent: templateContent,
+      variableList: variableDictList,
+      category: category,
+      userMessage: userMessage,
+      templateTitle: templateTitle,
+      templateId: templateId
     }
     
-    console.log('검증 요청 데이터:', validationRequest)
     
-    return api.post('/template/validate', validationRequest)
+    return aiApi.post('/template/validate', validationRequest)
   },
   
   // 템플릿 수정 요청 (채팅을 통한)
   modifyTemplate: (templateContent: string, templateTitle: string, userMessage: string, variableList: string[], category: string, chatHistory: any[]) => {
+    // variableList를 딕셔너리 배열로 변환
+    const variableDictList = convertToStringArray(variableList)
+    
     const modificationRequest = {
       templateContent: templateContent, 
       templateTitle: templateTitle,
       userMessage: userMessage,
-      variableList: variableList,
+      variableList: variableDictList,
       category: category,
       chatHistory: chatHistory 
     }
     
     return api.post('/template/modify', modificationRequest)
+  },
+
+  // 템플릿 저장 (검증 없이 바로 저장)
+  saveTemplate: (templateContent: string, variableList: string[], category: string, userMessage: string, templateTitle: string) => {
+    // variableList를 딕셔너리 배열로 변환
+    const variableDictList = convertToStringArray(variableList)
+
+    const saveRequest = {
+      templateContent: templateContent,
+      variableList: variableDictList,  // 딕셔너리 배열로 전달
+      category: category,
+      userMessage: userMessage,
+      templateTitle: templateTitle
+    }
+
+
+    return api.post('/template/save', saveRequest)
   },
 }
 

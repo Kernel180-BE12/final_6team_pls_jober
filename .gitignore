@@ -17,8 +17,17 @@ logs/
 *.log
 coverage/
 
+# Documentation and images
+*.md
+!CLAUDE.md
+!README.md
+*.jpg
+*.png
+*.gif
+
 # ---------- Python (ai) ----------
 ai/venv/
+ai/venv_new/
 **/__pycache__/
 **/*.py[cod]
 **/*.pyo

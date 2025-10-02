@@ -4,34 +4,24 @@ LLM을 활용한 동적 규칙 검증 시스템
 
 이 모듈은 템플릿 검증 파이프라인의 첫 번째 단계로, 다음과 같은 검증을 수행합니다:
 1. 정보성 메시지 요건 검증
-2. 정형화된 템플릿 요건 검증
-3. 변수 사용 규칙 검증
-4. 기타 템플릿 작성 규칙 검증
+2. 변수 사용 규칙 검증
+3. 기타 템플릿 작성 규칙 검증
 """
 import re
 from typing import Dict, Any, List
 import json
 import logging
 
-# 상대 임포트 시도 (패키지 내부에서 실행될 때) / main.py
-try:
-    from ..models.alimtalk_models import ValidationResult
-    from ..services.openai_service import OpenAIService
-    from .prompts.informational_message_prompt import get_informational_message_validation_prompt
-    from .prompts.standardized_template_prompt import get_standardized_template_validation_prompt
-    from .prompts.variable_usage_prompt import get_variable_usage_validation_prompt
-    from .prompts.template_writing_prompt import get_template_writing_validation_prompt
-except ImportError:
-    # 절대 임포트 (단독 실행될 때) / validators/constraint_validator.py
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from models.alimtalk_models import ValidationResult
-    from services.openai_service import OpenAIService
-    from validators.prompts.informational_message_prompt import get_informational_message_validation_prompt
-    from validators.prompts.standardized_template_prompt import get_standardized_template_validation_prompt
-    from validators.prompts.variable_usage_prompt import get_variable_usage_validation_prompt
-    from validators.prompts.template_writing_prompt import get_template_writing_validation_prompt
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from models.alimtalk_models import ValidationResult
+from services.openai_service import OpenAIService
+from validators.prompts.informational_message_prompt import get_informational_message_validation_prompt
+from validators.prompts.variable_usage_prompt import get_variable_usage_validation_prompt
+from validators.prompts.template_writing_prompt import get_template_writing_validation_prompt
+from validators.prompts.system_prompts import get_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +49,8 @@ class ConstraintValidator:
         
         검증 규칙:
         1. 정보성 메시지 요건
-        2. 정형화된 템플릿 요건  
-        3. 변수 사용 규칙
-        4. 기타 템플릿 작성 규칙
+        2. 변수 사용 규칙
+        3. 기타 템플릿 작성 규칙
         
         Args:
             template_data: 검증할 템플릿 데이터
@@ -79,7 +68,7 @@ class ConstraintValidator:
         logger.debug(f"입력 데이터 keys: {list(template_data.keys())}")
 
         try:
-            # 4개 검증 단계를 비동기로 병렬 실행
+            # 3개 검증 단계를 비동기로 병렬 실행
             import asyncio
             
             # 현재 이벤트 루프가 실행 중인지 확인
@@ -105,7 +94,7 @@ class ConstraintValidator:
             validation_details = []
             
             # 각 검증 결과를 순서대로 처리
-            step_names = ["정보성 메시지", "정형화된 템플릿", "변수 사용 규칙", "기타 템플릿 작성"]
+            step_names = ["정보성 메시지", "변수 사용 규칙", "기타 템플릿 작성"]
             
             for i, (step_name, result) in enumerate(zip(step_names, results), 1):
                 if isinstance(result, Exception):
@@ -163,7 +152,6 @@ class ConstraintValidator:
                     "validation_details": validation_details,
                     "rules_checked": [
                         "informational_message_requirements",
-                        "standardized_template_requirements", 
                         "variable_usage_rules",
                         "other_template_rules"
                     ]
@@ -192,10 +180,9 @@ class ConstraintValidator:
         """
         import asyncio
         
-        # 4개 검증을 병렬로 실행
+        # 3개 검증을 병렬로 실행
         tasks = [
             self._check_informational_message_requirements_async(template_data),
-            self._check_standardized_template_requirements_async(template_data),
             self._check_variable_usage_rules_async(template_data),
             self._check_other_template_rules_async(template_data)
         ]
@@ -218,7 +205,7 @@ class ConstraintValidator:
             
             # 비동기 함수 호출
             response = await self.openai_service.chat_completion([
-                {"role": "system", "content": "알림톡 템플릿 검증 전문가입니다. JSON 형식으로만 응답하세요."},
+                {"role": "system", "content": get_system_prompt('informational')},
                 {"role": "user", "content": prompt}
             ])
             
@@ -248,48 +235,6 @@ class ConstraintValidator:
         
         return errors, warnings, details
 
-    async def _check_standardized_template_requirements_async(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]]]:
-        """정형화된 템플릿 요건 검증 (비동기 버전)"""
-        errors, warnings, details = [], [], []
-        
-        # 검증 대상 데이터 추출 (제목, 내용)
-        templateContent = template_data.get('template_content', '')
-        templateTitle = template_data.get('template_title', '')
-        
-        try:
-            prompt = get_standardized_template_validation_prompt(templateTitle, templateContent)
-            
-            # 비동기 함수 호출
-            response = await self.openai_service.chat_completion([
-                {"role": "system", "content": "알림톡 템플릿 검증 전문가입니다. JSON 형식으로만 응답하세요."},
-                {"role": "user", "content": prompt}
-            ])
-            
-            try:
-                result = json.loads(response)
-                if not result.get('is_valid', True):
-                    for violation in result.get('violations', []):
-                        message = f"정형화된 템플릿 요건 위반: {violation.get('reason', '알 수 없는 사유')}"
-                        if violation.get('severity') == 'error':
-                            errors.append(message)
-                        else:
-                            warnings.append(message)
-                        details.append({
-                            "rule_type": "standardized_template",
-                            "rule": violation.get('rule', '알 수 없는 규칙'),
-                            "reason": violation.get('reason', '알 수 없는 사유'),
-                            "suggestion": violation.get('suggestion', '수정이 필요합니다'),
-                            "severity": violation.get('severity', 'error')
-                        })
-            except json.JSONDecodeError:
-                warnings.append("정형화된 템플릿 검증 응답 파싱 중 오류가 발생했습니다.")
-                
-        except Exception as e:
-            # 시스템 오류는 로그에만 기록하고 사용자에게는 일반적인 메시지만 표시
-            logger.warning(f"정형화된 템플릿 검증 중 예외 발생: {str(e)}")
-            warnings.append("정형화된 템플릿 검증 중 오류가 발생했습니다.")
-        
-        return errors, warnings, details
 
     async def _check_variable_usage_rules_async(self, template_data: Dict[str, Any]) -> tuple[List[str], List[str], List[Dict[str, Any]], List[str]]:
         """변수 사용 규칙 검증 (비동기 버전)"""
@@ -311,7 +256,7 @@ class ConstraintValidator:
             
             # 비동기 함수 호출
             response = await self.openai_service.chat_completion([
-                {"role": "system", "content": "알림톡 템플릿 변수 사용 검증 전문가입니다. JSON 형식으로만 응답하세요."},
+                {"role": "system", "content": get_system_prompt('variable_usage')},
                 {"role": "user", "content": prompt}
             ])
             
@@ -360,7 +305,7 @@ class ConstraintValidator:
             
             # 비동기 함수 호출
             response = await self.openai_service.chat_completion([
-                {"role": "system", "content": "알림톡 템플릿 작성 규칙 검증 전문가입니다. JSON 형식으로만 응답하세요."},
+                {"role": "system", "content": get_system_prompt('template_writing')},
                 {"role": "user", "content": prompt}
             ])
             

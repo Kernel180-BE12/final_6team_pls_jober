@@ -1,6 +1,7 @@
 # templateEngine/nodes.py
 
 import json
+from templateEngine.prompts.message_analyzer_prompts import UnsuitableMessageError
 import logging
 import re
 from typing import Dict, Any, Literal, List
@@ -9,6 +10,7 @@ from services.category_service import CategoryService
 
 from templateEngine.state import TemplateGenerationState
 from templateEngine.prompts.builders import (
+    SuitabilityCheckPromptBuilder,
     TypePromptBuilder,
     TemplateTitlePromptBuilder,
     CategoryPromptBuilder,
@@ -43,7 +45,11 @@ async def initial_analysis_node(state: TemplateGenerationState) -> Dict[str, Any
         try:
             prompt_builder = TemplateTitlePromptBuilder(state["userMessage"])
             messages = prompt_builder.build()
-            return await state["openai_service"].chat_completion(messages)
+            title_result = await state["openai_service"].chat_completion(messages)
+            # 따옴표 제거
+            cleaned_title = title_result.strip().strip('"').strip("'")
+            logger.info(f"✅ 제목 생성 성공: {cleaned_title}")
+            return cleaned_title
         except Exception as e:
             logger.error(f"❌ (병렬) 제목 생성 실패: {e}")
             return "제목 생성 실패"
@@ -152,6 +158,8 @@ async def extract_blocks_node(state: TemplateGenerationState) -> Dict[str, Any]:
         logger.info(f"✅ 최종 필드 병합 완료. 총 {len(final_extracted_fields)}개의 변수/블록 추출.")
         return {"extracted_fields": final_extracted_fields}
 
+        logger.info("✅ 템플릿 생성 성공")
+        return {"generated_template": generated_text}
     except Exception as e:
         logger.error(f"❌ 블록/변수 추출 과정에서 오류 발생: {e}")
         return {"extracted_fields": {}}
@@ -289,7 +297,7 @@ def finalize_node(state: TemplateGenerationState) -> Dict[str, Any]:
         "template_text": final_template_with_vars,
         "variable_mapping": extracted_fields,
         "variables": list(extracted_fields.keys()),
-        "template_title": state.get("generated_title", "제목 없음"),
+        "template_title": generated_title,
         "message_type": state.get("message_type_result", {}).get("type"),
         "category_sub": state.get("category_result", {}).get("category_sub"),
     }

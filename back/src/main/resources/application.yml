@@ -12,8 +12,9 @@ spring:
   # flyway 마이그레이션 설정
   flyway:
     enabled: true
-    baseline-on-migrate: true
-    baseline-version: 0
+    baseline-on-migrate: false   # 최초 도입 때만 true, 지금은 끄기
+    # baseline-version: 0        # 더 이상 필요 없으면 아예 제거
+    validate-on-migrate: true    # 마이그레이션 무결성 검사 켜두기
     locations:
       - classpath:db/migration
       - classpath:db/seed

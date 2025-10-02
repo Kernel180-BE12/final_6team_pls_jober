@@ -2,9 +2,12 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional, Dict, Any
 import re
 from services.openai_service import OpenAIService
-from services.dependencies import get_openai_service
-from templateEngine.prompts.message_analyzer_prompts import TemplateModificationPromptBuilder
+
+from services.chromadb_service import ChromaDBService
+from templateEngine.prompts.message_analyzer_prompts import TemplateGenerationPromptBuilder, TemplateModificationPromptBuilder
+from templateEngine.pipeline import create_pipeline
 from middleware.auth_middleware import get_current_user
+from services.dependencies import get_openai_service
 from models.alimtalk_models import (
     ChatRequest, ChatResponse, 
     TemplateModificationRequest, TemplateModificationResponse
@@ -39,9 +42,12 @@ async def modify_template(
         chat_context = ""
         if request.chat_history:
             chat_context = "\n".join([
-                f"{msg.get('type', 'user')}: {msg.get('content', '')}"
+                f"[{msg.get('type', 'user')}] {msg.get('content', '')}"
                 for msg in request.chat_history[-6:]  # 최근 6개 메시지만 사용
             ])
+            print(f"채팅 히스토리 ({len(request.chat_history)}개 메시지): {chat_context}")
+        else:
+            print("채팅 히스토리가 없습니다.")
 
         # 프롬프트 빌더 사용
         prompt_builder = TemplateModificationPromptBuilder(
@@ -60,18 +66,31 @@ async def modify_template(
         if template_match:
             modified_template = template_match.group(1).strip()
         else:
-            # 패턴이 맞지 않으면 전체 응답에서 첫 번째 줄만 사용
-            lines = response.split('\n')
-            modified_template = lines[0] if lines else response
+            # 패턴 2: "---" 사이의 내용이 여러 개인 경우 첫 번째 것 사용
+            dash_matches = re.findall(r'---\s*\n(.*?)\n---', response, re.DOTALL)
+            if dash_matches and len(dash_matches) > 0:
+                # 첫 번째 "---" 사이의 내용이 가장 긴 것을 선택 (템플릿 내용)
+                modified_template = max(dash_matches, key=len).strip()
+            else:
+                # 패턴 3: 전체 응답에서 첫 번째 긴 텍스트 블록 사용
+                lines = response.split('\n')
+                content_lines = []
+                in_content = False
+                for line in lines:
+                    if '알림톡' in line and '템플릿' in line:
+                        in_content = True
+                        continue
+                    if in_content and line.strip() and not line.startswith('변수') and not line.startswith('이 템플릿'):
+                        content_lines.append(line)
+                    if line.startswith('변수') or line.startswith('이 템플릿'):
+                        break
+                modified_template = '\n'.join(content_lines).strip()
 
-        # 추가 필터링: 설명 텍스트 제거
-        modified_template = re.split(r'(?:수정된 부분 설명:|수정 설명:|설명:)', modified_template)[0].strip()
+        # 최종 정리
+        if not modified_template or len(modified_template) < 10:
+            modified_template = response.strip()
 
-        # "수정된 템플릿:" 제거
-        modified_template = re.sub(r'^수정된 템플릿:\s*', '', modified_template)
-
-        # 마지막으로 줄바꿈 정리
-        modified_template = re.sub(r'\n+', '\n', modified_template).strip()
+        print(f"추출된 템플릿: {modified_template}")
 
         variables = []
         

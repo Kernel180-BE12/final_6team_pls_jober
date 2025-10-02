@@ -28,9 +28,9 @@ public class TemplateResponseDto {
     private List<String> policyRefs;
 
     public static TemplateResponseDto fromEntity(Template template) {
-        // Var 리스트를 <Key, Value> 형태의 Map으로 변환합니다.
+        // Var 리스트를 Key만 포함하는 Map으로 변환합니다.
         Map<String, String> variablesMap = template.getVariables().stream()
-                .collect(Collectors.toMap(Var::getVariableKey, var -> var.getVariableValue() != null ? var.getVariableValue() : ""));
+                .collect(Collectors.toMap(Var::getVariableKey, var -> ""));
 
         // PolicyRef 리스트를 docId 문자열 리스트로 변환합니다.
         List<String> docIds = template.getPolicyRefs().stream()

@@ -26,14 +26,8 @@ public class Var {
     @Column(name = "variable_key", nullable = false, length = 100)
     private String variableKey;
 
-    @Size(max = 1000)
-    @Column(name = "variable_value", length = 1000)
-    private String variableValue;
-
-
     @Builder
-    public Var(String variableKey, String variableValue) {
+    public Var(String variableKey) {
         this.variableKey = variableKey;
-        this.variableValue = variableValue;
     }
 }

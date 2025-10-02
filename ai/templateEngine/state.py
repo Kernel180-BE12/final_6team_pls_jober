@@ -15,6 +15,7 @@ class TemplateGenerationState(TypedDict):
     db_session: Session  # 👈 DB 세션 추가
 
     # 처리 결과
+    suitability_check_result: Optional[Dict]
     message_type_result: Optional[Dict]
     category_result: Optional[Dict]  # category_id도 포함됨
     generated_title: Optional[str]

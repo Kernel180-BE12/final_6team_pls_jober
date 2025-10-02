@@ -24,6 +24,8 @@ public class TemplateValidationResponseDto {
         private String errorMessage;
         private String errorType;
         private String validationStage; // 검증 단계 정보 추가
+        private Integer startPosition; // 문제 텍스트 시작 위치
+        private Integer endPosition; // 문제 텍스트 끝 위치
         
         public ValidationError(String variableName, String errorMessage, String errorType) {
             this.variableName = variableName;
@@ -36,6 +38,15 @@ public class TemplateValidationResponseDto {
             this.errorMessage = errorMessage;
             this.errorType = errorType;
             this.validationStage = validationStage;
+        }
+        
+        public ValidationError(String variableName, String errorMessage, String errorType, String validationStage, Integer startPosition, Integer endPosition) {
+            this.variableName = variableName;
+            this.errorMessage = errorMessage;
+            this.errorType = errorType;
+            this.validationStage = validationStage;
+            this.startPosition = startPosition;
+            this.endPosition = endPosition;
         }
     }
     

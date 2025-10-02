@@ -8,7 +8,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import java.util.Map;
-import java.util.List;
 
 
 /**
@@ -44,39 +43,13 @@ public class AIService {
         log.info("FastAPI 템플릿 검증 요청 시작: {}", validationRequest);
         
         try {
-            // AI 서버에 전송할 요청 형식으로 변환 (생성 결과 구조에 맞게)
-            // HashMap을 사용하여 동적으로 필드 추가 가능
-            Map<String, Object> templateMap = new java.util.HashMap<>();
-            templateMap.put("channel", "alimtalk");
-            templateMap.put("template_content", validationRequest.get("user_input"));  // templateContent → template_content
-            templateMap.put("category", validationRequest.get("category"));
-            if (validationRequest.containsKey("templateTitle") && validationRequest.get("templateTitle") != null) {
-                templateMap.put("template_title", validationRequest.get("templateTitle"));  // templateTitle → template_title
-            }
-            
-            // variableList를 variables로 변환 (List[Dict] → List[String])
-            Object variableListObj = validationRequest.get("variableList");
-            if (variableListObj instanceof List) {
-                @SuppressWarnings("unchecked")
-                List<Object> variableList = (List<Object>) variableListObj;
-                List<String> variables = new java.util.ArrayList<>();
-                for (Object var : variableList) {
-                    if (var instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> varMap = (Map<String, Object>) var;
-                        Object variableKey = varMap.get("variableKey");
-                        if (variableKey != null) {
-                            variables.add(variableKey.toString());
-                        }
-                    }
-                }
-                templateMap.put("variables", variables);  // variableList → variables
-            }
-            // 조건부로 templateTitle 필드 추가
-            Map<String, Object> aiRequest = Map.of(
-                "template", templateMap,
-                "user_input", validationRequest.get("userMessage")
-            );
+            // AI 서버에 전송할 요청 형식으로 변환 (1차원 구조로 단순화)
+            Map<String, Object> aiRequest = new java.util.HashMap<>();
+            aiRequest.put("templateContent", validationRequest.get("user_input"));
+            aiRequest.put("category", validationRequest.get("category"));
+            aiRequest.put("userMessage", validationRequest.get("userMessage"));
+            aiRequest.put("templateTitle", validationRequest.get("templateTitle"));
+            aiRequest.put("variableList", validationRequest.get("variableList"));
             
             log.info("AI 서버로 전송할 요청: {}", aiRequest);
             
