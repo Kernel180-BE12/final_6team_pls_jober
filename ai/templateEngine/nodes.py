@@ -160,9 +160,6 @@ async def extract_blocks_node(state: TemplateGenerationState) -> Dict[str, Any]:
 
         logger.info(f"✅ 최종 필드 병합 완료. 총 {len(final_extracted_fields)}개의 변수/블록 추출.")
         return {"extracted_fields": final_extracted_fields}
-
-        logger.info("✅ 템플릿 생성 성공")
-        return {"generated_template": generated_text}
     except Exception as e:
         logger.error(f"❌ 블록/변수 추출 과정에서 오류 발생: {e}")
         return {"extracted_fields": {}}

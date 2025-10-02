@@ -2,7 +2,12 @@
 from typing import TypedDict, List, Literal, Optional, Dict, Any
 from services.chromadb_service import ChromaDBService
 from services.openai_service import OpenAIService
+from services.category_service import CategoryService
 from sqlalchemy.orm import Session
+import logging
+from .pipeline import create_pipeline
+
+logger = logging.getLogger(__name__)
 
 class TemplateGenerationState(TypedDict):
     # 입력
