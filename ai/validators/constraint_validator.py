@@ -68,7 +68,7 @@ class ConstraintValidator:
         logger.debug(f"입력 데이터 keys: {list(template_data.keys())}")
 
         try:
-            # 3개 검증 단계를 비동기로 병렬 실행
+            # 3개 검증 단계를 비동기로 병렬 실행 (시간 단축)
             import asyncio
             
             # 현재 이벤트 루프가 실행 중인지 확인

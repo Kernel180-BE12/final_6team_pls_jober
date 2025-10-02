@@ -653,31 +653,47 @@ const tryContextBasedMatching = (problemArea: any, modifiedText: string): { succ
   return { success: false, template: template }
 }
 
-// 대안 텍스트에서 실제 수정될 텍스트 추출 (제약사항 태그와 설명 제거)
+// 대안 텍스트에서 실제 수정될 텍스트 추출 (구조화된 형식 지원)
 const extractModifiedTextFromAlternative = (alternativeText: string): string | null => {
   console.log('=== 대안 텍스트 추출 시작 ===')
   console.log('원본 대안 텍스트:', alternativeText)
   
-  // 1. 제약사항 태그 제거 (⟦constraint_...⟧...⟦/constraint_...⟧)
+  // 1. 구조화된 형식 처리: "기존텍스트 → 수정텍스트" 형태
+  if (alternativeText.includes(' → ')) {
+    const parts = alternativeText.split(' → ')
+    if (parts.length === 2) {
+      const modifiedText = parts[1].trim()
+      console.log('구조화된 형식에서 추출된 텍스트:', modifiedText)
+      return modifiedText
+    }
+  }
+  
+  // 2. 불릿 포인트 삭제 처리
+  if (alternativeText.startsWith('REMOVE_') && alternativeText.endsWith('_BULLET')) {
+    console.log('불릿 포인트 삭제 대안:', alternativeText)
+    return alternativeText
+  }
+  
+  // 3. 제약사항 태그 제거 (⟦constraint_...⟧...⟦/constraint_...⟧)
   let cleanText = alternativeText.replace(/⟦constraint_[^⟦]+⟧([^⟦]*)⟦\/constraint_[^⟦]+⟧/g, '$1')
   
-  // 2. 기타 마커 태그들 제거
+  // 4. 기타 마커 태그들 제거
   cleanText = cleanText.replace(/⟦[^⟦]+⟧([^⟦]*)⟦\/[^⟦]+⟧/g, '$1')
   
-  // 3. 스마트 설명형 텍스트 제거 (패턴 기반)
+  // 5. 스마트 설명형 텍스트 제거 (패턴 기반)
   cleanText = removeExplanatoryText(cleanText)
   
-  // 4. 고객에게 보이면 안 되는 메시지 패턴 제거
+  // 6. 고객에게 보이면 안 되는 메시지 패턴 제거
   cleanText = removeInternalMessages(cleanText)
   
-  // 5. 범용적인 불릿 포인트 특별 처리
+  // 7. 범용적인 불릿 포인트 특별 처리
   const bulletResult = handleBulletPointAlternative(cleanText)
   if (bulletResult) {
     console.log('불릿 포인트 관련 대안 처리 결과:', bulletResult)
     return bulletResult
   }
   
-  // 6. 콜론(:) 기반 추출 시도
+  // 8. 콜론(:) 기반 추출 시도
   const colonIndex = cleanText.indexOf(':')
   if (colonIndex !== -1) {
     const extractedText = cleanText.substring(colonIndex + 1).trim()
@@ -690,40 +706,39 @@ const extractModifiedTextFromAlternative = (alternativeText: string): string | n
     }
   }
   
-  // 7. 다양한 패턴으로 추출 시도
-  const patterns = [
+  // 9. 기존 패턴 매칭 (하위 호환성을 위해 유지)
+  const legacyPatterns = [
     /대안\d+-\d+:\s*(.+)/,  // "대안1-1: 텍스트" 형식
     /대안\d+:\s*(.+)/,      // "대안1: 텍스트" 형식
     /실제 수정될 텍스트 예시[:\s]*["']([^"']+)["']/,
     /실제 수정될 텍스트 예시[:\s]*([^-\n]+)/,
     /예시[:\s]*["']([^"']+)["']/,
-    /수정[:\s]*["']([^"']+)["']/,
-    /^(.+)$/  // 마지막으로 전체 텍스트를 그대로 사용
+    /수정[:\s]*["']([^"']+)["']/
   ]
   
-  for (let i = 0; i < patterns.length; i++) {
-    const pattern = patterns[i]
+  for (let i = 0; i < legacyPatterns.length; i++) {
+    const pattern = legacyPatterns[i]
     const match = cleanText.match(pattern)
     if (match && match[1]) {
       const extractedText = match[1].trim()
-      console.log(`패턴 ${i + 1}으로 추출된 텍스트:`, extractedText)
+      console.log(`레거시 패턴 ${i + 1}으로 추출된 텍스트:`, extractedText)
       
       // 의미있는 내용인지 확인
       if (isMeaningfulContent(extractedText)) {
-        console.log(`패턴 ${i + 1} 추출 성공:`, extractedText)
+        console.log(`레거시 패턴 ${i + 1} 추출 성공:`, extractedText)
         return extractedText
       }
     }
   }
-  
-  // 8. 정리된 텍스트가 의미있는 내용인지 확인
+
+  // 10. 정리된 텍스트가 의미있는 내용인지 확인
   const finalText = cleanText.trim()
   if (isMeaningfulContent(finalText)) {
     console.log('정리된 텍스트 반환:', finalText)
     return finalText
   }
   
-  // 9. 모든 방법이 실패하면 원본 텍스트를 그대로 반환 (최후의 수단)
+  // 11. 모든 방법이 실패하면 원본 텍스트를 그대로 반환 (최후의 수단)
   console.log('모든 패턴 실패, 원본 텍스트 반환:', alternativeText)
   return alternativeText.trim()
 }
@@ -1040,6 +1055,9 @@ const removeInternalMessages = (text: string): string => {
 
 // 설명형 텍스트를 제거하는 스마트한 함수
 const removeExplanatoryText = (text: string): string => {
+  console.log('=== 설명형 텍스트 제거 시작 ===')
+  console.log('원본 텍스트:', text)
+  
   // 설명형 텍스트 패턴들 (더 범용적)
   const explanatoryPatterns = [
     // 작업 설명 패턴
@@ -1070,6 +1088,28 @@ const removeExplanatoryText = (text: string): string => {
     // 기술적 설명 패턴
     /이\s*내용이[^.]*\.\s*/g,
     /이\s*부분이[^.]*\.\s*/g,
+    
+    // 새로운 패턴: "A라는 문구가 B라 C로 바꾸세요" 형태
+    /[^.]*라는\s*문구가[^.]*\.\s*/g,
+    /[^.]*라는\s*내용이[^.]*\.\s*/g,
+    /[^.]*라는\s*텍스트가[^.]*\.\s*/g,
+    /[^.]*라는\s*표현이[^.]*\.\s*/g,
+    
+    // "A는 B라 C로 바꾸세요" 형태
+    /[^.]*는\s*[^.]*라\s*[^.]*로\s*바꾸세요[^.]*\.\s*/g,
+    /[^.]*는\s*[^.]*라\s*[^.]*로\s*변경하세요[^.]*\.\s*/g,
+    /[^.]*는\s*[^.]*라\s*[^.]*로\s*수정하세요[^.]*\.\s*/g,
+    
+    // "A가 B라 C로 바꾸세요" 형태
+    /[^.]*가\s*[^.]*라\s*[^.]*로\s*바꾸세요[^.]*\.\s*/g,
+    /[^.]*가\s*[^.]*라\s*[^.]*로\s*변경하세요[^.]*\.\s*/g,
+    /[^.]*가\s*[^.]*라\s*[^.]*로\s*수정하세요[^.]*\.\s*/g,
+    
+    // 광고성 관련 설명 패턴
+    /[^.]*광고성[^.]*\.\s*/g,
+    /[^.]*광고[^.]*\.\s*/g,
+    /[^.]*홍보[^.]*\.\s*/g,
+    /[^.]*마케팅[^.]*\.\s*/g,
     /이\s*텍스트가[^.]*\.\s*/g,
     /이\s*문장이[^.]*\.\s*/g,
     
@@ -1137,7 +1177,7 @@ const isMeaningfulContent = (text: string): boolean => {
   // 특수문자만 있는 경우 제외
   if (/^[^\w가-힣]*$/.test(text)) return false
   
-  // 설명형 키워드가 포함된 경우 제외
+  // 설명형 키워드가 포함된 경우 제외 (더 강화)
   const explanatoryKeywords = [
     '삭제', '제거', '변경', '수정', '교체', '대체',
     '과정', '태그', '미리보기', '사용자', '화면',
@@ -1145,7 +1185,10 @@ const isMeaningfulContent = (text: string): boolean => {
     '먼저', '그다음', '그리고', '또한', '추가로',
     '목적', '위해', '때문에', '결과', '최종',
     '예를', '예시', '기존', '원래', '이전',
-    '이것은', '저것은', '그것은', '이런', '저런'
+    '이것은', '저것은', '그것은', '이런', '저런',
+    '라는', '문구가', '내용이', '텍스트가', '표현이',
+    '광고성', '광고', '홍보', '마케팅', '바꾸세요',
+    '변경하세요', '수정하세요', '라 ', '로 ', '라서'
   ]
   
   const hasExplanatoryKeyword = explanatoryKeywords.some(keyword => 
